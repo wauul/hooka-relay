@@ -1,5 +1,7 @@
 # Hooka Relay
 
+[![CI](https://github.com/wauul/hooka-relay/workflows/CI/badge.svg)](https://github.com/wauul/hooka-relay/actions/workflows/ci.yml)
+
 [Live app](https://hooka-relay.vercel.app) · [API docs](https://hooka-relay.vercel.app/docs) · [Worker dashboard](https://railway.com/project/6a81016b-7716-4f67-807b-f0abf0a3987b/service/fbb521bc-0649-4a45-839e-15cbc60353a9) · [Live verification results](VERIFICATION.md)
 
 A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `openai/gpt-oss-20b` (override with GROQ_MODEL). The requested `llama-3.1-8b-instant` was retired from Groq's shared API on August 16, 2026 and returns model_not_found.
@@ -142,7 +144,7 @@ npm run test:coverage    # text summary and coverage/index.html
 
 Automated tests cover circuit-breaker boundaries and recovery, HMAC verification (empty, large and Unicode payloads), mocked idempotency, queue declarations/routing/publisher confirms, and the real event API against disposable Postgres. API tests also cover concurrent duplicate requests, application isolation, endpoint matching, invalid requests and the durable outbox during broker failure. Only RabbitMQ publishing is mocked in integration tests.
 
-Coverage measures six reliability/API modules explicitly listed in `vitest.config.ts`; it is not whole-application or UI coverage. CI enforces 90% statements, lines and functions, and 85% branches, and uploads HTML/LCOV reports. Full broker delivery, real TTL retry timing, worker recovery and browser flows remain manual checks documented in [VERIFICATION.md](VERIFICATION.md).
+The suite has 76 unit tests and 14 integration tests. Combined coverage reached 100% statements, branches, functions and lines for the six scoped modules. Coverage measures six reliability/API modules explicitly listed in `vitest.config.ts`; it is not whole-application or UI coverage. CI enforces 90% statements, lines and functions, and 85% branches, and uploads HTML/LCOV reports. Full broker delivery, real TTL retry timing, worker recovery and browser flows remain manual checks documented in [VERIFICATION.md](VERIFICATION.md).
 
 The CI workflow runs on pushes and pull requests to `master` (the default branch) and `main`. It installs with `npm ci`, typechecks, runs both test suites and coverage, builds Next.js, builds the worker image and checks its runtime contents. There is no existing lint script, so CI skips interactive lint setup and runs the strict TypeScript check instead.
 
@@ -161,3 +163,5 @@ docker run --rm --name hooka-relay-worker -p 8080:8080 \
 ```
 
 Use real connection values in your local environment; do not commit them. Alternatively use `docker run --rm -p 8080:8080 --env-file .env hooka-relay-worker` after configuring `.env`. Apply schema migrations with `npm run db:migrate` before starting the worker. The image does not run migrations automatically. Check readiness at `http://localhost:8080/health`; a reachable database and broker are required. Groq provides optional failure diagnosis.
+
+
