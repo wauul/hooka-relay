@@ -1,0 +1,4 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {declareTopology,DELAYS,QUEUE,EXCHANGE,RETRY_EXCHANGE} from '../lib/queue/topology';
+test('fresh broker gets durable queues and a route for expired messages',async()=>{const exchanges:any[]=[];const queues:any[]=[];const bindings:any[]=[];const ch={assertExchange:async(...a:any[])=>exchanges.push(a),assertQueue:async(...a:any[])=>queues.push(a),bindQueue:async(...a:any[])=>bindings.push(a)};await declareTopology(ch as any);assert.equal(exchanges.length,2);assert.deepEqual(bindings,[[QUEUE,EXCHANGE,'deliver'],[QUEUE,RETRY_EXCHANGE,'deliver']]);assert.equal(queues.length,6);for(const delay of DELAYS){const q=queues.find(q=>q[0]===delay.name);assert.equal(q[1].arguments['x-message-ttl'],delay.ms);assert.equal(q[1].arguments['x-dead-letter-exchange'],RETRY_EXCHANGE);assert.equal(q[1].durable,true);}});
