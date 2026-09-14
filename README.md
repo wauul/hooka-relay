@@ -1,6 +1,6 @@
 # Hooka Relay
 
-A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `llama-3.1-8b-instant`.
+A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `openai/gpt-oss-20b` (override with GROQ_MODEL). The requested `llama-3.1-8b-instant` was retired from Groq's shared API on August 16, 2026 and returns model_not_found.
 
 ## Run locally
 
@@ -118,7 +118,7 @@ After three consecutive failures, the worker sends recent response snippets to G
 
 ## Deployment
 
-Web: Vercel Hobby. Worker: Railway Free/Trial with `Dockerfile.worker` and `railway.json`. Database: Neon Free. Broker: CloudAMQP Little Lemur. AI: Groq Free. No payment information is needed for this setup, but quotas apply. Railway trial credits expire and the ongoing free allowance is limited; it does not guarantee a permanently running worker. Render does not offer a free background-worker instance.
+Web: Vercel Hobby. Worker: Railway Free/Trial with `Dockerfile.worker`. Set `RAILWAY_DOCKERFILE_PATH=Dockerfile.worker` on the worker service; the Docker CMD starts `pnpm worker`. New Railway services no longer accept legacy `railway.json` configuration, so do not rely on that file for startup. Database: Neon Free. Broker: CloudAMQP Little Lemur. AI: Groq Free. No payment information is needed for this setup, but quotas apply. Railway trial credits expire and the ongoing free allowance is limited; it does not guarantee a permanently running worker. Render does not offer a free background-worker instance.
 
 Set the five `.env.example` variables on Vercel. On Railway set DATABASE_URL, RABBITMQ_URL, GROQ_API_KEY and NEXTAUTH_URL; NEXTAUTH_SECRET is not required by the worker. Use the production HTTPS origin for NEXTAUTH_URL. Run `pnpm db:migrate` before deployment. Never commit `.env` files. `pnpm build`, `pnpm test`, and `pnpm typecheck` provide local validation. Worker logs list all declared queues at startup.
 

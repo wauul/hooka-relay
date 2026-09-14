@@ -1,2 +1,4 @@
-import {AuthForm} from '@/components/auth-form';
-export default function Page(){return <AuthForm/>}
+import { AuthForm } from "@/components/auth-form";
+export default function Page() {
+  return <AuthForm />;
+}

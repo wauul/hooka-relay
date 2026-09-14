@@ -1,3 +1,27 @@
-import {db} from '@/lib/db';
-import {ownEndpoint,apiError} from '@/lib/access';
-export async function GET(_req:Request,{params}:{params:{id:string;eventId:string}}){try{const ep=await ownEndpoint(params.id);const event=await db.event.findFirst({where:{id:params.eventId,applicationId:ep.applicationId}});if(!event)throw new Error('NOT_FOUND');const [attempts,deliveries]=await Promise.all([db.deliveryAttempt.findMany({where:{endpointId:ep.id,eventId:event.id},orderBy:{createdAt:'desc'}}),db.delivery.findMany({where:{endpointId:ep.id,eventId:event.id},orderBy:{generation:'desc'}})]);return Response.json({event,attempts,deliveries});}catch(e){return apiError(e);}}
+import { db } from "@/lib/db";
+import { ownEndpoint, apiError } from "@/lib/access";
+export async function GET(
+  _req: Request,
+  { params }: { params: { id: string; eventId: string } },
+) {
+  try {
+    const ep = await ownEndpoint(params.id);
+    const event = await db.event.findFirst({
+      where: { id: params.eventId, applicationId: ep.applicationId },
+    });
+    if (!event) throw new Error("NOT_FOUND");
+    const [attempts, deliveries] = await Promise.all([
+      db.deliveryAttempt.findMany({
+        where: { endpointId: ep.id, eventId: event.id },
+        orderBy: { createdAt: "desc" },
+      }),
+      db.delivery.findMany({
+        where: { endpointId: ep.id, eventId: event.id },
+        orderBy: { generation: "desc" },
+      }),
+    ]);
+    return Response.json({ event, attempts, deliveries });
+  } catch (e) {
+    return apiError(e);
+  }
+}
