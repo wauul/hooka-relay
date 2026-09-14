@@ -1,5 +1,7 @@
 # Hooka Relay
 
+[Live app](https://hooka-relay.vercel.app) · [API docs](https://hooka-relay.vercel.app/docs) · [Worker dashboard](https://railway.com/project/6a81016b-7716-4f67-807b-f0abf0a3987b/service/fbb521bc-0649-4a45-839e-15cbc60353a9) · [Live verification results](VERIFICATION.md)
+
 A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `openai/gpt-oss-20b` (override with GROQ_MODEL). The requested `llama-3.1-8b-instant` was retired from Groq's shared API on August 16, 2026 and returns model_not_found.
 
 ## Run locally
