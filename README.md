@@ -6,7 +6,7 @@ A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS
 
 ## Run locally
 
-Requires Node.js 20+ and pnpm 10.30.3 (`corepack enable`).
+Use Node.js 22 (the CI and Docker version) and pnpm 10.30.3 (`corepack enable`).
 
 ```sh
 pnpm install
@@ -120,8 +120,44 @@ After three consecutive failures, the worker sends recent response snippets to G
 
 ## Deployment
 
-Web: Vercel Hobby. Worker: Railway Free/Trial with `Dockerfile.worker`. Set `RAILWAY_DOCKERFILE_PATH=Dockerfile.worker` on the worker service; the Docker CMD starts `pnpm worker`. New Railway services no longer accept legacy `railway.json` configuration, so do not rely on that file for startup. Database: Neon Free. Broker: CloudAMQP Little Lemur. AI: Groq Free. No payment information is needed for this setup, but quotas apply. Railway trial credits expire and the ongoing free allowance is limited; it does not guarantee a permanently running worker. Render does not offer a free background-worker instance.
+Web: Vercel Hobby. Worker: Railway Free/Trial with `Dockerfile.worker`. Set `RAILWAY_DOCKERFILE_PATH=Dockerfile.worker` on the worker service; the Docker CMD starts the compiled `node dist/worker/index.js`. New Railway services no longer accept legacy `railway.json` configuration, so do not rely on that file for startup. Database: Neon Free. Broker: CloudAMQP Little Lemur. AI: Groq Free. No payment information is needed for this setup, but quotas apply. Railway trial credits expire and the ongoing free allowance is limited; it does not guarantee a permanently running worker. Render does not offer a free background-worker instance.
 
 Set the five `.env.example` variables on Vercel. On Railway set DATABASE_URL, RABBITMQ_URL, GROQ_API_KEY and NEXTAUTH_URL; NEXTAUTH_SECRET is not required by the worker. Use the production HTTPS origin for NEXTAUTH_URL. Run `pnpm db:migrate` before deployment. Never commit `.env` files. `pnpm build`, `pnpm test`, and `pnpm typecheck` provide local validation. Worker logs list all declared queues at startup.
 
 Next.js 14.2.35 follows the requested stack, but Next.js 14 is outside the current supported LTS lines. Plan an upgrade before broader production use. This developer/demo service also needs deployment-level abuse controls and data retention policies for an unrestricted public launch. Endpoint requests block private/reserved IPs, pin DNS results, and never follow redirects.
+
+## Running tests locally
+
+Use Node.js 22 and `npm ci` for the same locked dependencies as CI. The pnpm lock remains available for the existing Vercel deployment.
+
+```sh
+npm ci
+npm run test:unit       # isolated, no Docker or external credentials
+npm test                # unit + integration
+npm run test:watch
+npm run test:coverage    # text summary and coverage/index.html
+```
+
+**Integration tests require Docker Desktop running with Linux containers**, or an equivalent Docker daemon. GitHub Actions uses Ubuntu's preinstalled Docker. Testcontainers creates a fresh PostgreSQL 18 container, applies Prisma migrations, injects its generated connection string, and stops it in global teardown. Each test deletes its own rows. Tests never use your `.env` database or hosted service secrets; unavailable Docker fails the integration suite instead of falling back to a live database.
+
+Automated tests cover circuit-breaker boundaries and recovery, HMAC verification (empty, large and Unicode payloads), mocked idempotency, queue declarations/routing/publisher confirms, and the real event API against disposable Postgres. API tests also cover concurrent duplicate requests, application isolation, endpoint matching, invalid requests and the durable outbox during broker failure. Only RabbitMQ publishing is mocked in integration tests.
+
+Coverage measures six reliability/API modules explicitly listed in `vitest.config.ts`; it is not whole-application or UI coverage. CI enforces 90% statements, lines and functions, and 85% branches, and uploads HTML/LCOV reports. Full broker delivery, real TTL retry timing, worker recovery and browser flows remain manual checks documented in [VERIFICATION.md](VERIFICATION.md).
+
+The CI workflow runs on pushes and pull requests to `master` (the default branch) and `main`. It installs with `npm ci`, typechecks, runs both test suites and coverage, builds Next.js, builds the worker image and checks its runtime contents. There is no existing lint script, so CI skips interactive lint setup and runs the strict TypeScript check instead.
+
+## Worker Docker image
+
+Only the always-on worker is containerized: Vercel already deploys the Next.js app. The multistage Node.js 22 slim image compiles TypeScript and ships a separate locked production dependency set, including the generated Prisma client. It runs as the non-root `node` user, without Next.js, TypeScript or test tools. `Dockerfile.worker` mirrors `Dockerfile` for the existing Railway service; CI checks they stay identical.
+
+```sh
+docker build -t hooka-relay-worker .
+docker run --rm --name hooka-relay-worker -p 8080:8080 \
+  -e DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" \
+  -e RABBITMQ_URL="amqps://USER:PASSWORD@HOST/VHOST" \
+  -e GROQ_API_KEY="YOUR_GROQ_KEY" \
+  -e NEXTAUTH_URL="https://hooka-relay.vercel.app" \
+  hooka-relay-worker
+```
+
+Use real connection values in your local environment; do not commit them. Alternatively use `docker run --rm -p 8080:8080 --env-file .env hooka-relay-worker` after configuring `.env`. Apply schema migrations with `npm run db:migrate` before starting the worker. The image does not run migrations automatically. Check readiness at `http://localhost:8080/health`; a reachable database and broker are required. Groq provides optional failure diagnosis.

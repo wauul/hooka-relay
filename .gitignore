@@ -7,5 +7,7 @@ node_modules/
 test-results/
 .tools/
 *.log
+coverage/
+dist/
 
 .vercel

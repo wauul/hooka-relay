@@ -1,0 +1,17 @@
+{
+  "name": "hooka-relay-worker-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "6.19.0",
+    "@prisma/client": "6.19.0",
+    "amqplib": "0.10.9",
+    "dotenv": "16.6.1",
+    "hooka-relay": "file:../..",
+    "ipaddr.js": "2.5.0",
+    "zod": "3.25.76"
+  }
+}

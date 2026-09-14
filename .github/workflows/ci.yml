@@ -1,0 +1,72 @@
+name: CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      # Inert build-only values; no hosted DB, RabbitMQ or Groq secrets in CI.
+      DATABASE_URL: postgresql://test:test@127.0.0.1:1/never_connect
+      NEXTAUTH_SECRET: ci-only-not-a-production-secret
+      NEXTAUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      # No lint script exists in this repository. Do not run Next's interactive
+      # lint setup in CI; the strict TypeScript check is run explicitly instead.
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Confirm Docker is available to Testcontainers
+        run: docker info
+      - name: Integration tests with disposable Postgres
+        run: npm run test:integration
+      - name: Combined coverage with enforced thresholds
+        run: npm run test:coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Build Next.js
+        run: npm run build
+      - name: Build worker image
+        run: |
+          cmp Dockerfile Dockerfile.worker
+          docker build -t hooka-relay-worker:ci .
+      - name: Smoke-test runtime contents
+        run: |
+          docker run --rm --entrypoint node hooka-relay-worker:ci -e '
+            const fs = require("node:fs");
+            for (const path of ["dist/worker/index.js", "node_modules/.prisma/client/query_compiler_bg.wasm"]) {
+              if (!fs.existsSync(path)) throw new Error("Missing runtime file: " + path);
+            }
+            for (const pkg of ["@prisma/client", "@prisma/adapter-pg", "amqplib"]) require(pkg);
+            for (const pkg of ["next", "vitest", "typescript"]) {
+              if (fs.existsSync("node_modules/" + pkg)) throw new Error("Unexpected runtime dependency: " + pkg);
+            }
+            if (process.getuid() === 0) throw new Error("Worker must not run as root");
+            console.log("Worker runtime assets, dependencies and non-root user verified");
+          '

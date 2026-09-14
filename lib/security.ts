@@ -1,10 +1,17 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import ipaddr from "ipaddr.js";
 export const newSecret = () => randomBytes(32).toString("hex");
 // Sign the exact bytes transmitted, not a reserialized object on the receiver.
 export const signature = (raw: string, secret: string) =>
   "sha256=" + createHmac("sha256", secret).update(raw).digest("hex");
+// Receivers must verify the original bytes before parsing JSON. Check the
+// length first: timingSafeEqual throws for malformed, unequal-length inputs.
+export function verifySignature(raw: string, supplied: string | null | undefined, secret: string) {
+  const expected = Buffer.from(signature(raw, secret));
+  const actual = Buffer.from(supplied || "");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 export function publicAddress(address: string) {
   try {
     return ipaddr.process(address).range() === "unicast";

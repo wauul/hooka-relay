@@ -8,6 +8,7 @@ const config = {
     // Include the generated client assets in every serverless function bundle.
     outputFileTracingIncludes: {
       "/*": [
+        "./node_modules/.prisma/client/**/*",
         "./node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**/*",
       ],
     },
