@@ -149,7 +149,7 @@ Next.js 14.2.35 follows the requested stack, but Next.js 14 is outside the curre
 
 Use Node.js 22 and `npm ci` for the same locked dependencies as CI. The pnpm lock remains available for the existing Vercel deployment.
 
-When changing dependencies with pnpm, also run `npm install --package-lock-only --ignore-scripts` and commit both lockfiles. CI and Docker use `package-lock.json`; Vercel uses `pnpm-lock.yaml`.
+When changing dependencies with pnpm, also run `npx --yes npm@10.9.8 install --package-lock-only --ignore-scripts` and commit both lockfiles. This uses the npm version bundled with CI's Node 22 runtime. CI and Docker use `package-lock.json`; Vercel uses `pnpm-lock.yaml`.
 
 ```sh
 npm ci
