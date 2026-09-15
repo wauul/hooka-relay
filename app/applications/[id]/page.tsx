@@ -1,7 +1,9 @@
 "use client";
+import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, ArrowLeft, Send, KeyRound, Radio } from "lucide-react";
+import { LoadingState } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { api, useData, Badge, CopyButton, ErrorBox } from "@/components/ui";
 export default function Page({ params }: { params: { id: string } }) {
@@ -9,6 +11,8 @@ export default function Page({ params }: { params: { id: string } }) {
     `/api/applications/${params.id}`,
     true,
   );
+  const confirmAction = useConfirm();
+  const [rotating, setRotating] = useState(false);
   const [message, setMessage] = useState("");
   const [failure, setFailure] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,6 +34,7 @@ export default function Page({ params }: { params: { id: string } }) {
         </Link>
       </div>
       <ErrorBox error={error || failure} />
+      {!data && !error && <LoadingState />}
       {data && (
         <>
           <section className="panel">
@@ -43,18 +48,25 @@ export default function Page({ params }: { params: { id: string } }) {
               </h2>
               <button
                 className="btn quiet"
+                disabled={rotating}
                 onClick={async () => {
                   if (
-                    !confirm(
-                      "Regenerate this API key? The current key will immediately stop working.",
-                    )
+                    !(await confirmAction({
+                      title: "Replace this API key?",
+                      description:
+                        "The current key will stop working immediately. Update every producer and CLI using this application after regenerating it.",
+                      label: "Regenerate key",
+                    }))
                   )
                     return;
+                  setRotating(true);
                   try {
                     await api(`/api/applications/${params.id}`, {});
                     await reload();
                   } catch (e) {
                     setFailure((e as Error).message);
+                  } finally {
+                    setRotating(false);
                   }
                 }}
               >

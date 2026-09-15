@@ -8,6 +8,8 @@ import {
   Sparkles,
   Radio,
 } from "lucide-react";
+import { CodeBlock } from "@/components/ui";
+import { LoadingState } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { useData, Badge, CopyButton, ErrorBox, Refresh } from "@/components/ui";
 export default function Page({ params }: { params: { id: string } }) {
@@ -36,6 +38,7 @@ export default function Page({ params }: { params: { id: string } }) {
         <Refresh onClick={reload} />
       </div>
       <ErrorBox error={error} />
+      {!data && !error && <LoadingState />}
       {data && (
         <>
           <div className="stats">
@@ -184,7 +187,7 @@ export default function Page({ params }: { params: { id: string } }) {
             </summary>
             <div style={{ marginTop: 22 }}>
               <label>Subscribed event types</label>
-              <pre>{ep.eventTypes.join(", ")}</pre>
+              <CodeBlock>{ep.eventTypes.join(", ")}</CodeBlock>
               <label>HMAC signing secret</label>
               <div className="secret-row">
                 <code>{ep.secret}</code>

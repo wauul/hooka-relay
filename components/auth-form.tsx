@@ -3,12 +3,14 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { SearchButton } from "./site-tools";
 import { Brand } from "./shell";
 import { api, ErrorBox } from "./ui";
 export function AuthForm({ signup = false }: { signup?: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [visible, setVisible] = useState(false);
   const router = useRouter();
   return (
     <div className="auth-page">
@@ -37,7 +39,7 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
           Built for developers. Designed for the unexpected.
         </div>
       </section>
-      <section className="auth-form">
+      <main className="auth-form" id="main-content" tabIndex={-1}>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -63,6 +65,10 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
             }
           }}
         >
+          <div className="auth-utilities">
+            <Brand />
+            <SearchButton />
+          </div>
           <div className="eyebrow">HOOKA RELAY</div>
           <h2>{signup ? "Start delivering." : "Welcome back."}</h2>
           <p className="muted" style={{ marginBottom: 28 }}>
@@ -84,20 +90,37 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              minLength={signup ? 12 : 1}
-              maxLength={72}
-              placeholder={signup ? "At least 12 characters" : "Your password"}
-              autoComplete={signup ? "new-password" : "current-password"}
-              required
-            />
+            <div className="password-field">
+              <input
+                id="password"
+                name="password"
+                type={visible ? "text" : "password"}
+                minLength={signup ? 12 : 1}
+                maxLength={72}
+                placeholder={
+                  signup ? "At least 12 characters" : "Your password"
+                }
+                autoComplete={signup ? "new-password" : "current-password"}
+                required
+              />
+              <button
+                className="icon-button"
+                type="button"
+                aria-label={visible ? "Hide password" : "Show password"}
+                aria-pressed={visible}
+                onClick={() => setVisible(!visible)}
+              >
+                {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button disabled={busy} className="btn">
             {busy ? "One moment…" : signup ? "Create account" : "Sign in"}
-            <ArrowRight size={15} />
+            {busy ? (
+              <Loader2 size={15} className="spin" />
+            ) : (
+              <ArrowRight size={15} />
+            )}
           </button>
           <p
             className="muted"
@@ -112,7 +135,7 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
             <Link href="/docs">Read the documentation ↗</Link>
           </p>
         </form>
-      </section>
+      </main>
     </div>
   );
 }

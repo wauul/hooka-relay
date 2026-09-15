@@ -1,7 +1,10 @@
 "use client";
+import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw } from "lucide-react";
+import { CodeBlock } from "@/components/ui";
+import { LoadingState } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { api, useData, Badge, ErrorBox } from "@/components/ui";
 export default function Page({
@@ -13,6 +16,7 @@ export default function Page({
     `/api/endpoints/${params.id}/events/${params.eventId}`,
     true,
   );
+  const confirmAction = useConfirm();
   const [message, setMessage] = useState("");
   const [failure, setFailure] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,6 +36,15 @@ export default function Page({
           className="btn"
           disabled={busy}
           onClick={async () => {
+            if (
+              !(await confirmAction({
+                title: "Replay this event?",
+                description:
+                  "This sends a new delivery run to every original endpoint. Receivers may perform the same action again unless they deduplicate the original idempotency key.",
+                label: "Queue replay",
+              }))
+            )
+              return;
             setBusy(true);
             try {
               const result = await api(
@@ -58,6 +71,7 @@ export default function Page({
           {message}
         </div>
       )}
+      {!data && !error && <LoadingState />}
       {data && (
         <>
           <div className="panel panel-body">
@@ -102,15 +116,23 @@ export default function Page({
                   <div className="split">
                     <div>
                       <label>Request headers</label>
-                      <pre>{JSON.stringify(a.requestHeaders, null, 2)}</pre>
+                      <CodeBlock>
+                        {JSON.stringify(a.requestHeaders, null, 2)}
+                      </CodeBlock>
                       <label>Raw request body</label>
-                      <pre>{a.requestBody || "No HTTP request made"}</pre>
+                      <CodeBlock>
+                        {a.requestBody || "No HTTP request made"}
+                      </CodeBlock>
                     </div>
                     <div>
                       <label>Response headers</label>
-                      <pre>{JSON.stringify(a.responseHeaders, null, 2)}</pre>
+                      <CodeBlock>
+                        {JSON.stringify(a.responseHeaders, null, 2)}
+                      </CodeBlock>
                       <label>Response body (up to 16 KB)</label>
-                      <pre>{a.responseBody || "No response body"}</pre>
+                      <CodeBlock>
+                        {a.responseBody || "No response body"}
+                      </CodeBlock>
                     </div>
                   </div>
                 </div>

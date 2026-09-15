@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw } from "lucide-react";
 export async function api<T = any>(url: string, body?: unknown): Promise<T> {
@@ -48,26 +48,92 @@ export function Badge({ value }: { value: string }) {
 }
 export function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <button
       className="btn quiet"
-      aria-label="Copy to clipboard"
+      type="button"
+      aria-label={copied ? "Copied" : "Copy to clipboard"}
       onClick={async () => {
-        await navigator.clipboard.writeText(value);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setFailed(false);
+          clearTimeout(timer.current);
+          timer.current = setTimeout(() => setCopied(false), 2000);
+        } catch {
+          setFailed(true);
+        }
       }}
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
+      <span role="status">
+        {failed ? "Select text to copy" : copied ? "Copied" : "Copy"}
+      </span>
     </button>
   );
 }
 export function Refresh({ onClick }: { onClick: () => void }) {
+  const [busy, setBusy] = useState(false);
   return (
-    <button className="btn quiet" onClick={onClick}>
-      <RefreshCw size={13} />
-      Refresh
+    <button
+      className="btn quiet"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await onClick();
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <RefreshCw size={13} className={busy ? "spin" : ""} />
+      {busy ? "Refreshing…" : "Refresh"}
     </button>
+  );
+}
+export function CodeBlock({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLPreElement>(null);
+  const [value, setValue] = useState("");
+  useEffect(() => setValue(ref.current?.textContent || ""), [children]);
+  return (
+    <div className="code-block">
+      <div className="code-toolbar">
+        <span>Code / data</span>
+        <CopyButton value={value} />
+      </div>
+      <pre ref={ref} className={className}>
+        {children}
+      </pre>
+    </div>
+  );
+}
+export function LoadingState({
+  label = "Loading your workspace…",
+}: {
+  label?: string;
+}) {
+  return (
+    <div className="loading-state" role="status" aria-live="polite">
+      <div className="loading-label">
+        <RefreshCw size={18} className="spin" />
+        {label}
+      </div>
+      <div aria-hidden="true" className="skeleton-grid">
+        <div className="skeleton" />
+        <div className="skeleton" />
+        <div className="skeleton" />
+      </div>
+    </div>
   );
 }
 export function ErrorBox({ error }: { error: string }) {

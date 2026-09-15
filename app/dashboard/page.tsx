@@ -10,8 +10,9 @@ import {
   ArrowRight,
   Terminal,
 } from "lucide-react";
+import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
-import { api, useData, ErrorBox } from "@/components/ui";
+import { api, useData, ErrorBox, LoadingState } from "@/components/ui";
 type App = {
   id: string;
   name: string;
@@ -116,7 +117,7 @@ export default function Page() {
         </span>
       </div>
       {!data && !error ? (
-        <div className="loading">Loading your workspace…</div>
+        <LoadingState />
       ) : data?.length ? (
         <div className="app-grid">
           {data.map((a) => (
@@ -170,12 +171,12 @@ export default function Page() {
             <ArrowRight size={12} style={{ display: "inline" }} />
           </Link>
         </div>
-        <pre className="code">
+        <CodeBlock className="code">
           <span className="green">curl</span>
           {
             ' -X POST "$RELAY_URL/api/v1/events" \\\n  -H "Authorization: Bearer $API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"type":"order.shipped",\n       "payload":{"orderId":"ord_1042"}}\''
           }
-        </pre>
+        </CodeBlock>
       </div>
       <div className="footer-note">
         A little less infrastructure. A lot more peace of mind.

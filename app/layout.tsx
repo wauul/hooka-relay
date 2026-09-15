@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteTools } from "@/components/site-tools";
 export const metadata: Metadata = {
   title: "Hooka Relay — Every event. Delivered.",
   description:
@@ -12,7 +13,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SiteTools>{children}</SiteTools>
+      </body>
     </html>
   );
 }
