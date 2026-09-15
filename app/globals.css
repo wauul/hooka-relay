@@ -1355,6 +1355,10 @@ button:disabled:has(.spin)::after {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  pre *,
+  code {
+    color: black !important;
+  }
   a {
     color: black !important;
     text-decoration: underline;
