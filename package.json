@@ -20,6 +20,8 @@
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
     "@prisma/client": "6.19.0",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "amqplib": "^0.10.9",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.6.1",

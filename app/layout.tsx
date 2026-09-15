@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { SiteTools } from "@/components/site-tools";
 export const metadata: Metadata = {
@@ -15,6 +17,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SiteTools>{children}</SiteTools>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
