@@ -4,6 +4,23 @@
 
 [Live app](https://hooka-relay.vercel.app) · [API docs](https://hooka-relay.vercel.app/docs) · [Worker dashboard](https://railway.com/project/6a81016b-7716-4f67-807b-f0abf0a3987b/service/fbb521bc-0649-4a45-839e-15cbc60353a9) · [Live verification results](VERIFICATION.md)
 
+[Hooka CLI](https://github.com/wauul/hooka-cli) is the standalone terminal companion: send events, list/register endpoints, tail attempts and replay deliveries. Install with `npm install -g hooka-relay-cli`, then run `hooka login` with your Application API key.
+
+### CLI API
+
+Application-key authentication (`Authorization: Bearer <key>` or `X-API-Key`) is supported by these routes in addition to event ingestion. Every resource lookup is scoped to that one Application, including resources owned by the same user in a different Application. Dashboard session routes remain unchanged.
+
+| Method | Route | Response |
+| --- | --- | --- |
+| GET | `/api/v1/me` | `{ application: { id, name, createdAt } }` |
+| GET | `/api/v1/endpoints` | `{ endpoints }` with 24-hour `successRate` (null without attempts) |
+| POST | `/api/v1/endpoints` | `{ endpoint }` with signing secret; accepts `{ url, eventTypes }` |
+| GET | `/api/v1/attempts?endpoint=ID&after=CURSOR` | `{ attempts, nextCursor, hasMore }`; optional filters, 100 per page |
+| GET | `/api/v1/events/ID?generation=N` | `{ event, generation, deliveries }` with attempt counts and last results |
+| POST | `/api/v1/events/ID/replay` | `{ eventId, generation, queued }`; 202 after durable outbox commit |
+
+Read responses never expose endpoint secrets or application API keys, and use `Cache-Control: no-store`. Attempts omit webhook request/response bodies and headers. The first attempt page contains the most recent 100 entries in chronological order; pass the opaque cursor for subsequent pages. This polling feed is a developer convenience, not a lossless audit stream: a late database transaction can commit behind the cursor. The CLI drains full pages before sleeping; a future SSE feed could improve latency and reconnect semantics.
+
 A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `openai/gpt-oss-20b` (override with GROQ_MODEL). The requested `llama-3.1-8b-instant` was retired from Groq's shared API on August 16, 2026 and returns model_not_found.
 
 ## Run locally
