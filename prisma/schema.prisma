@@ -129,6 +129,7 @@ enum WorkspaceRole {
   MEMBER
 }
 enum InviteStatus {
+  DECLINED
   PENDING
   ACCEPTED
   EXPIRED

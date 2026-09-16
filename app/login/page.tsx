@@ -1,4 +1,9 @@
-import { AuthForm } from "@/components/auth-form";
-export default function Page() {
-  return <AuthForm />;
+import { InviteAuth } from "@/components/invite-auth";
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ invite?: string }>;
+}) {
+  const { invite } = await searchParams;
+  return <InviteAuth signup={false} token={invite} />;
 }

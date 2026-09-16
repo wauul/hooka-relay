@@ -1,58 +1,46 @@
-"use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, ErrorBox } from "@/components/ui";
-export default function Page() {
-  const [token, setToken] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [login, setLogin] = useState(false);
-  useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token") || "");
-  }, []);
-  const callback = encodeURIComponent(
-    `/invites/accept?token=${encodeURIComponent(token)}`,
-  );
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { invitationDetails, WorkspaceError } from "@/lib/workspaces";
+import { InviteLayout } from "@/components/invite-layout";
+import { InviteDecision } from "@/components/invite-decision";
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const { token = "" } = await searchParams;
+  let invite;
+  try {
+    invite = await invitationDetails(token);
+  } catch (e) {
+    if (!(e instanceof WorkspaceError)) throw e;
+    return (
+      <InviteLayout>
+        <div className="eyebrow">INVITATION UNAVAILABLE</div>
+        <h1>This link can�t be used.</h1>
+        <p>{e.message}</p>
+        <Link className="btn" href="/dashboard">
+          Go to dashboard
+        </Link>
+      </InviteLayout>
+    );
+  }
+  const session = await getServerSession(authOptions);
+  if (!session?.user)
+    redirect(
+      `/${invite.accountExists ? "login" : "signup"}?invite=${encodeURIComponent(token)}`,
+    );
   return (
-    <main className="content">
-      <section className="panel panel-body">
-        <h1>Join a workspace</h1>
-        <p>
-          Sign in with the email address that received this invitation, then
-          accept to join the team.
-        </p>
-        <ErrorBox error={error} />
-        <button
-          className="btn"
-          disabled={busy || !token}
-          onClick={async () => {
-            setBusy(true);
-            setError("");
-            try {
-              const result = await api<{ workspaceId: string }>(
-                `/api/invites/${encodeURIComponent(token)}/accept`,
-                {},
-              );
-              localStorage.setItem("workspaceId", result.workspaceId);
-              window.location.assign("/dashboard");
-            } catch (e) {
-              if ((e as Error).message === "UNAUTHORIZED") setLogin(true);
-              else setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          Accept invitation
-        </button>
-        {login && (
-          <p>Sign in or create an account to accept this invitation.</p>
-        )}
-        <p>
-          <Link href={`/login?callbackUrl=${callback}`}>Sign in</Link> ·{" "}
-          <Link href={`/signup?callbackUrl=${callback}`}>Create account</Link>
-        </p>
-      </section>
-    </main>
+    <InviteLayout>
+      <InviteDecision
+        token={token}
+        {...invite}
+        wrongAccount={
+          session.user.email?.toLowerCase() !== invite.email.toLowerCase()
+        }
+      />
+    </InviteLayout>
   );
 }

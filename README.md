@@ -255,3 +255,7 @@ The web application uses Next.js 15.5.25 and React 19. Run npm run lint, npm run
 For Neon deployments, use the direct (non-pooler) connection URL when running Prisma schema migrations; retain the pooled URL for the web app and worker. Override DATABASE_URL only for the migration command.
 
 Verification on 2026-09-16: all 169 tests and the full CI build passed. Production migration preserved all existing rows and owner access. Live checks covered existing-account login, invitation delivery and acceptance, MEMBER restrictions, key grace, rolling rate limits, pause/resume and explicit replay through the worker. See [VERIFICATION.md](VERIFICATION.md).
+
+### Guided invitations
+
+Invitation links choose sign-up for a new account or sign-in for an existing account. The invited email is read-only. Authentication does not join the workspace: the next screen shows the workspace and role, with explicit Accept and Decline actions. Declining records DECLINED without adding membership; an admin must issue a fresh invitation to join later. Expired and revoked links show a clear unavailable state. POST /api/invites/:token/decline requires the invited account, just like acceptance.

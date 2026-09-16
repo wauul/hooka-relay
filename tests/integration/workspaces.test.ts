@@ -8,6 +8,8 @@ vi.mock("../../lib/queue/client", () => ({
 }));
 import { db } from "../../lib/db";
 import {
+  invitationDetails,
+  declineInvite,
   createWorkspace,
   inviteMember,
   acceptInvite,
@@ -16,6 +18,7 @@ import {
   transferOwnership,
 } from "../../lib/workspaces";
 import { POST as inviteRoute } from "../../app/api/workspaces/[id]/invites/route";
+import { POST as declineRoute } from "../../app/api/invites/[token]/decline/route";
 import { POST as acceptRoute } from "../../app/api/invites/[token]/accept/route";
 import { DELETE as kickRoute } from "../../app/api/workspaces/[id]/members/[userId]/route";
 import { POST as leaveRoute } from "../../app/api/workspaces/[id]/leave/route";
@@ -414,4 +417,106 @@ it("database constraints reject losing the last owner and adding a second owner"
   expect(
     await db.workspaceMember.count({ where: { workspaceId, role: "OWNER" } }),
   ).toBe(1);
+});
+
+it("invitation context selects signup or login and never exposes unavailable invites", async () => {
+  await inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER");
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
+  expect(await invitationDetails(invite.token)).toMatchObject({
+    email: users[3].email,
+    accountExists: true,
+    workspaceName: "Team",
+  });
+  await db.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { email: "new-account@example.com" },
+  });
+  expect(await invitationDetails(invite.token)).toMatchObject({
+    accountExists: false,
+  });
+  expect(
+    (
+      await signup(
+        req({
+          email: "wrong@example.com",
+          password: "a-valid-password",
+          inviteToken: invite.token,
+        }),
+      )
+    ).status,
+  ).toBe(403);
+  await db.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { expiresAt: new Date(0) },
+  });
+  await expect(invitationDetails(invite.token)).rejects.toMatchObject({
+    status: 410,
+  });
+  await expect(invitationDetails("missing")).rejects.toMatchObject({
+    status: 404,
+  });
+});
+it("only the invited account can decline; declining creates no membership and blocks acceptance", async () => {
+  await inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER");
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
+  await expect(declineInvite(invite.token, users[2].id)).rejects.toMatchObject({
+    status: 403,
+  });
+  expect(await declineInvite(invite.token, users[3].id)).toEqual({ ok: true });
+  expect(await declineInvite(invite.token, users[3].id)).toEqual({ ok: true });
+  expect(
+    await db.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: users[3].id } },
+    }),
+  ).toBeNull();
+  expect(
+    (await db.workspaceInvite.findUniqueOrThrow({ where: { id: invite.id } }))
+      .status,
+  ).toBe("DECLINED");
+  await expect(acceptInvite(invite.token, users[3].id)).rejects.toMatchObject({
+    status: 410,
+  });
+  await expect(invitationDetails(invite.token)).rejects.toMatchObject({
+    status: 410,
+  });
+  await expect(declineInvite("missing", users[3].id)).rejects.toMatchObject({
+    status: 404,
+  });
+});
+it("accepted and expired invitations cannot be declined", async () => {
+  await inviteMember(workspaceId, users[0].id, users[3].email, "ADMIN");
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
+  await db.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { expiresAt: new Date(0) },
+  });
+  await expect(declineInvite(invite.token, users[3].id)).rejects.toMatchObject({
+    status: 410,
+  });
+  await db.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { expiresAt: new Date(Date.now() + 60000) },
+  });
+  await acceptInvite(invite.token, users[3].id);
+  await expect(declineInvite(invite.token, users[3].id)).rejects.toMatchObject({
+    status: 410,
+  });
+});
+
+it("decline route requires authentication and the recipient session", async () => {
+  await inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER");
+  const invite = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId } });
+  const ctx = { params: Promise.resolve({ token: invite.token }) };
+  mocks.session.mockResolvedValue(null);
+  expect((await declineRoute(req(), ctx)).status).toBe(401);
+  session(2);
+  expect((await declineRoute(req(), ctx)).status).toBe(403);
+  session(3);
+  expect((await declineRoute(req(), ctx)).status).toBe(200);
 });

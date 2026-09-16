@@ -232,3 +232,54 @@ export function transferOwnership(
     return { ok: true };
   });
 }
+
+// Token possession is required before exposing the invitation's account context.
+export async function invitationDetails(token: string) {
+  const invite = await db.workspaceInvite.findUnique({
+    where: { token },
+    include: { workspace: { select: { name: true } } },
+  });
+  if (!invite) throw new WorkspaceError(404, "Invitation not found.");
+  if (invite.status !== "PENDING")
+    throw new WorkspaceError(
+      410,
+      "This invitation has already been answered or revoked.",
+    );
+  if (invite.expiresAt <= new Date())
+    throw new WorkspaceError(
+      410,
+      "This invitation has expired. Ask the workspace admin for a new one.",
+    );
+  const account = await db.user.findUnique({
+    where: { email: invite.email },
+    select: { id: true },
+  });
+  return {
+    email: invite.email,
+    workspaceName: invite.workspace.name,
+    role: invite.role,
+    expiresAt: invite.expiresAt.toISOString(),
+    accountExists: !!account,
+  };
+}
+export async function declineInvite(token: string, userId: string) {
+  const invite = await db.workspaceInvite.findUnique({ where: { token } });
+  if (!invite) throw new WorkspaceError(404, "Invitation not found.");
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Workspace" WHERE id = ${invite.workspaceId} FOR UPDATE`;
+    const current = await tx.workspaceInvite.findUniqueOrThrow({
+      where: { id: invite.id },
+    });
+    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.email.toLowerCase() !== current.email.toLowerCase())
+      throw new WorkspaceError(403, "Sign in with the invited email address.");
+    if (current.status === "DECLINED") return { ok: true };
+    if (current.status !== "PENDING" || current.expiresAt <= new Date())
+      throw new WorkspaceError(410, "This invitation is no longer valid.");
+    await tx.workspaceInvite.update({
+      where: { id: current.id },
+      data: { status: "DECLINED" },
+    });
+    return { ok: true };
+  });
+}
