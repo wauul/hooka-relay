@@ -45,9 +45,9 @@ export function InviteDecision({
     return (
       <>
         <div className="eyebrow">INVITATION DECLINED</div>
-        <h1>You�re all set.</h1>
+        <h1>You’re all set.</h1>
         <p>
-          You haven�t joined {workspaceName}. If you change your mind, ask an
+          You haven’t joined {workspaceName}. If you change your mind, ask an
           admin for a new invitation.
         </p>
         <Link className="btn" href="/dashboard">
@@ -61,15 +61,15 @@ export function InviteDecision({
         <span>
           <Check size={14} /> Account
         </span>
-        <span className="current">2 � Invitation</span>
+        <span className="current">2 · Invitation</span>
       </div>
       <h1>
-        You�re invited to
+        You’re invited to
         <br />
         <span>{workspaceName}</span>
       </h1>
       <p>
-        A shared space for your team�s applications, endpoints, and deliveries.
+        A shared space for your team’s applications, endpoints, and deliveries.
       </p>
       <div className="invite-details">
         <div>
@@ -117,7 +117,7 @@ export function InviteDecision({
             disabled={!!busy}
             onClick={() => respond("accept")}
           >
-            {busy === "accept" ? "Joining workspace�" : "Accept invitation"}
+            {busy === "accept" ? "Joining workspace…" : "Accept invitation"}
             <ArrowRight size={16} />
           </button>
           <button
@@ -125,7 +125,7 @@ export function InviteDecision({
             disabled={!!busy}
             onClick={() => respond("decline")}
           >
-            {busy === "decline" ? "Declining�" : "Decline invitation"}
+            {busy === "decline" ? "Declining…" : "Decline invitation"}
           </button>
           <small className="invite-expiry">
             Expires{" "}

@@ -19,7 +19,7 @@ export default async function Page({
     return (
       <InviteLayout>
         <div className="eyebrow">INVITATION UNAVAILABLE</div>
-        <h1>This link can�t be used.</h1>
+        <h1>This link can’t be used.</h1>
         <p>{e.message}</p>
         <Link className="btn" href="/dashboard">
           Go to dashboard

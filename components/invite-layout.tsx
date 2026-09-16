@@ -13,7 +13,7 @@ export function InviteLayout({ children }: { children: React.ReactNode }) {
         </div>
         {children}
       </div>
-      <footer>Hooka Relay � Reliable delivery, together.</footer>
+      <footer>Hooka Relay · Reliable delivery, together.</footer>
     </main>
   );
 }

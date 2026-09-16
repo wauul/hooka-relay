@@ -87,10 +87,10 @@ export function AuthForm({
         >
           <div className="auth-utilities">
             <Brand />
-            <SearchButton />
+            {!invitation && <SearchButton />}
           </div>
           <div className="eyebrow">
-            {invitation ? "STEP 1 OF 2 � YOUR ACCOUNT" : "HOOKA RELAY"}
+            {invitation ? "STEP 1 OF 2 · YOUR ACCOUNT" : "HOOKA RELAY"}
           </div>
           <h2>
             {invitation
@@ -103,7 +103,7 @@ export function AuthForm({
           </h2>
           <p className="muted" style={{ marginBottom: 28 }}>
             {invitation
-              ? `You�re invited to ${invitation.workspaceName}. ${signup ? "Create an account" : "Sign in"} to review your invitation.`
+              ? `You’re invited to ${invitation.workspaceName}. ${signup ? "Create an account" : "Sign in"} to review your invitation.`
               : signup
                 ? "Create your account and put your events in motion."
                 : "Sign in to your webhook workspace."}
@@ -180,8 +180,8 @@ export function AuthForm({
             </p>
           )}
           {invitation && (
-            <p className="invite-email-note">
-              You�ll choose whether to accept or decline after{" "}
+            <p className="invite-next-note">
+              You’ll choose whether to accept or decline after{" "}
               {signup ? "creating your account" : "signing in"}.
             </p>
           )}
