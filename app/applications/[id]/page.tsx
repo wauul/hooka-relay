@@ -3,7 +3,16 @@ import { use } from "react";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, ArrowLeft, Send, KeyRound, Radio } from "lucide-react";
+import {
+  Plus,
+  ArrowLeft,
+  Send,
+  KeyRound,
+  Radio,
+  Eye,
+  EyeOff,
+  Trash2,
+} from "lucide-react";
 import { LoadingState } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { api, useData, Badge, CopyButton, ErrorBox } from "@/components/ui";
@@ -14,6 +23,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     true,
   );
   const confirmAction = useConfirm();
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [message, setMessage] = useState("");
   const [failure, setFailure] = useState("");
@@ -28,14 +39,16 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <div>
           <div className="eyebrow">APPLICATION</div>
           <h1>{data?.name || "Loading application…"}</h1>
-          <div className="muted mono">{resolvedParams.id}</div>
         </div>
-        <Link className="btn" href={`/applications/${resolvedParams.id}/endpoints/new`}>
+        <Link
+          className="btn"
+          href={`/applications/${resolvedParams.id}/endpoints/new`}
+        >
           <Plus size={14} />
           Add endpoint
         </Link>
       </div>
-      {data && data.role !== "MEMBER" && <button className="btn quiet" onClick={async () => { if (!(await confirmAction({ title: "Delete application?", description: "Permanently delete this application, its endpoints, events and delivery history?", label: "Delete application" }))) return; try { await api(`/api/applications/${resolvedParams.id}`, {}, "DELETE"); window.location.assign("/dashboard"); } catch(e) { setFailure((e as Error).message); } }}>Delete application</button>}
+
       <ErrorBox error={error || failure} />
       {!data && !error && <LoadingState />}
       {data && (
@@ -51,13 +64,17 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </h2>
               <button
                 className="btn quiet"
-                disabled={rotating || data.role === "MEMBER" || (data.previousApiKeyExpiresAt && new Date(data.previousApiKeyExpiresAt) > new Date())}
+                disabled={
+                  rotating ||
+                  data.role === "MEMBER" ||
+                  (data.previousApiKeyExpiresAt &&
+                    new Date(data.previousApiKeyExpiresAt) > new Date())
+                }
                 onClick={async () => {
                   if (
                     !(await confirmAction({
                       title: "Replace this API key?",
-                      description:
-                        `The current key will remain valid for ${data.keyGraceHours} hours. Update your integrations before it expires.`,
+                      description: `The current key will remain valid for ${data.keyGraceHours} hours. Update your integrations before it expires.`,
                       label: "Regenerate key",
                     }))
                   )
@@ -78,8 +95,52 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             </div>
             <div className="panel-body">
               <div className="secret-row">
-                <code>{data.currentApiKey || "API keys are available to workspace admins."}</code>
-                {data.currentApiKey && <CopyButton value={data.currentApiKey} />}
+                {data.currentApiKey ? (
+                  <>
+                    <code
+                      aria-label={
+                        revealedKey === data.currentApiKey
+                          ? "Application API key"
+                          : "API key hidden"
+                      }
+                    >
+                      {revealedKey === data.currentApiKey
+                        ? data.currentApiKey
+                        : "•".repeat(24)}
+                    </code>
+                    <div className="api-key-actions">
+                      <button
+                        type="button"
+                        className="btn quiet"
+                        aria-label={
+                          revealedKey === data.currentApiKey
+                            ? "Hide API key"
+                            : "Show API key"
+                        }
+                        aria-pressed={revealedKey === data.currentApiKey}
+                        onClick={() =>
+                          setRevealedKey(
+                            revealedKey === data.currentApiKey
+                              ? null
+                              : data.currentApiKey,
+                          )
+                        }
+                      >
+                        {revealedKey === data.currentApiKey ? (
+                          <EyeOff size={15} />
+                        ) : (
+                          <Eye size={15} />
+                        )}
+                        {revealedKey === data.currentApiKey ? "Hide" : "Show"}
+                      </button>
+                      <CopyButton value={data.currentApiKey} />
+                    </div>
+                  </>
+                ) : (
+                  <p className="muted">
+                    API keys are available to workspace admins.
+                  </p>
+                )}
               </div>
               <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>
                 Keep this key on your server. Use it as a Bearer token when
@@ -87,7 +148,13 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </p>
             </div>
           </section>
-          {data.previousApiKeyExpiresAt && <p className="notice">Old key remains valid until {new Date(data.previousApiKeyExpiresAt).toLocaleString()} — update your integration before then.</p>}
+          {data.previousApiKeyExpiresAt && (
+            <p className="notice">
+              Old key remains valid until{" "}
+              {new Date(data.previousApiKeyExpiresAt).toLocaleString()} — update
+              your integration before then.
+            </p>
+          )}
           <div className="split">
             <section className="panel">
               <div className="panel-head">
@@ -127,7 +194,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                             </Link>
                           </td>
                           <td>
-                            <Badge value={ep.circuitState} /> <Badge value={ep.status} />
+                            <Badge value={ep.circuitState} />{" "}
+                            <Badge value={ep.status} />
                           </td>
                         </tr>
                       ))}
@@ -212,6 +280,47 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </form>
             </section>
           </div>
+          {data.role !== "MEMBER" && (
+            <section className="panel application-delete">
+              <div>
+                <h2>Delete application</h2>
+                <p className="muted">
+                  Permanently remove this application, its endpoints, and
+                  delivery history.
+                </p>
+              </div>
+              <button
+                className="btn delete-application-button"
+                disabled={deleting}
+                onClick={async () => {
+                  if (
+                    !(await confirmAction({
+                      title: "Delete application?",
+                      description:
+                        "Permanently delete this application, its endpoints, events and delivery history?",
+                      label: "Delete application",
+                    }))
+                  )
+                    return;
+                  setDeleting(true);
+                  try {
+                    await api(
+                      `/api/applications/${resolvedParams.id}`,
+                      {},
+                      "DELETE",
+                    );
+                    window.location.assign("/dashboard");
+                  } catch (e) {
+                    setFailure((e as Error).message);
+                    setDeleting(false);
+                  }
+                }}
+              >
+                <Trash2 size={14} />
+                {deleting ? "Deleting..." : "Delete application"}
+              </button>
+            </section>
+          )}
         </>
       )}
     </Shell>
