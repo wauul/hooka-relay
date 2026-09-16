@@ -3,160 +3,376 @@ import { randomUUID } from "node:crypto";
 const mocks = vi.hoisted(() => ({ session: vi.fn(), email: vi.fn() }));
 vi.mock("next-auth", () => ({ getServerSession: mocks.session }));
 vi.mock("../../lib/invite-email", () => ({ sendInvite: mocks.email }));
-vi.mock("../../lib/queue/client", () => ({ publish: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../../lib/queue/client", () => ({
+  publish: vi.fn().mockResolvedValue(undefined),
+}));
 import { db } from "../../lib/db";
-import { createWorkspace, inviteMember, acceptInvite, changeMember, leaveWorkspace, transferOwnership } from "../../lib/workspaces";
+import {
+  createWorkspace,
+  inviteMember,
+  acceptInvite,
+  changeMember,
+  leaveWorkspace,
+  transferOwnership,
+} from "../../lib/workspaces";
 import { POST as inviteRoute } from "../../app/api/workspaces/[id]/invites/route";
 import { POST as acceptRoute } from "../../app/api/invites/[token]/accept/route";
 import { DELETE as kickRoute } from "../../app/api/workspaces/[id]/members/[userId]/route";
 import { POST as leaveRoute } from "../../app/api/workspaces/[id]/leave/route";
-import { POST as rotateRoute, GET as appRoute, DELETE as deleteApp } from "../../app/api/applications/[id]/route";
+import {
+  POST as rotateRoute,
+  GET as appRoute,
+  DELETE as deleteApp,
+} from "../../app/api/applications/[id]/route";
 import { PATCH as pauseRoute } from "../../app/api/endpoints/[id]/pause/route";
 import { PATCH as resumeRoute } from "../../app/api/endpoints/[id]/resume/route";
 import { POST as events } from "../../app/api/v1/events/route";
 import { cliApi } from "../../lib/cli-api";
-import { GET as listWorkspaces, POST as newWorkspace } from "../../app/api/workspaces/route";
-import { GET as workspaceDetails, PATCH as renameWorkspace, DELETE as deleteWorkspace } from "../../app/api/workspaces/[id]/route";
+import {
+  GET as listWorkspaces,
+  POST as newWorkspace,
+} from "../../app/api/workspaces/route";
+import {
+  GET as workspaceDetails,
+  PATCH as renameWorkspace,
+  DELETE as deleteWorkspace,
+} from "../../app/api/workspaces/[id]/route";
 import { DELETE as revokeInvite } from "../../app/api/workspaces/[id]/invites/[inviteId]/route";
 import { POST as replay } from "../../app/api/events/[id]/replay/route";
 import { POST as signup } from "../../app/api/signup/route";
 let users: { id: string; email: string }[];
 let workspaceId: string;
-const req = (body: unknown = {}, method = "POST") => new Request("http://localhost/api/test", { method, headers: { "Content-Type": "application/json" }, body: method === "GET" ? undefined : JSON.stringify(body) });
+const req = (body: unknown = {}, method = "POST") =>
+  new Request("http://localhost/api/test", {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: method === "GET" ? undefined : JSON.stringify(body),
+  });
 const context = (id = workspaceId) => ({ params: Promise.resolve({ id }) });
-const session = (index: number) => mocks.session.mockResolvedValue({ user: { id: users[index].id } });
+const session = (index: number) =>
+  mocks.session.mockResolvedValue({ user: { id: users[index].id } });
 beforeEach(async () => {
   mocks.email.mockReset().mockResolvedValue(undefined);
   users = [];
-  for (let i = 0; i < 4; i++) users.push(await db.user.create({ data: { email: `${randomUUID()}@example.com`, hashedPassword: "unused" } }));
+  for (let i = 0; i < 4; i++)
+    users.push(
+      await db.user.create({
+        data: {
+          email: `${randomUUID()}@example.com`,
+          hashedPassword: "unused",
+        },
+      }),
+    );
   workspaceId = (await createWorkspace(users[0].id, "Team")).id;
-  await db.workspaceMember.createMany({ data: [{ workspaceId, userId: users[1].id, role: "ADMIN" }, { workspaceId, userId: users[2].id, role: "MEMBER" }] });
+  await db.workspaceMember.createMany({
+    data: [
+      { workspaceId, userId: users[1].id, role: "ADMIN" },
+      { workspaceId, userId: users[2].id, role: "MEMBER" },
+    ],
+  });
   session(0);
 });
 afterEach(async () => {
-  await db.workspace.deleteMany({ where: { members: { some: { userId: { in: users.map(u => u.id) } } } } });
-  await db.user.deleteMany({ where: { id: { in: users.map(u => u.id) } } });
+  await db.workspace.deleteMany({
+    where: { members: { some: { userId: { in: users.map((u) => u.id) } } } },
+  });
+  await db.user.deleteMany({ where: { id: { in: users.map((u) => u.id) } } });
   vi.unstubAllEnvs();
 });
 it("invites by email, accepts through session routes and is idempotent", async () => {
-  const response = await inviteRoute(req({ email: users[3].email.toUpperCase(), role: "MEMBER" }), context());
+  const response = await inviteRoute(
+    req({ email: users[3].email.toUpperCase(), role: "MEMBER" }),
+    context(),
+  );
   expect(response.status).toBe(201);
   expect(mocks.email).toHaveBeenCalledTimes(1);
-  const invite = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId } });
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
   expect(invite.token).toMatch(/^[a-f0-9]{64}$/);
   session(2);
-  expect((await acceptRoute(req(), { params: Promise.resolve({ token: invite.token }) })).status).toBe(403);
+  expect(
+    (
+      await acceptRoute(req(), {
+        params: Promise.resolve({ token: invite.token }),
+      })
+    ).status,
+  ).toBe(403);
   session(3);
-  const accepted = await Promise.all([acceptRoute(req(), { params: Promise.resolve({ token: invite.token }) }), acceptRoute(req(), { params: Promise.resolve({ token: invite.token }) })]);
-  expect(accepted.map(r => r.status)).toEqual([200, 200]);
-  expect(await db.workspaceMember.count({ where: { workspaceId, userId: users[3].id } })).toBe(1);
-  expect(await db.workspaceInvite.findUnique({ where: { id: invite.id } })).toMatchObject({ status: "ACCEPTED" });
+  const accepted = await Promise.all([
+    acceptRoute(req(), { params: Promise.resolve({ token: invite.token }) }),
+    acceptRoute(req(), { params: Promise.resolve({ token: invite.token }) }),
+  ]);
+  expect(accepted.map((r) => r.status)).toEqual([200, 200]);
+  expect(
+    await db.workspaceMember.count({
+      where: { workspaceId, userId: users[3].id },
+    }),
+  ).toBe(1);
+  expect(
+    await db.workspaceInvite.findUnique({ where: { id: invite.id } }),
+  ).toMatchObject({ status: "ACCEPTED" });
 });
 it("rejects expired, revoked and owner-role invites and handles email failure", async () => {
-  expect((await inviteRoute(req({ email: users[3].email, role: "OWNER" }), context())).status).toBe(400);
+  expect(
+    (
+      await inviteRoute(
+        req({ email: users[3].email, role: "OWNER" }),
+        context(),
+      )
+    ).status,
+  ).toBe(400);
   await inviteMember(workspaceId, users[0].id, users[3].email, "ADMIN");
-  const invite = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId } });
-  await db.workspaceInvite.update({ where: { id: invite.id }, data: { expiresAt: new Date(0) } });
-  await expect(acceptInvite(invite.token, users[3].id)).rejects.toThrow("expired");
-  expect(await db.workspaceInvite.findUnique({ where: { id: invite.id } })).toMatchObject({ status: "EXPIRED" });
-  await db.workspaceInvite.update({ where: { id: invite.id }, data: { status: "REVOKED" } });
-  await expect(acceptInvite(invite.token, users[3].id)).rejects.toThrow("no longer valid");
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
+  await db.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { expiresAt: new Date(0) },
+  });
+  await expect(acceptInvite(invite.token, users[3].id)).rejects.toThrow(
+    "expired",
+  );
+  expect(
+    await db.workspaceInvite.findUnique({ where: { id: invite.id } }),
+  ).toMatchObject({ status: "EXPIRED" });
+  await db.workspaceInvite.update({
+    where: { id: invite.id },
+    data: { status: "REVOKED" },
+  });
+  await expect(acceptInvite(invite.token, users[3].id)).rejects.toThrow(
+    "no longer valid",
+  );
   mocks.email.mockRejectedValueOnce(new Error("resend unavailable"));
-  await expect(inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER")).rejects.toThrow("could not be sent");
-  expect(await db.workspaceInvite.count({ where: { workspaceId, status: "PENDING" } })).toBe(0);
+  await expect(
+    inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER"),
+  ).rejects.toThrow("could not be sent");
+  expect(
+    await db.workspaceInvite.count({
+      where: { workspaceId, status: "PENDING" },
+    }),
+  ).toBe(0);
 });
 it("enforces kick, leave, role change and transfer permissions", async () => {
   for (const actor of [1, 2]) {
     session(actor);
-    expect((await kickRoute(req({}, "DELETE"), { params: Promise.resolve({ id: workspaceId, userId: users[0].id }) })).status).toBe(403);
+    expect(
+      (
+        await kickRoute(req({}, "DELETE"), {
+          params: Promise.resolve({ id: workspaceId, userId: users[0].id }),
+        })
+      ).status,
+    ).toBe(403);
   }
   session(2);
-  expect((await inviteRoute(req({ email: users[3].email, role: "MEMBER" }), context())).status).toBe(403);
-  await expect(changeMember(workspaceId, users[2].id, users[1].id)).rejects.toThrow();
+  expect(
+    (
+      await inviteRoute(
+        req({ email: users[3].email, role: "MEMBER" }),
+        context(),
+      )
+    ).status,
+  ).toBe(403);
+  await expect(
+    changeMember(workspaceId, users[2].id, users[1].id),
+  ).rejects.toThrow();
   session(0);
   expect((await leaveRoute(req(), context())).status).toBe(403);
   await transferOwnership(workspaceId, users[0].id, users[2].id);
-  expect(await db.workspaceMember.count({ where: { workspaceId, role: "OWNER" } })).toBe(1);
-  await expect(changeMember(workspaceId, users[1].id, users[0].id)).rejects.toThrow();
+  expect(
+    await db.workspaceMember.count({ where: { workspaceId, role: "OWNER" } }),
+  ).toBe(1);
+  await expect(
+    changeMember(workspaceId, users[1].id, users[0].id),
+  ).rejects.toThrow();
   await changeMember(workspaceId, users[2].id, users[1].id);
   await leaveWorkspace(workspaceId, users[0].id);
   expect(await db.workspaceMember.count({ where: { workspaceId } })).toBe(1);
 });
 it("prevents removed users from reusing an accepted invitation", async () => {
   await inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER");
-  const invite = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId } });
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
   await acceptInvite(invite.token, users[3].id);
   await changeMember(workspaceId, users[1].id, users[3].id);
   await expect(acceptInvite(invite.token, users[3].id)).rejects.toThrow();
 });
 it("enforces tenant and member restrictions on application and endpoint writes", async () => {
-  const app = await db.application.create({ data: { workspaceId, name: "App", currentApiKey: randomUUID() } });
-  const ep = await db.endpoint.create({ data: { applicationId: app.id, url: "https://example.com", secret: "secret", eventTypes: ["*"] } });
+  const app = await db.application.create({
+    data: { workspaceId, name: "App", currentApiKey: randomUUID() },
+  });
+  const ep = await db.endpoint.create({
+    data: {
+      applicationId: app.id,
+      url: "https://example.com",
+      secret: "secret",
+      eventTypes: ["*"],
+    },
+  });
   session(2);
   expect((await rotateRoute(req(), context(app.id))).status).toBe(403);
-  expect((await deleteApp(req({}, "DELETE"), context(app.id))).status).toBe(403);
+  expect((await deleteApp(req({}, "DELETE"), context(app.id))).status).toBe(
+    403,
+  );
   expect((await pauseRoute(req({}, "PATCH"), context(ep.id))).status).toBe(403);
-  const visible = await (await appRoute(req(undefined, "GET"), context(app.id))).json();
+  const visible = await (
+    await appRoute(req(undefined, "GET"), context(app.id))
+  ).json();
   expect(visible.currentApiKey).toBeUndefined();
   session(3);
-  expect((await appRoute(req(undefined, "GET"), context(app.id))).status).toBe(404);
+  expect((await appRoute(req(undefined, "GET"), context(app.id))).status).toBe(
+    404,
+  );
 });
 it("rotates keys with shared rate limiting and rejects expired old keys in both APIs", async () => {
   vi.stubEnv("EVENTS_RATE_LIMIT_PER_MINUTE", "2");
-  const app = await db.application.create({ data: { workspaceId, name: "App", currentApiKey: randomUUID() } });
-  const rotated = await rotateRoute(req(), context(app.id)); expect(rotated.status).toBe(200);
+  const app = await db.application.create({
+    data: { workspaceId, name: "App", currentApiKey: randomUUID() },
+  });
+  const rotated = await rotateRoute(req(), context(app.id));
+  expect(rotated.status).toBe(200);
   const result = await rotated.json();
   expect((await rotateRoute(req(), context(app.id))).status).toBe(409);
-  const send = (key: string) => events(new Request("http://localhost/api/v1/events", { method: "POST", headers: { authorization: `Bearer ${key}` }, body: JSON.stringify({ type: "test", payload: {} }) }));
+  const send = (key: string) =>
+    events(
+      new Request("http://localhost/api/v1/events", {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}` },
+        body: JSON.stringify({ type: "test", payload: {} }),
+      }),
+    );
   expect((await send(app.currentApiKey)).status).toBe(202);
   expect((await send(result.currentApiKey)).status).toBe(202);
-  const limited = await send(result.currentApiKey); expect(limited.status).toBe(429); expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
-  await db.application.update({ where: { id: app.id }, data: { previousApiKeyExpiresAt: new Date(0) } });
+  const limited = await send(result.currentApiKey);
+  expect(limited.status).toBe(429);
+  expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+  await db.application.update({
+    where: { id: app.id },
+    data: { previousApiKeyExpiresAt: new Date(0) },
+  });
   expect((await send(app.currentApiKey)).status).toBe(401);
-  expect((await cliApi(new Request("http://localhost/api/v1/me", { headers: { authorization: `Bearer ${app.currentApiKey}` } }), ["me"])).status).toBe(401);
+  expect(
+    (
+      await cliApi(
+        new Request("http://localhost/api/v1/me", {
+          headers: { authorization: `Bearer ${app.currentApiKey}` },
+        }),
+        ["me"],
+      )
+    ).status,
+  ).toBe(401);
 });
 it("pauses without delivery intents or skipped logs and resumes without backfill", async () => {
-  const app = await db.application.create({ data: { workspaceId, name: "App", currentApiKey: randomUUID() } });
-  const ep = await db.endpoint.create({ data: { applicationId: app.id, url: "https://example.com", secret: "secret", eventTypes: ["*"] } });
+  const app = await db.application.create({
+    data: { workspaceId, name: "App", currentApiKey: randomUUID() },
+  });
+  const ep = await db.endpoint.create({
+    data: {
+      applicationId: app.id,
+      url: "https://example.com",
+      secret: "secret",
+      eventTypes: ["*"],
+    },
+  });
   expect((await pauseRoute(req({}, "PATCH"), context(ep.id))).status).toBe(200);
-  const response = await events(new Request("http://localhost/api/v1/events", { method: "POST", headers: { authorization: `Bearer ${app.currentApiKey}` }, body: JSON.stringify({ type: "test", payload: {} }) }));
-  const event = await response.json(); expect(response.status).toBe(202);
+  const response = await events(
+    new Request("http://localhost/api/v1/events", {
+      method: "POST",
+      headers: { authorization: `Bearer ${app.currentApiKey}` },
+      body: JSON.stringify({ type: "test", payload: {} }),
+    }),
+  );
+  const event = await response.json();
+  expect(response.status).toBe(202);
   expect(await db.delivery.count({ where: { eventId: event.id } })).toBe(0);
-  expect(await db.deliveryAttempt.count({ where: { eventId: event.id } })).toBe(0);
-  expect((await resumeRoute(req({}, "PATCH"), context(ep.id))).status).toBe(200);
+  expect(await db.deliveryAttempt.count({ where: { eventId: event.id } })).toBe(
+    0,
+  );
+  expect((await resumeRoute(req({}, "PATCH"), context(ep.id))).status).toBe(
+    200,
+  );
   expect(await db.delivery.count({ where: { eventId: event.id } })).toBe(0);
-  expect((await replay(req({ endpointId: ep.id }), context(event.id))).status).toBe(202);
-  expect(await db.delivery.count({ where: { eventId: event.id, endpointId: ep.id } })).toBe(1);
+  expect(
+    (await replay(req({ endpointId: ep.id }), context(event.id))).status,
+  ).toBe(202);
+  expect(
+    await db.delivery.count({
+      where: { eventId: event.id, endpointId: ep.id },
+    }),
+  ).toBe(1);
 });
 it("supports workspace CRUD with server-side role checks and cascades only its own data", async () => {
   session(2);
-  expect((await workspaceDetails(req(undefined, "GET"), context())).status).toBe(200);
-  expect((await renameWorkspace(req({ name: "No" }, "PATCH"), context())).status).toBe(403);
-  expect((await deleteWorkspace(req({}, "DELETE"), context())).status).toBe(403);
+  expect(
+    (await workspaceDetails(req(undefined, "GET"), context())).status,
+  ).toBe(200);
+  expect(
+    (await renameWorkspace(req({ name: "No" }, "PATCH"), context())).status,
+  ).toBe(403);
+  expect((await deleteWorkspace(req({}, "DELETE"), context())).status).toBe(
+    403,
+  );
   session(1);
-  expect((await renameWorkspace(req({ name: "Renamed" }, "PATCH"), context())).status).toBe(200);
-  expect((await deleteWorkspace(req({}, "DELETE"), context())).status).toBe(403);
+  expect(
+    (await renameWorkspace(req({ name: "Renamed" }, "PATCH"), context()))
+      .status,
+  ).toBe(200);
+  expect((await deleteWorkspace(req({}, "DELETE"), context())).status).toBe(
+    403,
+  );
   session(0);
   const second = await (await newWorkspace(req({ name: "Second" }))).json();
-  const listed = await (await listWorkspaces()).json(); expect(listed).toHaveLength(2);
-  const app = await db.application.create({ data: { workspaceId: second.id, name: "Disposable", currentApiKey: randomUUID() } });
-  await db.event.create({ data: { applicationId: app.id, type: "test", payload: {}, idempotencyKey: "delete-test" } });
-  expect((await deleteWorkspace(req({}, "DELETE"), context(second.id))).status).toBe(200);
+  const listed = await (await listWorkspaces()).json();
+  expect(listed).toHaveLength(2);
+  const app = await db.application.create({
+    data: {
+      workspaceId: second.id,
+      name: "Disposable",
+      currentApiKey: randomUUID(),
+    },
+  });
+  await db.event.create({
+    data: {
+      applicationId: app.id,
+      type: "test",
+      payload: {},
+      idempotencyKey: "delete-test",
+    },
+  });
+  expect(
+    (await deleteWorkspace(req({}, "DELETE"), context(second.id))).status,
+  ).toBe(200);
   expect(await db.application.findUnique({ where: { id: app.id } })).toBeNull();
-  expect(await db.workspace.findUnique({ where: { id: workspaceId } })).not.toBeNull();
+  expect(
+    await db.workspace.findUnique({ where: { id: workspaceId } }),
+  ).not.toBeNull();
 });
 it("accepts an invite after the recipient registers, and enforces revocation", async () => {
   const email = `${randomUUID()}@example.com`;
   await inviteMember(workspaceId, users[0].id, email, "MEMBER");
-  const invite = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId, email } });
-  expect((await signup(req({ email, password: "test-registration-password" }))).status).toBe(201);
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId, email },
+  });
+  expect(
+    (await signup(req({ email, password: "test-registration-password" })))
+      .status,
+  ).toBe(201);
   users.push(await db.user.findUniqueOrThrow({ where: { email } }));
   await acceptInvite(invite.token, users[4].id);
-  expect(await db.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId: users[4].id } } })).toMatchObject({ role: "MEMBER" });
+  expect(
+    await db.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: users[4].id } },
+    }),
+  ).toMatchObject({ role: "MEMBER" });
   await inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER");
-  const pending = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId, email: users[3].email } });
+  const pending = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId, email: users[3].email },
+  });
   session(2);
-  const params = { params: Promise.resolve({ id: workspaceId, inviteId: pending.id }) };
+  const params = {
+    params: Promise.resolve({ id: workspaceId, inviteId: pending.id }),
+  };
   expect((await revokeInvite(req({}, "DELETE"), params)).status).toBe(403);
   session(0);
   expect((await revokeInvite(req({}, "DELETE"), params)).status).toBe(200);
@@ -164,17 +380,38 @@ it("accepts an invite after the recipient registers, and enforces revocation", a
 });
 it("enforces the rolling limit under concurrency and reopens the budget after expiry", async () => {
   vi.stubEnv("EVENTS_RATE_LIMIT_PER_MINUTE", "3");
-  const app = await db.application.create({ data: { workspaceId, name: "Concurrent", currentApiKey: randomUUID() } });
-  const send = () => events(new Request("http://localhost/api/v1/events", { method: "POST", headers: { authorization: `Bearer ${app.currentApiKey}` }, body: JSON.stringify({ type: "test", payload: {} }) }));
+  const app = await db.application.create({
+    data: { workspaceId, name: "Concurrent", currentApiKey: randomUUID() },
+  });
+  const send = () =>
+    events(
+      new Request("http://localhost/api/v1/events", {
+        method: "POST",
+        headers: { authorization: `Bearer ${app.currentApiKey}` },
+        body: JSON.stringify({ type: "test", payload: {} }),
+      }),
+    );
   const responses = await Promise.all(Array.from({ length: 7 }, send));
-  expect(responses.filter(r => r.status === 202)).toHaveLength(3);
-  expect(responses.filter(r => r.status === 429)).toHaveLength(4);
+  expect(responses.filter((r) => r.status === 202)).toHaveLength(3);
+  expect(responses.filter((r) => r.status === 429)).toHaveLength(4);
   expect(await db.event.count({ where: { applicationId: app.id } })).toBe(3);
-  await db.eventAdmission.updateMany({ where: { applicationId: app.id }, data: { createdAt: new Date(Date.now() - 61000) } });
+  await db.eventAdmission.updateMany({
+    where: { applicationId: app.id },
+    data: { createdAt: new Date(Date.now() - 61000) },
+  });
   expect((await send()).status).toBe(202);
 });
 it("database constraints reject losing the last owner and adding a second owner", async () => {
-  await expect(db.workspaceMember.deleteMany({ where: { workspaceId, role: "OWNER" } })).rejects.toThrow();
-  await expect(db.workspaceMember.update({ where: { workspaceId_userId: { workspaceId, userId: users[1].id } }, data: { role: "OWNER" } })).rejects.toThrow();
-  expect(await db.workspaceMember.count({ where: { workspaceId, role: "OWNER" } })).toBe(1);
+  await expect(
+    db.workspaceMember.deleteMany({ where: { workspaceId, role: "OWNER" } }),
+  ).rejects.toThrow();
+  await expect(
+    db.workspaceMember.update({
+      where: { workspaceId_userId: { workspaceId, userId: users[1].id } },
+      data: { role: "OWNER" },
+    }),
+  ).rejects.toThrow();
+  expect(
+    await db.workspaceMember.count({ where: { workspaceId, role: "OWNER" } }),
+  ).toBe(1);
 });

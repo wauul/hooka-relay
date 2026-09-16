@@ -18,7 +18,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8", reporter: ["text", "json-summary", "lcov", "html"],
-      include: ["lib/circuitBreaker.ts", "lib/security.ts", "lib/events.ts", "lib/queue/topology.ts", "lib/queue/client.ts", "app/api/v1/events/route.ts"],
+      include: ["lib/circuitBreaker.ts", "lib/security.ts", "lib/events.ts", "lib/queue/topology.ts", "lib/queue/client.ts", "app/api/v1/events/route.ts", "lib/permissions.ts", "lib/workspaces.ts", "lib/api-keys.ts", "lib/endpoint-status.ts", "lib/rate-limit.ts", "lib/invite-email.ts"],
       // Deliberately measure the reliability/API modules, not untested UI files.
       thresholds: { statements: 90, branches: 85, functions: 90, lines: 90 },
     },
