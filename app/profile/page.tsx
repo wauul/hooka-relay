@@ -16,7 +16,6 @@ export default function Page() {
       <div className="page-head">
         <div>
           <div className="eyebrow">YOUR ACCOUNT</div>
-          <h1>A name that feels like you.</h1>
           <p className="muted">
             Choose how your teammates see you across your workspaces.
           </p>
@@ -67,8 +66,8 @@ export default function Page() {
               </small>
             </div>
             <div className="field">
-              <label htmlFor="profile-email">Email address</label>
-              <input id="profile-email" value={data.email} readOnly />
+              <div className="profile-email-label">Email address</div>
+              <p className="profile-email">{data.email}</p>
               <small className="muted">
                 Used for sign-in and workspace invitations.
               </small>

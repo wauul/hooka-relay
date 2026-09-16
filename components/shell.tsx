@@ -121,7 +121,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 : path === "/workspaces"
                   ? "Teams"
                   : "Applications"}
-          </span>
+            </Link>
+          </nav>
           <SearchButton />
         </header>
         <main className="content" id="main-content" tabIndex={-1}>

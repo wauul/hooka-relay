@@ -1393,3 +1393,6 @@ button:disabled:has(.spin)::after {
 .invite-next-note{margin:18px 0 24px;font-size:11px;color:var(--muted);line-height:1.7;text-align:center}
 
 .profile-panel{max-width:600px}.profile-panel .field small{display:block;margin-top:9px;font-size:11px;line-height:1.6}.profile-saved{display:inline-flex;gap:6px;align-items:center;margin-left:16px;color:var(--green);font-size:12px}.profile-link>span{overflow:hidden;text-overflow:ellipsis}.profile-link small{display:block;font-size:10px;color:var(--muted);margin-top:4px}.member-name{display:flex;align-items:center;gap:9px}.member-avatar{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:#adf7b610;color:var(--green);font-size:11px;flex-shrink:0}
+
+.breadcrumbs{display:flex;align-items:center;gap:10px;font-size:12px;min-width:0}.breadcrumbs a{color:var(--muted);white-space:nowrap}.breadcrumbs a:hover{color:var(--green);text-decoration:underline;text-underline-offset:4px}.breadcrumbs a[aria-current=page]{color:#edf0f4}.breadcrumbs svg{flex-shrink:0}.profile-email-label{font-size:12px;color:var(--muted);margin-bottom:10px}.profile-email{margin:0;padding:4px 0;font-size:14px;overflow-wrap:anywhere;user-select:text}
+@media(max-width:760px){.topbar{flex-wrap:wrap;gap:14px}.topbar .breadcrumbs{display:flex;width:100%}}
