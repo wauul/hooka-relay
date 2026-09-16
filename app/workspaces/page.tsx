@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/select";
 import { useState } from "react";
 import { Shell } from "@/components/shell";
 import { api, useData, ErrorBox } from "@/components/ui";
@@ -176,10 +177,24 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                 </label>
                 <label>
                   Role
-                  <select name="role">
-                    <option>MEMBER</option>
-                    <option>ADMIN</option>
-                  </select>
+                  <Select
+                    name="role"
+                    label="Invitation role"
+                    defaultValue="MEMBER"
+                    options={[
+                      {
+                        value: "MEMBER",
+                        label: "Member",
+                        description: "View deliveries and send test events",
+                      },
+                      {
+                        value: "ADMIN",
+                        label: "Admin",
+                        description:
+                          "Manage applications, endpoints, and members",
+                      },
+                    ]}
+                  />
                 </label>
                 <button className="btn" disabled={busy}>
                   Send invitation
@@ -325,16 +340,22 @@ export default function Page() {
       </form>
       <label>
         Manage workspace
-        <select
+        <Select
+          label="Manage workspace"
+          workspace
           value={selected || data?.[0]?.workspaceId || ""}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          {data?.map((m) => (
-            <option key={m.workspaceId} value={m.workspaceId}>
-              {m.workspace.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelected}
+          options={(data || []).map((m) => ({
+            value: m.workspaceId,
+            label: m.workspace.name,
+            description:
+              m.role === "OWNER"
+                ? "Owner"
+                : m.role === "ADMIN"
+                  ? "Admin"
+                  : "Member",
+          }))}
+        />
       </label>
       {(selected || data?.[0]) && (
         <Team

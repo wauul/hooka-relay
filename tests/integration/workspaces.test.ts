@@ -511,7 +511,9 @@ it("accepted and expired invitations cannot be declined", async () => {
 
 it("decline route requires authentication and the recipient session", async () => {
   await inviteMember(workspaceId, users[0].id, users[3].email, "MEMBER");
-  const invite = await db.workspaceInvite.findFirstOrThrow({ where: { workspaceId } });
+  const invite = await db.workspaceInvite.findFirstOrThrow({
+    where: { workspaceId },
+  });
   const ctx = { params: Promise.resolve({ token: invite.token }) };
   mocks.session.mockResolvedValue(null);
   expect((await declineRoute(req(), ctx)).status).toBe(401);

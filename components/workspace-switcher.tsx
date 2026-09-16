@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Select } from "./select";
 import { useData } from "./ui";
 export type WorkspaceMembership = {
   workspaceId: string;
@@ -23,20 +24,26 @@ export function WorkspaceSwitcher() {
   return (
     <div className="workspace" style={{ display: "grid", gap: 8 }}>
       <label htmlFor="workspace-switch">Workspace</label>
-      <select
+      <Select
         id="workspace-switch"
+        label="Workspace"
+        workspace
         value={selected}
-        onChange={(e) => {
-          localStorage.setItem("workspaceId", e.target.value);
+        options={(data || []).map((m) => ({
+          value: m.workspaceId,
+          label: m.workspace.name,
+          description:
+            m.role === "OWNER"
+              ? "Owner"
+              : m.role === "ADMIN"
+                ? "Admin"
+                : "Member",
+        }))}
+        onChange={(id) => {
+          localStorage.setItem("workspaceId", id);
           window.location.assign("/dashboard");
         }}
-      >
-        {data?.map((m) => (
-          <option key={m.workspaceId} value={m.workspaceId}>
-            {m.workspace.name}
-          </option>
-        ))}
-      </select>
+      />
       <Link href="/workspaces">Manage workspaces &amp; team</Link>
     </div>
   );
