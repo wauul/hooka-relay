@@ -1396,3 +1396,22 @@ button:disabled:has(.spin)::after {
 
 .breadcrumbs{display:flex;align-items:center;gap:10px;font-size:12px;min-width:0}.breadcrumbs a{color:var(--muted);white-space:nowrap}.breadcrumbs a:hover{color:var(--green);text-decoration:underline;text-underline-offset:4px}.breadcrumbs a[aria-current=page]{color:#edf0f4}.breadcrumbs svg{flex-shrink:0}.profile-email-label{font-size:12px;color:var(--muted);margin-bottom:10px}.profile-email{margin:0;padding:4px 0;font-size:14px;overflow-wrap:anywhere;user-select:text}
 @media(max-width:760px){.topbar{flex-wrap:wrap;gap:14px}.topbar .breadcrumbs{display:flex;width:100%}}
+
+/* Workspace management spacing stays local to this page. */
+.workspaces-page{display:grid;gap:28px;max-width:1080px}
+.workspaces-page>h1{font-size:24px;letter-spacing:-.6px;margin:0}
+.workspaces-page label{display:grid;gap:10px;min-width:0}
+.workspaces-page form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:20px}
+.workspaces-page form .btn{min-height:42px;align-self:end;justify-self:start}
+.workspaces-page .team-panel{padding:32px}
+.team-panel>h2{font-size:18px;line-height:1.6;margin:0 0 24px;overflow-wrap:anywhere}
+.team-panel h3{font-size:15px;font-weight:600;margin:36px 0 20px;padding-top:28px;border-top:1px solid var(--line)}
+.team-panel form:has(input[type=email]){grid-template-columns:minmax(0,1fr) minmax(180px,.7fr) auto}
+.team-panel th,.team-panel td{padding:18px 16px;vertical-align:middle}
+.member-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:180px}
+.team-panel .member-name{white-space:normal;min-width:140px;overflow-wrap:anywhere}
+.team-panel>p{margin:24px 0 18px;line-height:1.8;max-width:760px}
+.team-panel>p.muted{margin-top:32px;padding-top:24px;border-top:1px solid var(--line)}
+.pending-invite{display:flex;align-items:center;flex-wrap:wrap;gap:12px;overflow-wrap:anywhere}
+@media(max-width:1000px){.team-panel form:has(input[type=email]){grid-template-columns:1fr 1fr}.team-panel form:has(input[type=email])>.btn{grid-column:1/-1}}
+@media(max-width:600px){.workspaces-page{gap:24px}.workspaces-page .team-panel{padding:22px}.workspaces-page form,.team-panel form:has(input[type=email]){grid-template-columns:1fr;gap:18px}.team-panel h3{margin-top:30px;padding-top:24px}.team-panel th,.team-panel td{padding:16px 12px}}

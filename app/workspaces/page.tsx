@@ -41,7 +41,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
     }
   }
   return (
-    <section className="panel panel-body">
+    <section className="panel panel-body team-panel">
       <ErrorBox error={error || failure} />
       {data && (
         <>
@@ -99,70 +99,73 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                     </td>
                     <td>{m.role}</td>
                     <td>
-                      {admin &&
-                        m.role !== "OWNER" &&
-                        m.userId !== data.currentUserId && (
-                          <>
-                            <button
-                              className="btn quiet"
-                              disabled={busy}
-                              onClick={() =>
-                                action(
-                                  `/members/${m.userId}`,
-                                  {
-                                    role:
-                                      m.role === "ADMIN" ? "MEMBER" : "ADMIN",
-                                  },
-                                  "PATCH",
-                                )
-                              }
-                            >
-                              Make {m.role === "ADMIN" ? "member" : "admin"}
-                            </button>
-                            {(data.role === "OWNER" || m.role === "MEMBER") && (
+                      <div className="member-actions">
+                        {admin &&
+                          m.role !== "OWNER" &&
+                          m.userId !== data.currentUserId && (
+                            <>
                               <button
                                 className="btn quiet"
                                 disabled={busy}
-                                onClick={async () => {
-                                  if (
-                                    await confirm({
-                                      title: "Remove member?",
-                                      description: `${userDisplayName(m.user)} (${m.user.email}) will lose access to this workspace.`,
-                                      label: "Remove member",
-                                    })
+                                onClick={() =>
+                                  action(
+                                    `/members/${m.userId}`,
+                                    {
+                                      role:
+                                        m.role === "ADMIN" ? "MEMBER" : "ADMIN",
+                                    },
+                                    "PATCH",
                                   )
-                                    await action(
-                                      `/members/${m.userId}`,
-                                      {},
-                                      "DELETE",
-                                    );
-                                }}
+                                }
                               >
-                                Remove
+                                Make {m.role === "ADMIN" ? "member" : "admin"}
                               </button>
-                            )}
-                            {data.role === "OWNER" && (
-                              <button
-                                className="btn quiet"
-                                disabled={busy}
-                                onClick={async () => {
-                                  if (
-                                    await confirm({
-                                      title: "Transfer ownership?",
-                                      description: `${userDisplayName(m.user)} (${m.user.email}) will become the sole owner. You will become an admin.`,
-                                      label: "Transfer",
-                                    })
-                                  )
-                                    await action("/transfer-ownership", {
-                                      userId: m.userId,
-                                    });
-                                }}
-                              >
-                                Transfer ownership
-                              </button>
-                            )}
-                          </>
-                        )}
+                              {(data.role === "OWNER" ||
+                                m.role === "MEMBER") && (
+                                <button
+                                  className="btn quiet"
+                                  disabled={busy}
+                                  onClick={async () => {
+                                    if (
+                                      await confirm({
+                                        title: "Remove member?",
+                                        description: `${userDisplayName(m.user)} (${m.user.email}) will lose access to this workspace.`,
+                                        label: "Remove member",
+                                      })
+                                    )
+                                      await action(
+                                        `/members/${m.userId}`,
+                                        {},
+                                        "DELETE",
+                                      );
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {data.role === "OWNER" && (
+                                <button
+                                  className="btn quiet"
+                                  disabled={busy}
+                                  onClick={async () => {
+                                    if (
+                                      await confirm({
+                                        title: "Transfer ownership?",
+                                        description: `${userDisplayName(m.user)} (${m.user.email}) will become the sole owner. You will become an admin.`,
+                                        label: "Transfer",
+                                      })
+                                    )
+                                      await action("/transfer-ownership", {
+                                        userId: m.userId,
+                                      });
+                                  }}
+                                >
+                                  Transfer ownership
+                                </button>
+                              )}
+                            </>
+                          )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -299,7 +302,7 @@ function Invites({
       <ErrorBox error={error} />
       {data?.length ? (
         data.map((i) => (
-          <p key={i.id}>
+          <p key={i.id} className="pending-invite">
             {i.email} · {i.role} · expires{" "}
             {new Date(i.expiresAt).toLocaleString()}{" "}
             <button
@@ -326,55 +329,57 @@ export default function Page() {
   const [selected, setSelected] = useState("");
   return (
     <Shell>
-      <h1>Workspaces &amp; teams</h1>
-      <ErrorBox error={error || failure} />
-      <form
-        className="panel panel-body"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          try {
-            const w = await api<{ id: string }>("/api/workspaces", {
-              name: new FormData(e.currentTarget).get("name"),
-            });
-            setSelected(w.id);
-            await reload();
-          } catch (e) {
-            setFailure((e as Error).message);
-          }
-        }}
-      >
+      <div className="workspaces-page">
+        <h1>Workspaces &amp; teams</h1>
+        <ErrorBox error={error || failure} />
+        <form
+          className="panel panel-body workspace-create"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const w = await api<{ id: string }>("/api/workspaces", {
+                name: new FormData(e.currentTarget).get("name"),
+              });
+              setSelected(w.id);
+              await reload();
+            } catch (e) {
+              setFailure((e as Error).message);
+            }
+          }}
+        >
+          <label>
+            New workspace name
+            <input name="name" maxLength={100} required />
+          </label>
+          <button className="btn">Create workspace</button>
+        </form>
         <label>
-          New workspace name
-          <input name="name" maxLength={100} required />
+          Manage workspace
+          <Select
+            label="Manage workspace"
+            workspace
+            value={selected || data?.[0]?.workspaceId || ""}
+            onChange={setSelected}
+            options={(data || []).map((m) => ({
+              value: m.workspaceId,
+              label: m.workspace.name,
+              description:
+                m.role === "OWNER"
+                  ? "Owner"
+                  : m.role === "ADMIN"
+                    ? "Admin"
+                    : "Member",
+            }))}
+          />
         </label>
-        <button className="btn">Create workspace</button>
-      </form>
-      <label>
-        Manage workspace
-        <Select
-          label="Manage workspace"
-          workspace
-          value={selected || data?.[0]?.workspaceId || ""}
-          onChange={setSelected}
-          options={(data || []).map((m) => ({
-            value: m.workspaceId,
-            label: m.workspace.name,
-            description:
-              m.role === "OWNER"
-                ? "Owner"
-                : m.role === "ADMIN"
-                  ? "Admin"
-                  : "Member",
-          }))}
-        />
-      </label>
-      {(selected || data?.[0]) && (
-        <Team
-          key={selected || data?.[0]?.workspaceId}
-          id={selected || data![0].workspaceId}
-          refresh={reload}
-        />
-      )}
+        {(selected || data?.[0]) && (
+          <Team
+            key={selected || data?.[0]?.workspaceId}
+            id={selected || data![0].workspaceId}
+            refresh={reload}
+          />
+        )}
+      </div>
     </Shell>
   );
 }
