@@ -89,7 +89,7 @@ CREATE UNIQUE INDEX "Workspace_one_owner" ON "WorkspaceMember"("workspaceId") WH
 ALTER TABLE "WorkspaceInvite" ADD CONSTRAINT "WorkspaceInvite_no_owner" CHECK (role <> 'OWNER');
 -- Deferred validation permits atomic creation and ownership transfer, while
 -- guaranteeing every surviving workspace has exactly one owner at commit.
-CREATE FUNCTION check_workspace_owner() RETURNS trigger LANGUAGE plpgsql AS $
+CREATE FUNCTION check_workspace_owner() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE wid TEXT;
 BEGIN
   IF TG_TABLE_NAME = 'Workspace' THEN wid := COALESCE(NEW.id, OLD.id);
@@ -99,7 +99,7 @@ BEGIN
     RAISE EXCEPTION 'Workspace must have exactly one owner';
   END IF;
   RETURN NULL;
-END $;
+END $$;
 CREATE CONSTRAINT TRIGGER workspace_owner_members AFTER INSERT OR UPDATE OR DELETE ON "WorkspaceMember"
 DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_workspace_owner();
 CREATE CONSTRAINT TRIGGER workspace_owner_create AFTER INSERT ON "Workspace"
