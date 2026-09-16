@@ -12,6 +12,7 @@ export function WorkspaceSwitcher() {
     const id = data.find(m => m.workspaceId === saved)?.workspaceId || data[0].workspaceId;
     localStorage.setItem("workspaceId", id);
     setSelected(id);
+    if (saved && saved !== id) window.location.assign("/dashboard");
   }, [data]);
   return <div className="workspace" style={{ display: "grid", gap: 8 }}>
     <label htmlFor="workspace-switch">Workspace</label>

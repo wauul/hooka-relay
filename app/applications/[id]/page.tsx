@@ -35,6 +35,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
           Add endpoint
         </Link>
       </div>
+      {data && data.role !== "MEMBER" && <button className="btn quiet" onClick={async () => { if (!(await confirmAction({ title: "Delete application?", description: "Permanently delete this application, its endpoints, events and delivery history?", label: "Delete application" }))) return; try { await api(`/api/applications/${resolvedParams.id}`, {}, "DELETE"); window.location.assign("/dashboard"); } catch(e) { setFailure((e as Error).message); } }}>Delete application</button>}
       <ErrorBox error={error || failure} />
       {!data && !error && <LoadingState />}
       {data && (

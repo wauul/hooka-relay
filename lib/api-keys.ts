@@ -1,3 +1,4 @@
+import { workspaceTransaction } from "./workspaces";
 import { db } from "./db";
 import { newSecret } from "./security";
 export function keyGraceHours() {
@@ -11,8 +12,9 @@ export function keyIsValid(app: { currentApiKey: string; previousApiKey: string 
 export function applicationForKey(key: string) {
   return db.application.findFirst({ where: { OR: [{ currentApiKey: key }, { previousApiKey: key, previousApiKeyExpiresAt: { gt: new Date() } }] } });
 }
-export async function rotateKey(id: string) {
-  return db.$transaction(async tx => {
+export async function rotateKey(id: string, userId: string) {
+  const application = await db.application.findUniqueOrThrow({ where: { id } });
+  return workspaceTransaction(application.workspaceId, userId, "manage", async tx => {
     await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${id} FOR UPDATE`;
     const app = await tx.application.findUniqueOrThrow({ where: { id } });
     // Two slots cannot honor a third concurrent generation's grace window.

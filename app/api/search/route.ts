@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   if (query.length < 2) return json({ results: [] });
   if (query.length > 100)
     return json({ error: "Use 100 characters or fewer." }, 400);
+  const workspaceId = request.headers.get("x-workspace-id") || undefined;
   const results: SearchResult[] = searchSite(query);
   try {
     const session = await getServerSession(authOptions);
@@ -18,13 +19,13 @@ export async function GET(request: Request) {
       const contains = { contains: query, mode: "insensitive" as const };
       const [apps, endpoints, events] = await Promise.all([
         db.application.findMany({
-          where: { workspace: { members: { some: { userId } } }, OR: [{ name: contains }, { id: contains }] },
+          where: { workspace: { id: workspaceId, members: { some: { userId } } }, OR: [{ name: contains }, { id: contains }] },
           take: 8,
           select: { id: true, name: true },
         }),
         db.endpoint.findMany({
           where: {
-            application: { workspace: { members: { some: { userId } } } },
+            application: { workspace: { id: workspaceId, members: { some: { userId } } } },
             OR: [
               { url: contains },
               { id: contains },
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
         }),
         db.event.findMany({
           where: {
-            application: { workspace: { members: { some: { userId } } } },
+            application: { workspace: { id: workspaceId, members: { some: { userId } } } },
             OR: [
               { id: contains },
               { type: contains },

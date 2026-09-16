@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/wauul/hooka-relay/workflows/CI/badge.svg)](https://github.com/wauul/hooka-relay/actions/workflows/ci.yml)
 
-[Live app](https://hooka-relay.vercel.app) · [API docs](https://hooka-relay.vercel.app/docs) · [Worker dashboard](https://railway.com/project/6a81016b-7716-4f67-807b-f0abf0a3987b/service/fbb521bc-0649-4a45-839e-15cbc60353a9) · [Live verification results](VERIFICATION.md)
+[Live app](https://hooka-relay.vercel.app) · [API docs](https://hooka-relay.vercel.app/docs) · [Live verification results](VERIFICATION.md)
 
 [Hooka CLI](https://github.com/wauul/hooka-cli) is the standalone terminal companion: send events, list/register endpoints, tail attempts and replay deliveries. Install with `npm install -g hooka-relay-cli`, then run `hooka login` with your Application API key.
 
@@ -21,7 +21,7 @@ Application-key authentication (`Authorization: Bearer <key>` or `X-API-Key`) is
 
 Read responses never expose endpoint secrets or application API keys, and use `Cache-Control: no-store`. Attempts omit webhook request/response bodies and headers. The first attempt page contains the most recent 100 entries in chronological order; pass the opaque cursor for subsequent pages. This polling feed is a developer convenience, not a lossless audit stream: a late database transaction can commit behind the cursor. The CLI drains full pages before sleeping; a future SSE feed could improve latency and reconnect semantics.
 
-A webhook delivery service built with Next.js 14 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `openai/gpt-oss-20b` (override with GROQ_MODEL). The requested `llama-3.1-8b-instant` was retired from Groq's shared API on August 16, 2026 and returns model_not_found.
+A webhook delivery service built with Next.js 15 App Router, React, Tailwind CSS, NextAuth Credentials, Prisma/Postgres, RabbitMQ and a separate Node.js worker. AI failure diagnosis uses Groq's `openai/gpt-oss-20b` (override with GROQ_MODEL). The requested `llama-3.1-8b-instant` was retired from Groq's shared API on August 16, 2026 and returns model_not_found.
 
 ## Run locally
 
@@ -74,7 +74,7 @@ Session-authenticated dashboard routes enforce ownership:
 | POST /api/events/:id/replay | New delivery run for each original destination |
 | GET/POST /api/fake-receiver/:mode | Public test receiver |
 
-Register with `{"url":"https://example.com/hook","eventTypes":["order.shipped"]}` or `{"mode":"flaky","eventTypes":["*"]}`. Key regeneration invalidates the previous key immediately.
+Register with `{"url":"https://example.com/hook","eventTypes":["order.shipped"]}` or `{"mode":"flaky","eventTypes":["*"]}`. Key rotation retains the previous key for a configurable grace period (see below).
 
 ## Signature verification and receiver deduplication
 
@@ -143,7 +143,7 @@ Web: Vercel Hobby. Worker: Railway Free/Trial with `Dockerfile.worker`. Set `RAI
 
 Set the five `.env.example` variables on Vercel. On Railway set DATABASE_URL, RABBITMQ_URL, GROQ_API_KEY and NEXTAUTH_URL; NEXTAUTH_SECRET is not required by the worker. Use the production HTTPS origin for NEXTAUTH_URL. Run `pnpm db:migrate` before deployment. Never commit `.env` files. `pnpm build`, `pnpm test`, and `pnpm typecheck` provide local validation. Worker logs list all declared queues at startup.
 
-Next.js 14.2.35 follows the requested stack, but Next.js 14 is outside the current supported LTS lines. Plan an upgrade before broader production use. This developer/demo service also needs deployment-level abuse controls and data retention policies for an unrestricted public launch. Endpoint requests block private/reserved IPs, pin DNS results, and never follow redirects.
+This developer/demo service also needs deployment-level abuse controls and data retention policies for an unrestricted public launch. Endpoint requests block private/reserved IPs, pin DNS results, and never follow redirects.
 
 ## Running tests locally
 
@@ -165,7 +165,7 @@ Automated tests cover circuit-breaker boundaries and recovery, HMAC verification
 
 The suite has 76 unit tests and 14 integration tests. Combined coverage reached 100% statements, branches, functions and lines for the six scoped modules. Coverage measures six reliability/API modules explicitly listed in `vitest.config.ts`; it is not whole-application or UI coverage. CI enforces 90% statements, lines and functions, and 85% branches, and uploads HTML/LCOV reports. Full broker delivery, real TTL retry timing, worker recovery and browser flows remain manual checks documented in [VERIFICATION.md](VERIFICATION.md).
 
-The CI workflow runs on pushes and pull requests to `master` (the default branch) and `main`. It installs with `npm ci`, typechecks, runs both test suites and coverage, builds Next.js, builds the worker image and checks its runtime contents. There is no existing lint script, so CI skips interactive lint setup and runs the strict TypeScript check instead.
+The CI workflow runs on pushes and pull requests to `master` (the default branch) and `main`. It installs with `npm ci`, typechecks, runs both test suites and coverage, builds Next.js, builds the worker image and checks its runtime contents. CI runs ESLint and strict TypeScript checks as separate required steps.
 
 ## Worker Docker image
 
@@ -184,3 +184,70 @@ docker run --rm --name hooka-relay-worker -p 8080:8080 \
 Use real connection values in your local environment; do not commit them. Alternatively use `docker run --rm -p 8080:8080 --env-file .env hooka-relay-worker` after configuring `.env`. Apply schema migrations with `npm run db:migrate` before starting the worker. The image does not run migrations automatically. Check readiness at `http://localhost:8080/health`; a reachable database and broker are required. Groq provides optional failure diagnosis.
 
 
+
+
+## Workspaces and teams
+
+Applications belong to workspaces. The sidebar switcher selects the workspace used by the dashboard; a user can belong to several workspaces. Workspace management is available at /workspaces. Session routes check membership and permissions on the server.
+
+| Action | OWNER | ADMIN | MEMBER |
+| --- | --- | --- | --- |
+| View applications, endpoints, logs and usage; send test events; replay | Yes | Yes | Yes |
+| Rename workspace; create/delete applications and endpoints; pause/resume; rotate keys | Yes | Yes | No |
+| Invite ADMIN/MEMBER; revoke invites; change other non-owner roles | Yes | Yes | No |
+| Remove a MEMBER | Yes | Yes | No |
+| Remove an ADMIN | Yes | No | No |
+| Leave voluntarily | Transfer ownership first | Yes | Yes |
+| Transfer ownership; delete workspace and its data | Yes | No | No |
+
+There is exactly one owner, enforced by PostgreSQL constraints. Ownership transfers are transactional and demote the previous owner to ADMIN. Nobody can kick an owner. Deleting a workspace permanently deletes its applications, endpoints, events and delivery history; the UI requires confirmation. The legacy user ownership column is retained for audit, but access uses workspace membership exclusively.
+
+The migration creates one personal workspace per existing user with applications, makes that user OWNER and reassigns all their applications without changing IDs, API keys, endpoint secrets or delivery data. A first workspace is created on demand for accounts without one. Testcontainers starts from the original schema with multiple users/applications, endpoints, events, attempts and flaky-receiver counters, then applies the actual migrations and checks preservation. Tests never fall back to a hosted database. Back up your database before deployment; coordinate the schema migration with the new web and worker releases because the old web version cannot create applications with the new required workspace field.
+
+Invitations are emailed through Resend, expire after seven days, and grant only ADMIN or MEMBER. The recipient must sign in or register with the invited email, then accept at /invites/accept?token=.... Tokens are random 256-bit values. Revoked, expired and previously accepted invitations cannot restore a kicked or departed membership. A failed email send revokes its invitation and returns 503; retry from the UI after fixing email configuration. Pending invitations can be revoked by an admin.
+
+| Method | Session API route | Purpose |
+| --- | --- | --- |
+| GET / POST | /api/workspaces | List memberships / create workspace |
+| GET / PATCH / DELETE | /api/workspaces/:id | Details and members / rename / delete |
+| GET / POST | /api/workspaces/:id/invites | Pending invitations / email invitation |
+| DELETE | /api/workspaces/:id/invites/:inviteId | Revoke invitation |
+| POST | /api/invites/:token/accept | Accept as the signed-in recipient |
+| PATCH / DELETE | /api/workspaces/:id/members/:userId | Change role / remove member |
+| POST | /api/workspaces/:id/leave | Leave workspace |
+| POST | /api/workspaces/:id/transfer-ownership | Transfer to body userId |
+| DELETE | /api/applications/:id | Delete application and child data |
+| DELETE | /api/endpoints/:id | Delete endpoint and its delivery history |
+| PATCH | /api/endpoints/:id/pause or /resume | Change explicit ingestion status |
+
+POST /api/applications accepts an optional workspaceId; GET accepts ?workspaceId=.... The dashboard supplies X-Workspace-Id. Without a selection the oldest membership is used. Membership is always checked, including when a client supplies an ID. Application keys remain application-scoped administrative credentials for the existing CLI API; member-facing application responses omit them. Removing someone does not revoke credentials they previously copied; rotate keys after removing a former administrator when appropriate.
+
+## Event ingestion rate limit
+
+POST /api/v1/events admits at most 100 valid requests per rolling 60-second window per Application. Set EVENTS_RATE_LIMIT_PER_MINUTE to a positive integer to change it. Both current and previous keys share this budget, as do retries with an existing idempotency key. Invalid keys and malformed payloads do not consume it. PostgreSQL records admissions under an application-row lock, so the limit is shared across serverless instances without Redis. Old admission rows are pruned on requests and by the worker.
+
+A rejected request returns HTTP 429, a Retry-After header in seconds, and JSON such as {"error":"Rate limit exceeded","retryAfter":42}. No event or delivery is inserted for that rejected request. Wait at least Retry-After seconds before retrying with the same idempotency key.
+
+## API key rotation
+
+Admins rotate keys using POST /api/applications/:id. The response includes currentApiKey and previousApiKeyExpiresAt. API_KEY_GRACE_HOURS defaults to 24 (positive hours, up to 8760). The previous key works strictly before its expiry in both event ingestion and CLI authentication. The dashboard displays its exact expiry. A second rotation during the active grace period returns 409, preserving the earlier promise rather than silently invalidating a third key. The worker clears expired previous keys; authentication rejects expired keys even if the worker is offline. Existing key values are retained by mapping currentApiKey to the original database column.
+
+## Explicit endpoint pause
+
+Endpoint status is ACTIVE or PAUSED, independently of CLOSED/OPEN/HALF_OPEN circuit state. When ingestion sees PAUSED it creates no delivery intent or skipped-attempt log for that endpoint. The event itself remains stored. Existing queued deliveries retain their original processing/retry behavior. Resume affects subsequent ingestions only and does not backfill events received while paused.
+
+To deliberately replay a stored event to a resumed endpoint, use the endpoint page's event-ID replay form, or send {"endpointId":"ENDPOINT_ID"} to POST /api/events/:id/replay (session) or POST /api/v1/events/:id/replay (application key). The endpoint must be active, match the event type, and belong to the same application. Replay without endpointId preserves the existing original-destination behavior and idempotency key.
+
+## Additional configuration and validation
+
+| Variable | Default / purpose | Service |
+| --- | --- | --- |
+| EVENTS_RATE_LIMIT_PER_MINUTE | 100; positive integer | Web |
+| API_KEY_GRACE_HOURS | 24; positive hours | Web |
+| RESEND_API_KEY | Required to send invitations; never expose to browsers | Web |
+| RESEND_FROM | Verified sender, e.g. Hooka Relay <invites@waelfz.com> | Web |
+| NEXTAUTH_URL | Existing setting; public origin used in invite links | Web |
+
+Resend's free-tier email and verified-domain quotas apply. No new paid infrastructure is required. The verified sender must match a domain configured in your Resend account; a subdomain needs its own verification and an available domain slot. Application and worker continue using the existing PostgreSQL and RabbitMQ services.
+
+The web application uses Next.js 15.5.25 and React 19. Run npm run lint, npm run typecheck, npm run test:unit, npm run test:integration, npm run test:coverage, npm run build and npm run build:worker. CI also builds the worker Docker image and smoke-tests its contents. ESLint uses the matching Next.js core-web-vitals configuration; strict TypeScript remains a separate check. Invite tests mock the email boundary and never send real email. Both npm and pnpm lockfiles are maintained.

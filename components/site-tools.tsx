@@ -128,7 +128,7 @@ function SiteSearch({ close }: { close: () => void }) {
       try {
         const response = await fetch(
           `/api/search?q=${encodeURIComponent(text)}`,
-          { signal: controller.signal, cache: "no-store" },
+          { signal: controller.signal, cache: "no-store", headers: { "X-Workspace-Id": localStorage.getItem("workspaceId") || "" } },
         );
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);

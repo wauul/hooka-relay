@@ -15,7 +15,7 @@ export async function POST(req: Request, { params }: Context) {
   try {
     sameOrigin(req);
     const app = await ownApplication((await params).id, "manage");
-    const rotated = await rotateKey(app.id);
+    const rotated = await rotateKey(app.id, await userId());
     return Response.json({ currentApiKey: rotated.currentApiKey, previousApiKeyExpiresAt: rotated.previousApiKeyExpiresAt });
   } catch (e) { return apiError(e); }
 }

@@ -1,6 +1,7 @@
+import { workspaceTransaction } from "@/lib/workspaces";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { ownApplication, apiError, sameOrigin } from "@/lib/access";
+import { ownApplication, apiError, sameOrigin, userId } from "@/lib/access";
 import { newSecret, resolveEndpoint } from "@/lib/security";
 export async function GET(
   _req: Request,
@@ -21,7 +22,7 @@ export async function POST(
 ) {
   try {
     sameOrigin(req);
-    await ownApplication((await params).id, "manage");
+    const app = await ownApplication((await params).id, "manage");
     const input = z
       .object({
         url: z.string().url().max(2000).optional(),
@@ -39,14 +40,14 @@ export async function POST(
     if (!url) throw new Error("URL required");
     await resolveEndpoint(url);
     return Response.json(
-      await db.endpoint.create({
+      await workspaceTransaction(app.workspaceId, await userId(), "manage", tx => tx.endpoint.create({
         data: {
-          applicationId: (await params).id,
+          applicationId: app.id,
           url,
           eventTypes: input.eventTypes,
           secret: newSecret(),
         },
-      }),
+      })),
       { status: 201 },
     );
   } catch (e) {
