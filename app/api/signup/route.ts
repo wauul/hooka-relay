@@ -1,3 +1,4 @@
+import { userDisplayName } from "@/lib/display-name";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
     await db.user.create({
       data: {
         email: data.email.toLowerCase().trim(),
+        displayName: userDisplayName({
+          email: data.email.toLowerCase().trim(),
+        }),
         hashedPassword: await hash(data.password, 12),
       },
     });

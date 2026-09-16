@@ -21,6 +21,7 @@ enum AttemptStatus {
 model User {
   id String @id @default(cuid())
   email String @unique
+  displayName String?
   hashedPassword String
   createdAt DateTime @default(now())
   legacyApplications Application[]

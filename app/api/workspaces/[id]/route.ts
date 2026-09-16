@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: Context) {
               userId: true,
               role: true,
               joinedAt: true,
-              user: { select: { email: true } },
+              user: { select: { email: true, displayName: true } },
             },
             orderBy: { joinedAt: "asc" },
           },

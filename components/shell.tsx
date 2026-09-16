@@ -1,4 +1,5 @@
 "use client";
+import { ProfileLink } from "./profile-link";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -64,7 +65,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="nav-label">WORKSPACE</div>
           <nav aria-label="Main navigation" onClick={() => setMenu(false)}>
             <Link
-              className={`nav-link ${path != "/docs" ? "active" : ""}`}
+              className={`nav-link ${path === "/dashboard" || path.startsWith("/applications") || path.startsWith("/endpoints") ? "active" : ""}`}
               href="/dashboard"
             >
               <Layers3 size={17} />
@@ -79,6 +80,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           </nav>
           <div className="sidebar-bottom">
+            <ProfileLink />
             <div className="plan">
               <strong>
                 <span className="dot" /> Built for reliability
@@ -112,7 +114,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <span>
             Workspace <ArrowRight size={12} />{" "}
-            {path === "/docs" ? "Documentation" : "Applications"}
+            {path === "/docs"
+              ? "Documentation"
+              : path === "/profile"
+                ? "Your profile"
+                : path === "/workspaces"
+                  ? "Teams"
+                  : "Applications"}
           </span>
           <SearchButton />
         </header>

@@ -1,3 +1,4 @@
+import { userDisplayName } from "./display-name";
 import { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
@@ -60,7 +61,7 @@ export async function defaultWorkspace(userId: string) {
     return (
       await tx.workspace.create({
         data: {
-          name: `${user.email}'s Workspace`,
+          name: `${userDisplayName(user)}'s Workspace`,
           members: { create: { userId, role: "OWNER" } },
         },
       })

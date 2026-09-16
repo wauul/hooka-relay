@@ -259,3 +259,7 @@ Verification on 2026-09-16: all 169 tests and the full CI build passed. Producti
 ### Guided invitations
 
 Invitation links choose sign-up for a new account or sign-in for an existing account. The invited email is read-only. Authentication does not join the workspace: the next screen shows the workspace and role, with explicit Accept and Decline actions. Declining records DECLINED without adding membership; an admin must issue a fresh invitation to join later. Expired and revoked links show a clear unavailable state. POST /api/invites/:token/decline requires the invited account, just like acceptance.
+
+### Display names
+
+Accounts use an editable display name, initially the email prefix (up to 40 characters). Change it under Profile & display name in the sidebar. Team lists show names; email remains the sign-in and invitation identifier. Display names are not unique usernames. Existing accounts are backfilled, and only untouched auto-migrated personal workspace names are shortened. Custom workspace names are preserved.

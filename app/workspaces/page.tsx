@@ -1,4 +1,5 @@
 "use client";
+import { userDisplayName } from "@/lib/display-name";
 import { Select } from "@/components/select";
 import { useState } from "react";
 import { Shell } from "@/components/shell";
@@ -13,7 +14,7 @@ type Details = {
   members: {
     userId: string;
     role: "OWNER" | "ADMIN" | "MEMBER";
-    user: { email: string };
+    user: { email: string; displayName: string | null };
   }[];
 };
 type Invite = { id: string; email: string; role: string; expiresAt: string };
@@ -77,7 +78,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
             <table>
               <thead>
                 <tr>
-                  <th>Email</th>
+                  <th>Member</th>
                   <th>Role</th>
                   <th>Actions</th>
                 </tr>
@@ -85,7 +86,17 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
               <tbody>
                 {data.members.map((m) => (
                   <tr key={m.userId}>
-                    <td>{m.user.email}</td>
+                    <td title={m.user.email}>
+                      <span className="member-name">
+                        <span className="member-avatar" aria-hidden="true">
+                          {userDisplayName(m.user).slice(0, 1).toUpperCase()}
+                        </span>
+                        {userDisplayName(m.user)}
+                        {m.userId === data.currentUserId && (
+                          <small className="muted">(you)</small>
+                        )}
+                      </span>
+                    </td>
                     <td>{m.role}</td>
                     <td>
                       {admin &&
@@ -116,7 +127,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                                   if (
                                     await confirm({
                                       title: "Remove member?",
-                                      description: `${m.user.email} will lose access to this workspace.`,
+                                      description: `${userDisplayName(m.user)} (${m.user.email}) will lose access to this workspace.`,
                                       label: "Remove member",
                                     })
                                   )
@@ -138,7 +149,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                                   if (
                                     await confirm({
                                       title: "Transfer ownership?",
-                                      description: `${m.user.email} will become the sole owner. You will become an admin.`,
+                                      description: `${userDisplayName(m.user)} (${m.user.email}) will become the sole owner. You will become an admin.`,
                                       label: "Transfer",
                                     })
                                   )

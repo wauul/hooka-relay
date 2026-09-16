@@ -42,6 +42,10 @@ import {
 } from "../../app/api/workspaces/[id]/route";
 import { DELETE as revokeInvite } from "../../app/api/workspaces/[id]/invites/[inviteId]/route";
 import { POST as replay } from "../../app/api/events/[id]/replay/route";
+import {
+  GET as getProfile,
+  PATCH as updateProfile,
+} from "../../app/api/profile/route";
 import { POST as signup } from "../../app/api/signup/route";
 let users: { id: string; email: string }[];
 let workspaceId: string;
@@ -521,4 +525,45 @@ it("decline route requires authentication and the recipient session", async () =
   expect((await declineRoute(req(), ctx)).status).toBe(403);
   session(3);
   expect((await declineRoute(req(), ctx)).status).toBe(200);
+});
+
+it("display names are editable only on the current account and appear in team details", async () => {
+  mocks.session.mockResolvedValue(null);
+  expect((await getProfile()).status).toBe(401);
+  expect(
+    (await updateProfile(req({ displayName: "Name" }, "PATCH"))).status,
+  ).toBe(401);
+  session(2);
+  const profile = await (await getProfile()).json();
+  expect(profile.displayName).toBe(users[2].email.split("@")[0]);
+  expect(profile.hashedPassword).toBeUndefined();
+  expect(
+    (
+      await updateProfile(
+        req({ displayName: "  Friendly Name  ", userId: users[0].id }, "PATCH"),
+      )
+    ).status,
+  ).toBe(200);
+  expect((await getProfile()).status).toBe(200);
+  expect(
+    (await db.user.findUniqueOrThrow({ where: { id: users[2].id } }))
+      .displayName,
+  ).toBe("Friendly Name");
+  expect(
+    (await db.user.findUniqueOrThrow({ where: { id: users[0].id } }))
+      .displayName,
+  ).toBeNull();
+  const details = await (
+    await workspaceDetails(req({}, "GET"), context())
+  ).json();
+  expect(
+    details.members.find((m: { userId: string }) => m.userId === users[2].id)
+      .user.displayName,
+  ).toBe("Friendly Name");
+  expect((await updateProfile(req({ displayName: " " }, "PATCH"))).status).toBe(
+    400,
+  );
+  expect(
+    (await updateProfile(req({ displayName: "a".repeat(41) }, "PATCH"))).status,
+  ).toBe(400);
 });
