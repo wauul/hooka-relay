@@ -40,3 +40,21 @@ The endpoint finished CLOSED with zero consecutive failures. The 30-second and 2
 Next.js 14.2.35 follows the requested version but is outside current supported LTS lines. Prisma uses its JavaScript engine; generated WASM is explicitly traced into Vercel functions. Railway worker uses the Dockerfile path environment variable because new services no longer accept legacy config-as-code. Groq retired llama-3.1-8b-instant; openai/gpt-oss-20b was verified on the free account. Five total attempts means four retry intervals; the fifth delay queue is reserved.
 
 Free/trial quotas apply; continuous worker uptime is not guaranteed after credits are exhausted. Half-open cooldown transitions are unit-tested; the ten-minute recovery cycle was not waited through in the live run. Responses are intentionally truncated at 16 KB.
+
+
+## Workspaces release — 2026-09-16
+
+- Next.js 15.5.25 and React 19: production build, ESLint, TypeScript and worker build pass.
+- CI run https://github.com/wauul/hooka-relay/actions/runs/35100703889: 131 unit tests, 38 Testcontainers integration tests, coverage gates and Docker runtime smoke checks pass.
+- Testcontainers starts from the original schema with realistic existing records before applying the real migrations.
+- Production migrations applied successfully with Prisma through Neon's direct endpoint. A private local snapshot was captured before migration. All 3 existing users, 4 applications, 9 endpoints, 21 events, 26 deliveries, 182 attempts and 5 flaky-receiver records were preserved. Every original application owner has OWNER membership in the corresponding workspace.
+- The existing demo account signs in and sees its original applications after migration.
+- Live Resend invitation was delivered, accepted after sign-in/registration, and created MEMBER membership. The sender is Hooka Relay <invites@waelfz.com>.
+- Live MEMBER session can read the application and send test events; key rotation, endpoint pause and workspace rename return 403.
+- Live rate test: 100 repeated valid requests admitted in the rolling window, then 429 with Retry-After; retries reuse an existing idempotency key so they do not create extra deliveries.
+- Live key rotation: current and previous keys both authenticate during the 24-hour grace period; another rotation returns 409. Expiry boundaries are covered by unit and database integration tests.
+- Live paused ingestion creates no delivery; resume does not backfill; explicit replay is delivered by the production worker with SUCCESS.
+- Workspace management and accepted membership were inspected in the browser.
+- The worker deployment for commit 43d2954 completed successfully. Durable outbox, endpoint leases, TTL+DLX topology and flaky counters retain their original implementation.
+
+Local integration runs require Docker, which was unavailable on this workstation. The passing Testcontainers and Docker runs above occurred on GitHub Actions, not against the hosted database.

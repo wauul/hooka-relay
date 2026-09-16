@@ -8,7 +8,7 @@
 
 ### CLI API
 
-Application-key authentication (`Authorization: Bearer <key>` or `X-API-Key`) is supported by these routes in addition to event ingestion. Every resource lookup is scoped to that one Application, including resources owned by the same user in a different Application. Dashboard session routes remain unchanged.
+Application-key authentication (`Authorization: Bearer <key>` or `X-API-Key`) is supported by these routes in addition to event ingestion. Every resource lookup is scoped to that one Application, including resources owned by the same user in a different Application. Dashboard session routes use workspace membership and role checks.
 
 | Method | Route | Response |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ curl -X POST "$RELAY_URL/api/v1/events" \
 
 202 returns the stored event. Payload limit: 256 KB. `X-API-Key` is also accepted. An omitted idempotency key generates a UUID. A supplied key is unique **within the Application**, including concurrent submissions. Reusing it returns the original event without new deliveries, even if the submitted payload differs. Event types match exact strings or `*`.
 
-Session-authenticated dashboard routes enforce ownership:
+Session-authenticated dashboard routes enforce workspace membership and roles:
 
 | Route | Purpose |
 | --- | --- |
@@ -163,7 +163,7 @@ npm run test:coverage    # text summary and coverage/index.html
 
 Automated tests cover circuit-breaker boundaries and recovery, HMAC verification (empty, large and Unicode payloads), mocked idempotency, queue declarations/routing/publisher confirms, and the real event API against disposable Postgres. API tests also cover concurrent duplicate requests, application isolation, endpoint matching, invalid requests and the durable outbox during broker failure. Only RabbitMQ publishing is mocked in integration tests.
 
-The suite has 76 unit tests and 14 integration tests. Combined coverage reached 100% statements, branches, functions and lines for the six scoped modules. Coverage measures six reliability/API modules explicitly listed in `vitest.config.ts`; it is not whole-application or UI coverage. CI enforces 90% statements, lines and functions, and 85% branches, and uploads HTML/LCOV reports. Full broker delivery, real TTL retry timing, worker recovery and browser flows remain manual checks documented in [VERIFICATION.md](VERIFICATION.md).
+The suite has 131 unit tests and 38 integration tests. Combined scoped coverage reached 97.39% statements, 95.54% branches, 100% functions and 99.06% lines. Coverage includes the original reliability modules and the new workspace, permissions, key-rotation, rate-limit, endpoint-state and invitation-email modules; it is not whole-application or UI coverage. CI enforces 90% statements, lines and functions, and 85% branches, and uploads HTML/LCOV reports. Full broker delivery, real TTL retry timing, worker recovery and browser flows remain manual checks documented in [VERIFICATION.md](VERIFICATION.md).
 
 The CI workflow runs on pushes and pull requests to `master` (the default branch) and `main`. It installs with `npm ci`, typechecks, runs both test suites and coverage, builds Next.js, builds the worker image and checks its runtime contents. CI runs ESLint and strict TypeScript checks as separate required steps.
 
@@ -251,3 +251,7 @@ To deliberately replay a stored event to a resumed endpoint, use the endpoint pa
 Resend's free-tier email and verified-domain quotas apply. No new paid infrastructure is required. The verified sender must match a domain configured in your Resend account; a subdomain needs its own verification and an available domain slot. Application and worker continue using the existing PostgreSQL and RabbitMQ services.
 
 The web application uses Next.js 15.5.25 and React 19. Run npm run lint, npm run typecheck, npm run test:unit, npm run test:integration, npm run test:coverage, npm run build and npm run build:worker. CI also builds the worker Docker image and smoke-tests its contents. ESLint uses the matching Next.js core-web-vitals configuration; strict TypeScript remains a separate check. Invite tests mock the email boundary and never send real email. Both npm and pnpm lockfiles are maintained.
+
+For Neon deployments, use the direct (non-pooler) connection URL when running Prisma schema migrations; retain the pooled URL for the web app and worker. Override DATABASE_URL only for the migration command.
+
+Verification on 2026-09-16: all 169 tests and the full CI build passed. Production migration preserved all existing rows and owner access. Live checks covered existing-account login, invitation delivery and acceptance, MEMBER restrictions, key grace, rolling rate limits, pause/resume and explicit replay through the worker. See [VERIFICATION.md](VERIFICATION.md).
