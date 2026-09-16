@@ -58,3 +58,11 @@ Free/trial quotas apply; continuous worker uptime is not guaranteed after credit
 - The worker deployment for commit 43d2954 completed successfully. Durable outbox, endpoint leases, TTL+DLX topology and flaky counters retain their original implementation.
 
 Local integration runs require Docker, which was unavailable on this workstation. The passing Testcontainers and Docker runs above occurred on GitHub Actions, not against the hosted database.
+
+## Invitation and identity polish - 2026-09-16
+
+- CI for commit 2f80826: https://github.com/wauul/hooka-relay/actions/runs/35104515660. All 133 unit and 44 Testcontainers integration tests pass, together with lint, types, coverage, Next.js build and worker Docker smoke checks.
+- Production now includes additive DECLINED invite status and display-name migrations. Prisma CLI encountered local connection failures for these two migrations; the exact SQL was applied over a certificate-verified PostgreSQL connection with migration locking, and recorded using committed-file checksums. No data was deleted.
+- Live tests verified new-account signup routing, existing-account login routing, locked invitation email, no membership before acceptance, explicit acceptance, persisted decline, default display names and profile edits.
+- Browser verification covered the redesigned invitation cards, custom workspace/role dropdowns, keyboard selection and Escape, and saving a display name with immediate navigation updates.
+- Existing accounts and their applications remain accessible. This update adds no environment variables or paid services.

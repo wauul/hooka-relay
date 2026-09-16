@@ -254,7 +254,7 @@ The web application uses Next.js 15.5.25 and React 19. Run npm run lint, npm run
 
 For Neon deployments, use the direct (non-pooler) connection URL when running Prisma schema migrations; retain the pooled URL for the web app and worker. Override DATABASE_URL only for the migration command.
 
-Verification on 2026-09-16: all 169 tests and the full CI build passed. Production migration preserved all existing rows and owner access. Live checks covered existing-account login, invitation delivery and acceptance, MEMBER restrictions, key grace, rolling rate limits, pause/resume and explicit replay through the worker. See [VERIFICATION.md](VERIFICATION.md).
+Verification on 2026-09-16: all 177 tests and the full CI build passed. Production migration preserved all existing rows and owner access. Live checks covered existing-account login, invitation delivery and acceptance, MEMBER restrictions, key grace, rolling rate limits, pause/resume and explicit replay through the worker. See [VERIFICATION.md](VERIFICATION.md).
 
 ### Guided invitations
 
