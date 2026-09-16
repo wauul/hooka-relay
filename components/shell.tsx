@@ -1,4 +1,5 @@
 "use client";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -59,11 +60,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             }
           }}
         >
-          <div className="workspace">
-            <span className="avatar">W</span>
-            <span>Personal workspace</span>
-            <ChevronDown size={12} />
-          </div>
+          <WorkspaceSwitcher />
           <div className="nav-label">WORKSPACE</div>
           <nav aria-label="Main navigation" onClick={() => setMenu(false)}>
             <Link

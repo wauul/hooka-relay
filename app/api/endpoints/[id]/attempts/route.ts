@@ -2,10 +2,10 @@ import { db } from "@/lib/db";
 import { ownEndpoint, apiError } from "@/lib/access";
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const ep = await ownEndpoint(params.id);
+    const ep = await ownEndpoint((await params).id);
     const since = new Date(Date.now() - 86400000);
     const [attempts, total, success] = await Promise.all([
       db.deliveryAttempt.findMany({

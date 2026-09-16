@@ -23,25 +23,34 @@ model User {
   email String @unique
   hashedPassword String
   createdAt DateTime @default(now())
-  applications Application[]
+  legacyApplications Application[]
+  memberships WorkspaceMember[]
+  sentInvites WorkspaceInvite[]
 }
 model Application {
   id String @id @default(cuid())
-  userId String
-  user User @relation(fields: [userId], references: [id])
+  legacyUserId String? @map("userId")
+  legacyUser User? @relation(fields: [legacyUserId], references: [id], onDelete: Restrict)
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name String
-  apiKey String @unique
+  currentApiKey String @unique @map("apiKey")
+  previousApiKey String? @unique
+  previousApiKeyExpiresAt DateTime?
   createdAt DateTime @default(now())
+  @@index([workspaceId])
+  admissions EventAdmission[]
   endpoints Endpoint[]
   events Event[]
 }
 model Endpoint {
   id String @id @default(cuid())
   applicationId String
-  application Application @relation(fields: [applicationId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   url String
   secret String
   eventTypes String[]
+  status EndpointStatus @default(ACTIVE)
   circuitState CircuitState @default(CLOSED)
   consecutiveFailures Int @default(0)
   circuitOpenedAt DateTime?
@@ -56,7 +65,7 @@ model Endpoint {
 model Event {
   id String @id @default(cuid())
   applicationId String
-  application Application @relation(fields: [applicationId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   idempotencyKey String
   type String
   payload Json
@@ -68,9 +77,9 @@ model Event {
 model Delivery {
   id String @id @default(cuid())
   eventId String
-  event Event @relation(fields: [eventId], references: [id])
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   endpointId String
-  endpoint Endpoint @relation(fields: [endpointId], references: [id])
+  endpoint Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
   generation Int @default(0)
   attemptNumber Int @default(1)
   status String @default("PENDING")
@@ -84,9 +93,9 @@ model Delivery {
 model DeliveryAttempt {
   id String @id @default(cuid())
   eventId String
-  event Event @relation(fields: [eventId], references: [id])
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   endpointId String
-  endpoint Endpoint @relation(fields: [endpointId], references: [id])
+  endpoint Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
   deliveryId String
   attemptNumber Int
   status AttemptStatus
@@ -104,4 +113,61 @@ model FakeReceipt {
   key String @id
   calls Int @default(0)
   createdAt DateTime @default(now())
+}
+
+model EventAdmission {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([applicationId, createdAt])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+enum EndpointStatus {
+  ACTIVE
+  PAUSED
+}
+model Workspace {
+  id String @id @default(cuid())
+  name String
+  createdAt DateTime @default(now())
+  members WorkspaceMember[]
+  applications Application[]
+  invites WorkspaceInvite[]
+}
+model WorkspaceMember {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role WorkspaceRole
+  joinedAt DateTime @default(now())
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+model WorkspaceInvite {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email String
+  role WorkspaceRole
+  token String @unique
+  invitedByUserId String
+  invitedBy User @relation(fields: [invitedByUserId], references: [id])
+  status InviteStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  @@index([workspaceId, status])
 }

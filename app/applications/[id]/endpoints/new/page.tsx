@@ -1,11 +1,13 @@
 "use client";
+import { use } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, FlaskConical } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { api, ErrorBox } from "@/components/ui";
-export default function Page({ params }: { params: { id: string } }) {
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -13,7 +15,7 @@ export default function Page({ params }: { params: { id: string } }) {
     setBusy(true);
     setError("");
     try {
-      const ep = await api(`/api/applications/${params.id}/endpoints`, body);
+      const ep = await api(`/api/applications/${resolvedParams.id}/endpoints`, body);
       router.push(`/endpoints/${ep.id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -22,7 +24,7 @@ export default function Page({ params }: { params: { id: string } }) {
   }
   return (
     <Shell>
-      <Link className="back" href={`/applications/${params.id}`}>
+      <Link className="back" href={`/applications/${resolvedParams.id}`}>
         <ArrowLeft size={13} />
         Back to application
       </Link>

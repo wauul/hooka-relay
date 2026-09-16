@@ -1,4 +1,5 @@
 "use client";
+import { use } from "react";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
@@ -6,9 +7,10 @@ import { Plus, ArrowLeft, Send, KeyRound, Radio } from "lucide-react";
 import { LoadingState } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { api, useData, Badge, CopyButton, ErrorBox } from "@/components/ui";
-export default function Page({ params }: { params: { id: string } }) {
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
   const { data, error, reload } = useData<any>(
-    `/api/applications/${params.id}`,
+    `/api/applications/${resolvedParams.id}`,
     true,
   );
   const confirmAction = useConfirm();
@@ -26,9 +28,9 @@ export default function Page({ params }: { params: { id: string } }) {
         <div>
           <div className="eyebrow">APPLICATION</div>
           <h1>{data?.name || "Loading application…"}</h1>
-          <div className="muted mono">{params.id}</div>
+          <div className="muted mono">{resolvedParams.id}</div>
         </div>
-        <Link className="btn" href={`/applications/${params.id}/endpoints/new`}>
+        <Link className="btn" href={`/applications/${resolvedParams.id}/endpoints/new`}>
           <Plus size={14} />
           Add endpoint
         </Link>
@@ -48,20 +50,20 @@ export default function Page({ params }: { params: { id: string } }) {
               </h2>
               <button
                 className="btn quiet"
-                disabled={rotating}
+                disabled={rotating || data.role === "MEMBER" || (data.previousApiKeyExpiresAt && new Date(data.previousApiKeyExpiresAt) > new Date())}
                 onClick={async () => {
                   if (
                     !(await confirmAction({
                       title: "Replace this API key?",
                       description:
-                        "The current key will stop working immediately. Update every producer and CLI using this application after regenerating it.",
+                        `The current key will remain valid for ${data.keyGraceHours} hours. Update your integrations before it expires.`,
                       label: "Regenerate key",
                     }))
                   )
                     return;
                   setRotating(true);
                   try {
-                    await api(`/api/applications/${params.id}`, {});
+                    await api(`/api/applications/${resolvedParams.id}`, {});
                     await reload();
                   } catch (e) {
                     setFailure((e as Error).message);
@@ -75,8 +77,8 @@ export default function Page({ params }: { params: { id: string } }) {
             </div>
             <div className="panel-body">
               <div className="secret-row">
-                <code>{data.apiKey}</code>
-                <CopyButton value={data.apiKey} />
+                <code>{data.currentApiKey || "API keys are available to workspace admins."}</code>
+                {data.currentApiKey && <CopyButton value={data.currentApiKey} />}
               </div>
               <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>
                 Keep this key on your server. Use it as a Bearer token when
@@ -84,6 +86,7 @@ export default function Page({ params }: { params: { id: string } }) {
               </p>
             </div>
           </section>
+          {data.previousApiKeyExpiresAt && <p className="notice">Old key remains valid until {new Date(data.previousApiKeyExpiresAt).toLocaleString()} — update your integration before then.</p>}
           <div className="split">
             <section className="panel">
               <div className="panel-head">
@@ -123,7 +126,7 @@ export default function Page({ params }: { params: { id: string } }) {
                             </Link>
                           </td>
                           <td>
-                            <Badge value={ep.circuitState} />
+                            <Badge value={ep.circuitState} /> <Badge value={ep.status} />
                           </td>
                         </tr>
                       ))}
@@ -137,7 +140,7 @@ export default function Page({ params }: { params: { id: string } }) {
                   <p>Use your own URL or try a built-in test receiver.</p>
                   <Link
                     className="btn secondary"
-                    href={`/applications/${params.id}/endpoints/new`}
+                    href={`/applications/${resolvedParams.id}/endpoints/new`}
                   >
                     Add an endpoint
                     <Plus size={14} />
@@ -160,7 +163,7 @@ export default function Page({ params }: { params: { id: string } }) {
                   const f = new FormData(e.currentTarget);
                   try {
                     const event = await api(
-                      `/api/applications/${params.id}/events`,
+                      `/api/applications/${resolvedParams.id}/events`,
                       {
                         type: f.get("type"),
                         payload: JSON.parse(String(f.get("payload"))),

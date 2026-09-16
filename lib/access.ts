@@ -1,3 +1,5 @@
+import { WorkspaceError, membership } from "./workspaces";
+import type { Action } from "./permissions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
 import { db } from "./db";
@@ -7,19 +9,22 @@ export async function userId() {
   if (!id) throw new Error("UNAUTHORIZED");
   return id;
 }
-export async function ownApplication(id: string) {
+export async function ownApplication(id: string, action: Action = "view") {
   const uid = await userId();
-  const app = await db.application.findFirst({ where: { id, userId: uid } });
+  const app = await db.application.findFirst({ where: { id, workspace: { members: { some: { userId: uid } } } } });
   if (!app) throw new Error("NOT_FOUND");
-  return app;
+  const member = await membership(app.workspaceId, uid, action);
+  return { ...app, role: member.role };
 }
-export async function ownEndpoint(id: string) {
+export async function ownEndpoint(id: string, action: Action = "view") {
   const uid = await userId();
   const endpoint = await db.endpoint.findFirst({
-    where: { id, application: { userId: uid } },
+    where: { id, application: { workspace: { members: { some: { userId: uid } } } } },
   });
   if (!endpoint) throw new Error("NOT_FOUND");
-  return endpoint;
+  const app = await db.application.findUniqueOrThrow({ where: { id: endpoint.applicationId } });
+  const member = await membership(app.workspaceId, uid, action);
+  return { ...endpoint, role: member.role };
 }
 export function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
@@ -30,6 +35,8 @@ export function sameOrigin(request: Request) {
     throw new Error("FORBIDDEN");
 }
 export function apiError(e: unknown) {
+  if (e instanceof WorkspaceError) return Response.json({ error: e.message }, { status: e.status });
+  if (e instanceof Error && e.message === "KEY_GRACE_ACTIVE") return Response.json({ error: "The previous key is still in its grace period. Wait until it expires before rotating again." }, { status: 409 });
   if (
     e instanceof Error &&
     !["UNAUTHORIZED", "NOT_FOUND", "FORBIDDEN"].includes(e.message)

@@ -57,7 +57,8 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
               });
               if (result?.error)
                 throw new Error("Email or password is incorrect.");
-              router.push("/dashboard");
+              const callback = new URLSearchParams(window.location.search).get("callbackUrl");
+              router.push(callback?.startsWith("/invites/accept?") ? callback : "/dashboard");
             } catch (e) {
               setError((e as Error).message);
             } finally {
@@ -127,7 +128,7 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
             style={{ textAlign: "center", marginTop: 24, fontSize: 12 }}
           >
             {signup ? "Already have an account?" : "New to Hooka Relay?"}{" "}
-            <Link className="auth-link" href={signup ? "/login" : "/signup"}>
+            <Link className="auth-link" href={(signup ? "/login" : "/signup") + (typeof window === "undefined" ? "" : window.location.search)}>
               {signup ? "Sign in" : "Create an account"}
             </Link>
           </p>

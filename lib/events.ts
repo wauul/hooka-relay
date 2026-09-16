@@ -49,6 +49,7 @@ export async function ingest(
       const endpoints = await tx.endpoint.findMany({
         where: {
           applicationId,
+          status: "ACTIVE",
           OR: [
             { eventTypes: { has: "*" } },
             { eventTypes: { has: input.type } },

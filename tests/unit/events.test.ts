@@ -48,7 +48,7 @@ describe("producer idempotency", () => {
     mocks.delivery.findUnique.mockImplementation(async ({where}) => ({id:where.id,attemptNumber:1,status:"PENDING",publishedAt:null,delayQueue:null}));
     await ingest("app-1", input);
     expect(mocks.delivery.createMany).toHaveBeenCalledWith({data:[{eventId:event.id,endpointId:"ep-1"},{eventId:event.id,endpointId:"ep-2"}]});
-    expect(mocks.endpoint.findMany).toHaveBeenCalledWith({where:{applicationId:"app-1",OR:[{eventTypes:{has:"*"}},{eventTypes:{has:input.type}}]},select:{id:true}});
+    expect(mocks.endpoint.findMany).toHaveBeenCalledWith({where:{applicationId:"app-1",status:"ACTIVE",OR:[{eventTypes:{has:"*"}},{eventTypes:{has:input.type}}]},select:{id:true}});
     expect(mocks.publish).toHaveBeenCalledWith({id:"d-1",attemptNumber:1},null);
     expect(mocks.publish).toHaveBeenCalledWith({id:"d-2",attemptNumber:1},null);
   });

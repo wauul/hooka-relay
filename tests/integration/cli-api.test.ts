@@ -1,24 +1,26 @@
+import { defaultWorkspace } from "../../lib/workspaces";
 import { beforeEach, afterEach, afterAll, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 vi.mock("../../lib/security", () => ({ newSecret: () => "generated-endpoint-secret", resolveEndpoint: vi.fn(async (url: string) => { if (!url.startsWith("https://")) throw new Error("public HTTPS required"); }) }));
 import { db } from "../../lib/db";
 import { cliApi } from "../../lib/cli-api";
 let userId: string;
-let app: { id: string; apiKey: string };
-let other: { id: string; apiKey: string };
-const call = (path: string, method = "GET", body?: unknown, key: string | null = app.apiKey) => cliApi(new Request(`https://example.com/api/v1/${path}`, { method, headers: key ? { authorization: `Bearer ${key}` } : {}, body: body === undefined ? undefined : JSON.stringify(body) }), path.split("?")[0].split("/"));
+let app: { id: string; currentApiKey: string };
+let other: { id: string; currentApiKey: string };
+const call = (path: string, method = "GET", body?: unknown, key: string | null = app.currentApiKey) => cliApi(new Request(`https://example.com/api/v1/${path}`, { method, headers: key ? { authorization: `Bearer ${key}` } : {}, body: body === undefined ? undefined : JSON.stringify(body) }), path.split("?")[0].split("/"));
 beforeEach(async () => {
   userId = (await db.user.create({ data: { email: `${randomUUID()}@example.com`, hashedPassword: "test" } })).id;
-  app = await db.application.create({ data: { userId, name: "CLI app", apiKey: randomUUID() } });
-  other = await db.application.create({ data: { userId, name: "Other app", apiKey: randomUUID() } });
+  app = await db.application.create({ data: { workspaceId: await defaultWorkspace(userId), name: "CLI app", currentApiKey: randomUUID() } });
+  other = await db.application.create({ data: { workspaceId: await defaultWorkspace(userId), name: "Other app", currentApiKey: randomUUID() } });
 });
 afterEach(async () => {
-  const application = { userId };
+  const application = { workspace: { members: { some: { userId } } } };
   await db.deliveryAttempt.deleteMany({ where: { event: { application } } });
   await db.delivery.deleteMany({ where: { event: { application } } });
   await db.event.deleteMany({ where: { application } });
   await db.endpoint.deleteMany({ where: { application } });
-  await db.application.deleteMany({ where: { userId } });
+  await db.application.deleteMany({ where: application });
+  await db.workspace.deleteMany({ where: { members: { some: { userId } } } });
   await db.user.delete({ where: { id: userId } });
 });
 afterAll(() => db.$disconnect());

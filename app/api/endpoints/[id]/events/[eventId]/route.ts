@@ -2,12 +2,12 @@ import { db } from "@/lib/db";
 import { ownEndpoint, apiError } from "@/lib/access";
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string; eventId: string } },
+  { params }: { params: Promise<{ id: string; eventId: string }> },
 ) {
   try {
-    const ep = await ownEndpoint(params.id);
+    const ep = await ownEndpoint((await params).id);
     const event = await db.event.findFirst({
-      where: { id: params.eventId, applicationId: ep.applicationId },
+      where: { id: (await params).eventId, applicationId: ep.applicationId },
     });
     if (!event) throw new Error("NOT_FOUND");
     const [attempts, deliveries] = await Promise.all([

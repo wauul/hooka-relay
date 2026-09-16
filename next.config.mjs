@@ -4,7 +4,8 @@ const config = {
   images: { unoptimized: true },
   experimental: {
     cpus: 2,
-    // Next 14 does not trace Prisma's JavaScript compiler WASM automatically.
+  },
+    // Include Prisma compiler WASM in serverless bundles.
     // Include the generated client assets in every serverless function bundle.
     outputFileTracingIncludes: {
       "/*": [
@@ -12,7 +13,6 @@ const config = {
         "./node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**/*",
       ],
     },
-  },
   async headers() {
     return [
       {

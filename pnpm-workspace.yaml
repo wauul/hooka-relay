@@ -6,6 +6,7 @@ allowBuilds:
   prisma: true
   protobufjs: true
   ssh2: false
+  unrs-resolver: false
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'

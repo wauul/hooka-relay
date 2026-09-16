@@ -18,13 +18,13 @@ export async function GET(request: Request) {
       const contains = { contains: query, mode: "insensitive" as const };
       const [apps, endpoints, events] = await Promise.all([
         db.application.findMany({
-          where: { userId, OR: [{ name: contains }, { id: contains }] },
+          where: { workspace: { members: { some: { userId } } }, OR: [{ name: contains }, { id: contains }] },
           take: 8,
           select: { id: true, name: true },
         }),
         db.endpoint.findMany({
           where: {
-            application: { userId },
+            application: { workspace: { members: { some: { userId } } } },
             OR: [
               { url: contains },
               { id: contains },
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         }),
         db.event.findMany({
           where: {
-            application: { userId },
+            application: { workspace: { members: { some: { userId } } } },
             OR: [
               { id: contains },
               { type: contains },

@@ -1,3 +1,4 @@
+import { defaultWorkspace } from "../../lib/workspaces";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import type { Application, User } from "@prisma/client";
@@ -14,7 +15,7 @@ import { POST } from "../../app/api/v1/events/route";
 let user: User;
 let app: Application;
 const body = { type: "order.shipped", idempotencyKey: "order-42", payload: { orderId: 42 } };
-function request(data: unknown = body, key: string | null = app.apiKey, header = "authorization") {
+function request(data: unknown = body, key: string | null = app.currentApiKey, header = "authorization") {
   return new Request("http://localhost/api/v1/events", {
     method: "POST", headers: { "Content-Type": "application/json", ...(key ? { [header]: header === "authorization" ? `Bearer ${key}` : key } : {}) }, body: JSON.stringify(data),
   });
@@ -25,18 +26,19 @@ async function endpoint(eventTypes: string[], applicationId = app.id) {
 beforeEach(async () => {
   vi.clearAllMocks(); broker.publish.mockResolvedValue(undefined);
   user = await db.user.create({ data: { email: `test-${randomUUID()}@example.com`, hashedPassword: "not-used-in-api-key-tests" } });
-  app = await db.application.create({ data: { userId: user.id, name: "Integration test", apiKey: randomUUID() } });
+  app = await db.application.create({ data: { workspaceId: await defaultWorkspace(user.id), name: "Integration test", currentApiKey: randomUUID() } });
 });
 afterEach(async () => {
   // Every test removes only its own rows, in FK order. No truncation of shared
   // tables or reliance on execution order; failures still enter this cleanup.
   if (user) {
-    const applications = { userId: user.id };
+    const applications = { workspace: { members: { some: { userId: user.id } } } };
     await db.deliveryAttempt.deleteMany({ where: { event: { application: applications } } });
     await db.delivery.deleteMany({ where: { event: { application: applications } } });
     await db.event.deleteMany({ where: { application: applications } });
     await db.endpoint.deleteMany({ where: { application: applications } });
     await db.application.deleteMany({ where: applications });
+    await db.workspace.deleteMany({ where: { members: { some: { userId: user.id } } } });
     await db.user.delete({ where: { id: user.id } });
   }
   vi.restoreAllMocks();
@@ -55,7 +57,7 @@ describe("POST /api/v1/events with migrated disposable Postgres", () => {
     expect(await db.event.count({ where: { applicationId: app.id } })).toBe(0);
     expect(broker.publish).not.toHaveBeenCalled();
   });
-  it("also accepts the X-API-Key header", async () => expect((await POST(request(body, app.apiKey, "x-api-key"))).status).toBe(202));
+  it("also accepts the X-API-Key header", async () => expect((await POST(request(body, app.currentApiKey, "x-api-key"))).status).toBe(202));
   it("returns the original event for a repeated key, ignoring changed payload", async () => {
     await endpoint(["*"]);
     const first = await (await POST(request())).json();
@@ -75,15 +77,15 @@ describe("POST /api/v1/events with migrated disposable Postgres", () => {
     expect(broker.publish).toHaveBeenCalledTimes(1);
   });
   it("does not deduplicate keys across applications", async () => {
-    const other = await db.application.create({ data: { userId: user.id, name: "Other app", apiKey: randomUUID() } });
+    const other = await db.application.create({ data: { workspaceId: await defaultWorkspace(user.id), name: "Other app", currentApiKey: randomUUID() } });
     const first = await (await POST(request())).json();
-    const second = await (await POST(request(body, other.apiKey))).json();
+    const second = await (await POST(request(body, other.currentApiKey))).json();
     expect(first.id).not.toBe(second.id); expect(second.applicationId).toBe(other.id);
   });
   it("queues only exact/wildcard matches in the same application", async () => {
     const exact = await endpoint([body.type]); const wildcard = await endpoint(["*"]);
     await endpoint(["payment.failed"]);
-    const other = await db.application.create({ data: { userId: user.id, name: "Other", apiKey: randomUUID() } });
+    const other = await db.application.create({ data: { workspaceId: await defaultWorkspace(user.id), name: "Other", currentApiKey: randomUUID() } });
     await endpoint(["*"], other.id);
     const response = await POST(request()); expect(response.status).toBe(202);
     const event = await response.json();
@@ -116,7 +118,7 @@ describe("POST /api/v1/events with migrated disposable Postgres", () => {
   });
   it("rejects malformed JSON without inserting", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const response = await POST(new Request("http://localhost/api/v1/events", { method: "POST", headers: { authorization: `Bearer ${app.apiKey}` }, body: "{broken" }));
+    const response = await POST(new Request("http://localhost/api/v1/events", { method: "POST", headers: { authorization: `Bearer ${app.currentApiKey}` }, body: "{broken" }));
     expect(response.status).toBe(400); expect(await db.event.count({ where: { applicationId: app.id } })).toBe(0);
   });
   it.each([{ ...body, type: "bad\nheader" }, { type: body.type }])("rejects invalid event body %#", async invalid => {

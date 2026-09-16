@@ -1,3 +1,4 @@
+import { defaultWorkspace } from "../../lib/workspaces";
 import { beforeEach, afterEach, afterAll, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 const auth = vi.hoisted(() => ({ session: vi.fn() }));
@@ -11,9 +12,9 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   for (const userId of users) {
-    await db.event.deleteMany({ where: { application: { userId } } });
-    await db.endpoint.deleteMany({ where: { application: { userId } } });
-    await db.application.deleteMany({ where: { userId } });
+    await db.event.deleteMany({ where: { application: { workspace: { members: { some: { userId } } } } } });
+    await db.endpoint.deleteMany({ where: { application: { workspace: { members: { some: { userId } } } } } });
+    await db.workspace.deleteMany({ where: { members: { some: { userId } } } });
     await db.user.delete({ where: { id: userId } });
   }
 });
@@ -37,9 +38,9 @@ it("isolates applications, endpoints and events to the current session user", as
     users.push(user.id);
     const app = await db.application.create({
       data: {
-        userId: user.id,
+        workspaceId: await defaultWorkspace(user.id),
         name: `findme ${i}`,
-        apiKey: `secret-${randomUUID()}`,
+        currentApiKey: `secret-${randomUUID()}`,
       },
     });
     await db.endpoint.create({
@@ -69,7 +70,7 @@ it("isolates applications, endpoints and events to the current session user", as
     "findme.0",
   ]);
   expect(JSON.stringify(data)).not.toContain("must-not-leak");
-  expect(JSON.stringify(data)).not.toContain("apiKey");
+  expect(JSON.stringify(data)).not.toContain("currentApiKey");
   auth.session.mockResolvedValue(null);
   expect((await (await search("findme")).json()).results).toEqual([]);
 });

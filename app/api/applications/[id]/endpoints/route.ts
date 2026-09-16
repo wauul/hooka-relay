@@ -4,12 +4,12 @@ import { ownApplication, apiError, sameOrigin } from "@/lib/access";
 import { newSecret, resolveEndpoint } from "@/lib/security";
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await ownApplication(params.id);
+    await ownApplication((await params).id);
     return Response.json(
-      await db.endpoint.findMany({ where: { applicationId: params.id } }),
+      await db.endpoint.findMany({ where: { applicationId: (await params).id } }),
     );
   } catch (e) {
     return apiError(e);
@@ -17,11 +17,11 @@ export async function GET(
 }
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     sameOrigin(req);
-    await ownApplication(params.id);
+    await ownApplication((await params).id, "manage");
     const input = z
       .object({
         url: z.string().url().max(2000).optional(),
@@ -41,7 +41,7 @@ export async function POST(
     return Response.json(
       await db.endpoint.create({
         data: {
-          applicationId: params.id,
+          applicationId: (await params).id,
           url,
           eventTypes: input.eventTypes,
           secret: newSecret(),

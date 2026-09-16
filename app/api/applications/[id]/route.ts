@@ -1,37 +1,29 @@
 import { db } from "@/lib/db";
-import { ownApplication, apiError, sameOrigin } from "@/lib/access";
-import { newSecret } from "@/lib/security";
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } },
-) {
+import { ownApplication, apiError, sameOrigin, userId } from "@/lib/access";
+import { rotateKey, keyGraceHours } from "@/lib/api-keys";
+import { workspaceTransaction } from "@/lib/workspaces";
+type Context = { params: Promise<{ id: string }> };
+export async function GET(_req: Request, { params }: Context) {
   try {
-    const app = await ownApplication(params.id);
-    return Response.json({
-      ...app,
-      endpoints: await db.endpoint.findMany({
-        where: { applicationId: app.id },
-        orderBy: { createdAt: "desc" },
-      }),
-    });
-  } catch (e) {
-    return apiError(e);
-  }
+    const app = await ownApplication((await params).id);
+    const { currentApiKey, previousApiKey: _previous, ...safe } = app;
+    const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id }, orderBy: { createdAt: "desc" } });
+    return Response.json({ ...safe, currentApiKey: app.role === "MEMBER" ? undefined : currentApiKey, keyGraceHours: keyGraceHours(), endpoints: endpoints.map(({ secret, ...ep }) => ({ ...ep, secret: app.role === "MEMBER" ? undefined : secret })) });
+  } catch (e) { return apiError(e); }
 }
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function POST(req: Request, { params }: Context) {
   try {
     sameOrigin(req);
-    await ownApplication(params.id);
-    return Response.json(
-      await db.application.update({
-        where: { id: params.id },
-        data: { apiKey: "hr_live_" + newSecret() },
-      }),
-    );
-  } catch (e) {
-    return apiError(e);
-  }
+    const app = await ownApplication((await params).id, "manage");
+    const rotated = await rotateKey(app.id);
+    return Response.json({ currentApiKey: rotated.currentApiKey, previousApiKeyExpiresAt: rotated.previousApiKeyExpiresAt });
+  } catch (e) { return apiError(e); }
+}
+export async function DELETE(req: Request, { params }: Context) {
+  try {
+    sameOrigin(req);
+    const app = await ownApplication((await params).id, "manage");
+    await workspaceTransaction(app.workspaceId, await userId(), "manage", tx => tx.application.delete({ where: { id: app.id } }));
+    return Response.json({ ok: true });
+  } catch (e) { return apiError(e); }
 }

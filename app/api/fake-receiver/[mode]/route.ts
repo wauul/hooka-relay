@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 15;
-async function handler(req: Request, { params }: { params: { mode: string } }) {
-  const { mode } = params;
+async function handler(req: Request, { params }: { params: Promise<{ mode: string }> }) {
+  const { mode } = await params;
   if (mode === "succeed") return Response.json({ ok: true });
   if (mode === "fail")
     return Response.json(

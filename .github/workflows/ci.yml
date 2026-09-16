@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, "codex/**"]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -30,8 +30,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
-      # No lint script exists in this repository. Do not run Next's interactive
-      # lint setup in CI; the strict TypeScript check is run explicitly instead.
+      - name: ESLint
+        run: npm run lint
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests

@@ -2,11 +2,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw } from "lucide-react";
-export async function api<T = any>(url: string, body?: unknown): Promise<T> {
+export async function api<T = any>(url: string, body?: unknown, method?: string): Promise<T> {
   const res = await fetch(url, {
-    method: body === undefined ? "GET" : "POST",
-    headers:
-      body === undefined ? undefined : { "Content-Type": "application/json" },
+    method: method || (body === undefined ? "GET" : "POST"),
+    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(typeof window === "undefined" ? {} : { "X-Workspace-Id": localStorage.getItem("workspaceId") || "" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json();
@@ -49,7 +48,7 @@ export function Badge({ value }: { value: string }) {
 export function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <button

@@ -1,8 +1,9 @@
+import { applicationForKey } from "./api-keys";
 import { z } from "zod";
 import { db } from "./db";
 import { newSecret, resolveEndpoint } from "./security";
 
-const endpointFields = { id: true, url: true, eventTypes: true, circuitState: true, createdAt: true } as const;
+const endpointFields = { id: true, url: true, eventTypes: true, circuitState: true, status: true, createdAt: true } as const;
 class ApiFailure extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -18,7 +19,8 @@ export async function cliApi(req: Request, path: string[]) {
   try {
     const key = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || req.headers.get("x-api-key");
     if (!key) throw new ApiFailure(401, "API key required");
-    const app = await db.application.findUnique({ where: { apiKey: key }, select: { id: true, name: true, createdAt: true } });
+    const authenticated = await applicationForKey(key);
+    const app = authenticated ? { id: authenticated.id, name: authenticated.name, createdAt: authenticated.createdAt } : null;
     if (!app) throw new ApiFailure(401, "Invalid API key");
     const url = new URL(req.url);
     const route = path.join("/");
@@ -64,12 +66,15 @@ export async function cliApi(req: Request, path: string[]) {
       const event = await db.event.findFirst({ where: { id: path[1], applicationId: app.id } });
       if (!event) throw new ApiFailure(404, "Event not found");
       if (req.method === "POST" && path[2] === "replay") {
+        const raw = await req.text();
+        const { endpointId: requestedEndpoint } = z.object({ endpointId: z.string().min(1).optional() }).parse(raw ? JSON.parse(raw) : {});
+        if (requestedEndpoint && !await db.endpoint.findFirst({ where: { id: requestedEndpoint, applicationId: app.id, status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] } })) throw new ApiFailure(404, "Active matching endpoint not found");
         // Same row lock and durable-outbox semantics as dashboard replay.
         const result = await db.$transaction(async tx => {
           await tx.$queryRaw`SELECT id FROM "Event" WHERE id = ${event.id} FOR UPDATE`;
           const existing = await tx.delivery.findMany({ where: { eventId: event.id }, select: { endpointId: true, generation: true } });
           const generation = Math.max(-1, ...existing.map(d => d.generation)) + 1;
-          const ids = [...new Set(existing.map(d => d.endpointId))];
+          const ids = requestedEndpoint ? [requestedEndpoint] : [...new Set(existing.map(d => d.endpointId))];
           await tx.delivery.createMany({ data: ids.map(endpointId => ({ eventId: event.id, endpointId, generation })) });
           return { eventId: event.id, generation, queued: ids.length };
         });

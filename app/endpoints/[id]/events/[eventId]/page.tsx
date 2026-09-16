@@ -1,4 +1,5 @@
 "use client";
+import { use } from "react";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
@@ -10,10 +11,11 @@ import { api, useData, Badge, ErrorBox } from "@/components/ui";
 export default function Page({
   params,
 }: {
-  params: { id: string; eventId: string };
+  params: Promise<{ id: string; eventId: string }>;
 }) {
+  const resolvedParams = use(params);
   const { data, error } = useData<any>(
-    `/api/endpoints/${params.id}/events/${params.eventId}`,
+    `/api/endpoints/${resolvedParams.id}/events/${resolvedParams.eventId}`,
     true,
   );
   const confirmAction = useConfirm();
@@ -22,7 +24,7 @@ export default function Page({
   const [busy, setBusy] = useState(false);
   return (
     <Shell>
-      <Link className="back" href={`/endpoints/${params.id}`}>
+      <Link className="back" href={`/endpoints/${resolvedParams.id}`}>
         <ArrowLeft size={13} />
         Delivery overview
       </Link>
@@ -30,7 +32,7 @@ export default function Page({
         <div>
           <div className="eyebrow">EVENT INSPECTOR</div>
           <h1>{data?.event.type || "Event details"}</h1>
-          <div className="muted mono">{params.eventId}</div>
+          <div className="muted mono">{resolvedParams.eventId}</div>
         </div>
         <button
           className="btn"
@@ -48,7 +50,7 @@ export default function Page({
             setBusy(true);
             try {
               const result = await api(
-                `/api/events/${params.eventId}/replay`,
+                `/api/events/${resolvedParams.eventId}/replay`,
                 {},
               );
               setMessage(
