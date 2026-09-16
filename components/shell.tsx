@@ -112,15 +112,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </aside>
       <div>
         <header className="topbar">
-          <span>
-            Workspace <ArrowRight size={12} />{" "}
-            {path === "/docs"
-              ? "Documentation"
-              : path === "/profile"
-                ? "Your profile"
-                : path === "/workspaces"
-                  ? "Teams"
-                  : "Applications"}
+          <nav className="breadcrumbs" aria-label="Breadcrumb">
+            <Link href="/dashboard">Workspace</Link>
+            <ArrowRight size={12} aria-hidden="true" />
+            <Link
+              href={
+                path === "/docs"
+                  ? "/docs"
+                  : path === "/profile"
+                    ? "/profile"
+                    : path === "/workspaces"
+                      ? "/workspaces"
+                      : "/dashboard"
+              }
+              aria-current="page"
+            >
+              {path === "/docs"
+                ? "Documentation"
+                : path === "/profile"
+                  ? "Your profile"
+                  : path === "/workspaces"
+                    ? "Teams"
+                    : "Applications"}
             </Link>
           </nav>
           <SearchButton />
