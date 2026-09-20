@@ -5,11 +5,12 @@ import { db } from "../lib/db";
 import { channel, closeQueue } from "../lib/queue/client";
 import { DELAYS, QUEUE } from "../lib/queue/topology";
 import { beforeAttempt, afterAttempt } from "../lib/circuitBreaker";
-import { decryptSecret } from "../lib/secrets";
+import { decryptSecret, encryptionKey } from "../lib/secrets";
 import { signature } from "../lib/security";
 import { deliver } from "../lib/deliver";
 import { flushDelivery } from "../lib/events";
 import { diagnose } from "../lib/diagnosis";
+encryptionKey(); // Refuse to advertise a ready worker without its required key.
 let stopping = false,
   ready = false;
 async function processJob(job: { id: string; attemptNumber: number }) {

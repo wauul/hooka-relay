@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "../../lib/db";
 import { createWorkspace } from "../../lib/workspaces";
@@ -7,10 +7,22 @@ import { applicationForKey, rotateKey } from "../../lib/api-keys";
 import { decryptSecret, encryptSecret, hashApiKey } from "../../lib/secrets";
 import { signature, verifySignature } from "../../lib/security";
 let userId: string, workspaceId: string;
+let originalApps: { id: string; currentApiKey: string; previousApiKey: string | null }[];
+let originalEndpoints: { id: string; secret: string }[];
+// This offline migration intentionally processes the whole disposable database.
+// Preserve the global legacy-workspace fixtures for other serial test files.
+beforeEach(async () => {
+  originalApps = await db.application.findMany({ select: { id: true, currentApiKey: true, previousApiKey: true } });
+  originalEndpoints = await db.endpoint.findMany({ select: { id: true, secret: true } });
+});
 afterEach(async () => {
   vi.unstubAllEnvs();
   if (workspaceId) await db.workspace.delete({ where: { id: workspaceId } });
   if (userId) await db.user.delete({ where: { id: userId } });
+  await db.$transaction([
+    ...originalApps.map(({ id, ...data }) => db.application.update({ where: { id }, data })),
+    ...originalEndpoints.map(({ id, ...data }) => db.endpoint.update({ where: { id }, data })),
+  ]);
 });
 async function fixture() {
   userId = (await db.user.create({ data: { email: randomUUID() + "@example.com", hashedPassword: "unused" } })).id;
