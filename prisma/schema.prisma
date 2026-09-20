@@ -173,3 +173,11 @@ model WorkspaceInvite {
   expiresAt DateTime
   @@index([workspaceId, status])
 }
+model IpRateBucket {
+  key String
+  bucket BigInt
+  hits Int
+  expiresAt DateTime
+  @@id([key, bucket])
+  @@index([expiresAt])
+}

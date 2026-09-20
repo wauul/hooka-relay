@@ -158,7 +158,8 @@ async function processJob(job: { id: string; attemptNumber: number }) {
 }
 async function drain() {
   await db.application.updateMany({ where: { previousApiKeyExpiresAt: { lte: new Date() } }, data: { previousApiKey: null, previousApiKeyExpiresAt: null } });
-  await db.eventAdmission.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 60000) } } });
+  await db.$executeRaw`DELETE FROM "IpRateBucket" WHERE "expiresAt" < NOW()`;
+    await db.eventAdmission.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 60000) } } });
   // Recover jobs lost between DB commit and broker confirm, or during classic
   // queue dead-lettering. Old duplicate wakeups are harmless under the lease.
   const overdue = await db.delivery.findMany({

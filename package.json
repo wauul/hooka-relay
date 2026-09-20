@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build:worker": "prisma generate && tsc -p tsconfig.worker.json",
-    "lint": "eslint app components lib worker tests --ext .ts,.tsx --max-warnings 0"
+    "lint": "eslint app components lib worker tests middleware.ts --ext .ts,.tsx --max-warnings 0"
   },
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
@@ -29,7 +29,7 @@
     "ipaddr.js": "^2.2.0",
     "lucide-react": "^0.468.0",
     "next": "15.5.25",
-    "next-auth": "4.24.11",
+    "next-auth": "4.24.15",
     "pg": "^8.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -46,7 +46,7 @@
     "autoprefixer": "^10.4.21",
     "eslint": "8.57.1",
     "eslint-config-next": "15.5.25",
-    "postcss": "^8.5.6",
+    "postcss": "8.5.28",
     "prisma": "6.19.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.2",
@@ -55,5 +55,17 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@10.30.3"
+  "packageManager": "pnpm@10.30.3",
+  "overrides": {
+    "deepmerge-ts": "8.0.0",
+    "effect": "3.22.2",
+    "postcss": "$postcss"
+  },
+  "pnpm": {
+    "overrides": {
+      "deepmerge-ts": "8.0.0",
+      "effect": "3.22.2",
+      "postcss": "8.5.28"
+    }
+  }
 }

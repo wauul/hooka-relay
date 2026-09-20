@@ -134,3 +134,8 @@ docker run --rm -p 8080:8080 --env-file .env hooka-relay-worker
 ## Stack
 
 Next.js, React, TypeScript, Prisma, PostgreSQL, RabbitMQ, NextAuth, Tailwind CSS, and Vitest.
+
+## Security hardening
+
+Phase 1 hardening is in progress. See [SECURITY.md](SECURITY.md) for implemented controls, attack scenarios, verification steps, the database role audit, and remaining work. Phase 2 product features are intentionally gated on completing and verifying Phase 1.
+
