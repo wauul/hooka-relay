@@ -10,6 +10,22 @@ The worker already resolves immediately before each HTTP attempt and pins that a
 
 Verify: registration at `https://169.254.169.254/`, `https://localhost/`, `https://[::1]/`, `https://printer.local/` must return 400. HTTPS public destinations pass. HTTP remains disallowed. Unit tests cover reserved ranges, mixed DNS, DNS failure, consecutive changed answers, transport pinning and redirects.
 
+## Secrets at rest and disclosure
+
+Current and previous API-key columns contain versioned SHA-256 digests. Incoming keys are hashed for lookup; knowing a stored digest does not authenticate. Rotation keeps the previous digest and its original grace semantics. Creation and rotation responses alone disclose the new plaintext with Cache-Control: no-store; GET views never return it. The UI keeps it only in component memory until dismissed/navigation, with no local storage or URL transport. Existing integrations retain their original credentials after migration.
+
+Endpoint signing secrets use AES-256-GCM with random 96-bit nonces, authentication tags, and application-bound associated data. Database-only disclosure no longer yields signing credentials; modification or copying ciphertext between applications fails authentication. The worker decrypts only for signing, and the authorized admin detail view decrypts for receiver setup. Member detail/list routes no longer expose signing secrets, preventing a read-only teammate from forging webhooks. Plaintext values fail closed after rollout. Losing the encryption key makes ciphertext unrecoverable; protect it separately from database backups.
+
+### Required offline migration and release procedure
+
+This has **not run on production**. No hosted data or runtime environment has been changed by this branch.
+
+1. Generate 32 random bytes as 64 hexadecimal characters; securely back up the value. Set the same `ENDPOINT_SECRET_ENCRYPTION_KEY` on the web app, worker, and migration process. Never commit it or print it in logs.
+2. Test the release and `scripts/migrate-secrets.ts` on a disposable database seeded with legacy current/previous keys and endpoint secrets. CI tests original-key authentication, grace expiry, receiver signature compatibility with decrypted secrets, idempotency, and complete rollback with a wrong encryption key.
+3. Update external receivers (including any separate CLI receiver implementation) for the new timestamp signature format. Arrange a maintenance window; stop web writes and the worker, preserving queued work. Take a protected database backup before migration.
+4. Apply the additive Prisma IP-counter migration with `pnpm db:migrate`. Run `CONFIRM_OFFLINE_SECRET_MIGRATION=yes pnpm exec tsx scripts/migrate-secrets.ts` with migration credentials and the encryption key. On PowerShell set the environment variable separately. The script takes table write locks, transforms records in one transaction, authenticates every encrypted value, and logs only counts. A second run is a verified no-op. Existing IDs, memberships, grace dates, events and outbox work stay intact. No rows are deleted.
+5. Start the updated web/worker together and verify an existing application's original API key, delivery, rotation/grace, and receiver verification. Do not start old binaries against migrated data. On failure, keep maintenance active and repair forward; any backup restoration requires an explicit data-loss review, never an automatic destructive rollback.
+
 ## Event body limits
 
 Both public ingestion and dashboard test events read at most 256 KiB from the request stream, cancel on overflow (413), and reject structural JSON nesting deeper than 32 (400) before JSON.parse. Content-Length is an early rejection optimization only; lying or absent headers cannot bypass the counted-byte limit. Quoted/escaped brackets do not increase nesting. This prevents memory exhaustion from buffering unlimited bodies and deeply nested JSON parser/serializer attacks.
@@ -25,6 +41,12 @@ Configure `EVENTS_IP_LIMIT_PER_MINUTE` and `AUTH_IP_LIMIT_PER_MINUTE`. Vercel's 
 Verify: exceed the configured IP limit using missing/invalid API keys; requests must become 429 despite never authenticating. Parallel requests must not exceed the quota. Tests cover independent addresses, auth/event scopes, and signup enforcement.
 
 NextAuth still handles credentials POSTs itself, including its built-in double-submit CSRF validation; the wrapper only adds a rate gate. Dashboard mutations retain same-origin checks.
+
+## Replay protection
+
+Outgoing signatures now use `t=UNIX_SECONDS,v1=HEX`, authenticating `timestamp + "." + exactBody`. Each attempt gets a fresh timestamp. Receiver verification rejects malformed signatures, tampered timestamps, and times more than 300 seconds in the past or future, using constant-time digest comparison. Captured requests can no longer be replayed indefinitely; receivers must still atomically deduplicate X-Idempotency-Key to prevent duplicate processing within the tolerance window.
+
+Verify: an unchanged signed body succeeds within the window, fails at 301 seconds, and fails if either timestamp or body changes. Tests cover both clock directions and the exact boundary. README and /docs contain receiver examples. **Wire-format change:** receivers must be updated before the worker rollout; old body-only signatures are intentionally rejected. This branch has not been deployed.
 
 ## Browser and dependency controls
 
@@ -42,9 +64,7 @@ Create a separate Neon runtime login with NOSUPERUSER NOCREATEDB NOCREATEROLE NO
 
 ## Remaining Phase 1 work
 
-- SHA-256 API key migration and creation/rotation-only disclosure, preserving previous-key grace.
-- AES-256-GCM signing-secret encryption, secure key provisioning and migration/live rollout verification.
-- Timestamp-plus-body signatures and receiver tolerance-window verification/docs.
+- Provision the encryption key and verify the offline secret migration/live rollout.
 - Verify deployed headers, CSRF, layered limits and existing delivery flows after the security release.
 - Restricted database runtime role (manual owner action above).
 

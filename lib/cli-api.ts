@@ -1,3 +1,4 @@
+import { encryptSecret } from "./secrets";
 import { applicationForKey } from "./api-keys";
 import { z } from "zod";
 import { db } from "./db";
@@ -44,8 +45,9 @@ export async function cliApi(req: Request, path: string[]) {
       if (Buffer.byteLength(body) > 16384) throw new ApiFailure(413, "Endpoint request is too large");
       const input = z.object({ url: z.string().url().max(2000), eventTypes: z.array(z.string().min(1).max(120).regex(/^(\*|[A-Za-z0-9_.:-]+)$/)).min(1).max(50).default(["*"]) }).parse(JSON.parse(body));
       await resolveEndpoint(input.url);
-      const endpoint = await db.endpoint.create({ data: { applicationId: app.id, ...input, secret: newSecret() }, select: { ...endpointFields, secret: true } });
-      return json({ endpoint }, 201);
+      const secret = newSecret();
+      const endpoint = await db.endpoint.create({ data: { applicationId: app.id, ...input, secret: encryptSecret(secret, app.id) }, select: endpointFields });
+      return json({ endpoint: { ...endpoint, secret } }, 201);
     }
     if (route === "attempts" && req.method === "GET") {
       const endpointId = url.searchParams.get("endpoint") || undefined;

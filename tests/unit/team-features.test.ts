@@ -1,3 +1,4 @@
+import { hashApiKey } from "../../lib/secrets";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/db", () => ({ db: {} }));
 import { actions, permitted, type Role } from "../../lib/permissions";
@@ -29,8 +30,8 @@ describe("role/action matrix", () => {
 it("accepts the old key strictly within its grace window", () => {
   const now = new Date("2026-09-16T12:00:00Z");
   const app = {
-    currentApiKey: "new",
-    previousApiKey: "old",
+    currentApiKey: hashApiKey("new"),
+    previousApiKey: hashApiKey("old"),
     previousApiKeyExpiresAt: now,
   };
   expect(keyIsValid(app, "new", now)).toBe(true);

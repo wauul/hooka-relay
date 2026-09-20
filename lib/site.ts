@@ -17,7 +17,7 @@ export const faq = [
   {
     question: "How do I verify a webhook signature?",
     answer:
-      "Compute a SHA-256 HMAC over the exact raw request body with your endpoint signing secret. Compare it to X-Webhook-Signature using a timing-safe comparison.",
+      "Verify the timestamp and raw body in X-Webhook-Signature using your signing secret and a timing-safe HMAC comparison. Reject timestamps outside five minutes and deduplicate the idempotency key.",
   },
   {
     question: "Can I work from my terminal?",

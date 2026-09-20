@@ -1,3 +1,8 @@
+import { POST as createAppRoute } from "../../app/api/applications/route";
+import { GET as endpointList } from "../../app/api/applications/[id]/endpoints/route";
+import { GET as endpointDetails } from "../../app/api/endpoints/[id]/attempts/route";
+import { encryptSecret, hashApiKey } from "../../lib/secrets";
+import { createApplication } from "../fixtures";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 const mocks = vi.hoisted(() => ({ session: vi.fn(), email: vi.fn() }));
@@ -206,7 +211,7 @@ it("prevents removed users from reusing an accepted invitation", async () => {
   await expect(acceptInvite(invite.token, users[3].id)).rejects.toThrow();
 });
 it("enforces tenant and member restrictions on application and endpoint writes", async () => {
-  const app = await db.application.create({
+  const app = await createApplication({
     data: { workspaceId, name: "App", currentApiKey: randomUUID() },
   });
   const ep = await db.endpoint.create({
@@ -234,7 +239,7 @@ it("enforces tenant and member restrictions on application and endpoint writes",
 });
 it("rotates keys with shared rate limiting and rejects expired old keys in both APIs", async () => {
   vi.stubEnv("EVENTS_RATE_LIMIT_PER_MINUTE", "2");
-  const app = await db.application.create({
+  const app = await createApplication({
     data: { workspaceId, name: "App", currentApiKey: randomUUID() },
   });
   const rotated = await rotateRoute(req(), context(app.id));
@@ -271,7 +276,7 @@ it("rotates keys with shared rate limiting and rejects expired old keys in both 
   ).toBe(401);
 });
 it("pauses without delivery intents or skipped logs and resumes without backfill", async () => {
-  const app = await db.application.create({
+  const app = await createApplication({
     data: { workspaceId, name: "App", currentApiKey: randomUUID() },
   });
   const ep = await db.endpoint.create({
@@ -332,7 +337,7 @@ it("supports workspace CRUD with server-side role checks and cascades only its o
   const second = await (await newWorkspace(req({ name: "Second" }))).json();
   const listed = await (await listWorkspaces()).json();
   expect(listed).toHaveLength(2);
-  const app = await db.application.create({
+  const app = await createApplication({
     data: {
       workspaceId: second.id,
       name: "Disposable",
@@ -387,7 +392,7 @@ it("accepts an invite after the recipient registers, and enforces revocation", a
 });
 it("enforces the rolling limit under concurrency and reopens the budget after expiry", async () => {
   vi.stubEnv("EVENTS_RATE_LIMIT_PER_MINUTE", "3");
-  const app = await db.application.create({
+  const app = await createApplication({
     data: { workspaceId, name: "Concurrent", currentApiKey: randomUUID() },
   });
   const send = () =>
@@ -566,4 +571,20 @@ it("display names are editable only on the current account and appear in team de
   expect(
     (await updateProfile(req({ displayName: "a".repeat(41) }, "PATCH"))).status,
   ).toBe(400);
+});
+
+it("discloses a new API key only once and restricts signing secrets to admins", async () => {
+  const response = await createAppRoute(req({ name: "Secure app", workspaceId }));
+  expect(response.status).toBe(201);
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  const app = await response.json();
+  expect(app.currentApiKey).toMatch(/^hr_live_/);
+  expect((await db.application.findUniqueOrThrow({ where: { id: app.id } })).currentApiKey).toBe(hashApiKey(app.currentApiKey));
+  expect((await (await appRoute(req(undefined, "GET"), context(app.id))).json()).currentApiKey).toBeUndefined();
+  const endpoint = await db.endpoint.create({ data: { applicationId: app.id, url: "https://example.com", eventTypes: ["*"], secret: encryptSecret("secret-for-admins", app.id) } });
+  expect((await (await endpointDetails(req(undefined, "GET"), context(endpoint.id))).json()).endpoint.secret).toBe("secret-for-admins");
+  session(2);
+  expect((await (await endpointDetails(req(undefined, "GET"), context(endpoint.id))).json()).endpoint.secret).toBeUndefined();
+  const listed = await (await endpointList(req(undefined, "GET"), context(app.id))).json();
+  expect(listed[0].secret).toBeUndefined();
 });

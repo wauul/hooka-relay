@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
-import { api, useData, ErrorBox, LoadingState } from "@/components/ui";
+import { api, useData, ErrorBox, LoadingState, CopyButton } from "@/components/ui";
 type App = {
   id: string;
   name: string;
@@ -21,6 +21,7 @@ type App = {
 };
 export default function Page() {
   const { data, error, reload } = useData<App[]>("/api/applications", true);
+  const [newKey, setNewKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
@@ -40,6 +41,7 @@ export default function Page() {
         </button>
       </div>
       <ErrorBox error={error || failure} />
+      {newKey && <section className="panel panel-body" role="status"><h2>Save your API key</h2><p>This key is shown only now. Copy it before leaving this page.</p><div className="secret-row"><code>{newKey}</code><CopyButton value={newKey} /><button className="btn quiet" onClick={() => setNewKey(null)}>I saved it</button></div></section>}
       <div className="stats">
         <div className="stat">
           <div className="stat-label">
@@ -77,9 +79,10 @@ export default function Page() {
             e.preventDefault();
             setBusy(true);
             try {
-              await api("/api/applications", {
+              const created = await api("/api/applications", {
                 name: new FormData(e.currentTarget).get("name"),
               });
+              setNewKey(created.currentApiKey);
               setCreating(false);
               await reload();
             } catch (e) {

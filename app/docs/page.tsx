@@ -27,9 +27,9 @@ export default function Page() {
         <p>
           Every POST contains the event payload as its JSON body. Verify{" "}
           <code>X-Webhook-Signature</code> against the exact raw bytes using the
-          endpoint’s signing secret.
+          endpoint’s signing secret. The header signs the timestamp, a period, and the raw body. Reject timestamps outside five minutes and keep your receiver clock synchronized.
         </p>
-        <CodeBlock>{`import { createHmac, timingSafeEqual } from 'node:crypto';\n\nfunction verify(rawBody, signature, endpointSecret) {\n  const expected = 'sha256=' + createHmac('sha256', endpointSecret)\n    .update(rawBody).digest('hex');\n  const actual = Buffer.from(signature || '');\n  const wanted = Buffer.from(expected);\n  return actual.length === wanted.length && timingSafeEqual(actual, wanted);\n}`}</CodeBlock>
+        <CodeBlock>{`import { createHmac, timingSafeEqual } from 'node:crypto';\n\nexport function verifyWebhook(rawBody, signature, secret) {\n  const parts = /^t=(\\d{1,12}),v1=([a-f0-9]{64})$/.exec(signature || '');\n  if (!parts || Math.abs(Date.now() / 1000 - Number(parts[1])) > 300) return false;\n  const expected = createHmac('sha256', secret)\n    .update(parts[1] + '.').update(rawBody).digest();\n  return timingSafeEqual(Buffer.from(parts[2], 'hex'), expected);\n}`}</CodeBlock>
         <p>
           Reject invalid signatures before processing. Do not parse and
           reserialize JSON before verification, because whitespace or field

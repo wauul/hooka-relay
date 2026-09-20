@@ -16,14 +16,15 @@ describe("HMAC signing and verification", () => {
     "x".repeat(1024 * 1024),
     '{"message":"你好 👋 café مرحبا"}',
   ])("round-trips payload %#", (payload) => {
-    const signed = signature(payload, "secret");
-    expect(signed).toBe(signature(payload, "secret"));
+    const timestamp = 1700000000;
+    const signed = signature(payload, "secret", timestamp);
+    expect(signed).toBe(signature(payload, "secret", timestamp));
     expect(signed).toBe(
-      "sha256=" + createHmac("sha256", "secret").update(payload).digest("hex"),
+      `t=${timestamp},v1=` + createHmac("sha256", "secret").update(`${timestamp}.${payload}`).digest("hex"),
     );
-    expect(verifySignature(payload, signed, "secret")).toBe(true);
-    expect(verifySignature(payload + "x", signed, "secret")).toBe(false);
-    expect(verifySignature(payload, signed, "wrong-secret")).toBe(false);
+    expect(verifySignature(payload, signed, "secret", timestamp * 1000)).toBe(true);
+    expect(verifySignature(payload + "x", signed, "secret", timestamp * 1000)).toBe(false);
+    expect(verifySignature(payload, signed, "wrong-secret", timestamp * 1000)).toBe(false);
   });
   it("is sensitive to raw whitespace rather than parsed JSON", () =>
     expect(signature('{"x": 1}', "s")).not.toBe(signature('{"x":1}', "s")));
@@ -37,6 +38,14 @@ describe("HMAC signing and verification", () => {
   ])("rejects malformed signature %# without throwing", (value) =>
     expect(verifySignature("body", value, "s")).toBe(false),
   );
+  it.each([-301, -300, 0, 300, 301])("enforces the replay tolerance at %s seconds", (age) => {
+    const now = 1700000000;
+    expect(verifySignature("body", signature("body", "s", now - age), "s", now * 1000)).toBe(Math.abs(age) <= 300);
+  });
+  it("rejects a refreshed timestamp on a captured signature", () => {
+    const captured = signature("body", "s", 1700000000);
+    expect(verifySignature("body", captured.replace("1700000000", "1700000600"), "s", 1700000600000)).toBe(false);
+  });
   it("generates distinct 256-bit hex secrets", () => {
     const a = newSecret();
     expect(a).toMatch(/^[a-f0-9]{64}$/);

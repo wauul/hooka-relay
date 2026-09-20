@@ -2,19 +2,26 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import ipaddr from "ipaddr.js";
 export const newSecret = () => randomBytes(32).toString("hex");
-// Sign the exact bytes transmitted, not a reserialized object on the receiver.
-export const signature = (raw: string, secret: string) =>
-  "sha256=" + createHmac("sha256", secret).update(raw).digest("hex");
-// Receivers must verify the original bytes before parsing JSON. Check the
-// length first: timingSafeEqual throws for malformed, unequal-length inputs.
+// Bind the signing time to the exact transmitted bytes. A body-only HMAC lets
+// anyone replay a captured valid request indefinitely.
+export function signature(raw: string, secret: string, timestamp = Math.floor(Date.now() / 1000)) {
+  const digest = createHmac("sha256", secret).update(`${timestamp}.${raw}`).digest("hex");
+  return `t=${timestamp},v1=${digest}`;
+}
+// Receivers must also deduplicate the idempotency key: the clock window limits
+// replay age, but cannot prevent duplicates within the five-minute window.
 export function verifySignature(
   raw: string,
   supplied: string | null | undefined,
   secret: string,
+  now = Date.now(),
 ) {
-  const expected = Buffer.from(signature(raw, secret));
-  const actual = Buffer.from(supplied || "");
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+  const parts = /^t=(\d{1,12}),v1=([a-f0-9]{64})$/.exec(supplied || "");
+  if (!parts) return false;
+  const timestamp = Number(parts[1]);
+  if (!Number.isSafeInteger(timestamp) || Math.abs(now / 1000 - timestamp) > 300) return false;
+  const expected = createHmac("sha256", secret).update(`${parts[1]}.${raw}`).digest();
+  return timingSafeEqual(Buffer.from(parts[2], "hex"), expected);
 }
 export function publicAddress(address: string) {
   try {

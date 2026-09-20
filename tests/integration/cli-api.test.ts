@@ -1,3 +1,4 @@
+import { createApplication } from "../fixtures";
 import { defaultWorkspace } from "../../lib/workspaces";
 import { beforeEach, afterEach, afterAll, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
@@ -10,8 +11,8 @@ let other: { id: string; currentApiKey: string };
 const call = (path: string, method = "GET", body?: unknown, key: string | null = app.currentApiKey) => cliApi(new Request(`https://example.com/api/v1/${path}`, { method, headers: key ? { authorization: `Bearer ${key}` } : {}, body: body === undefined ? undefined : JSON.stringify(body) }), path.split("?")[0].split("/"));
 beforeEach(async () => {
   userId = (await db.user.create({ data: { email: `${randomUUID()}@example.com`, hashedPassword: "test" } })).id;
-  app = await db.application.create({ data: { workspaceId: await defaultWorkspace(userId), name: "CLI app", currentApiKey: randomUUID() } });
-  other = await db.application.create({ data: { workspaceId: await defaultWorkspace(userId), name: "Other app", currentApiKey: randomUUID() } });
+  app = await createApplication({ data: { workspaceId: await defaultWorkspace(userId), name: "CLI app", currentApiKey: randomUUID() } });
+  other = await createApplication({ data: { workspaceId: await defaultWorkspace(userId), name: "Other app", currentApiKey: randomUUID() } });
 });
 afterEach(async () => {
   const application = { workspace: { members: { some: { userId } } } };

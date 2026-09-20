@@ -5,6 +5,7 @@ import { db } from "../lib/db";
 import { channel, closeQueue } from "../lib/queue/client";
 import { DELAYS, QUEUE } from "../lib/queue/topology";
 import { beforeAttempt, afterAttempt } from "../lib/circuitBreaker";
+import { decryptSecret } from "../lib/secrets";
 import { signature } from "../lib/security";
 import { deliver } from "../lib/deliver";
 import { flushDelivery } from "../lib/events";
@@ -84,7 +85,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
     const raw = JSON.stringify(delivery.event.payload);
     const headers = {
       "Content-Type": "application/json",
-      "X-Webhook-Signature": signature(raw, endpoint.secret),
+      "X-Webhook-Signature": signature(raw, decryptSecret(endpoint.secret, endpoint.applicationId)),
       "X-Idempotency-Key": delivery.event.idempotencyKey,
       "X-Webhook-Event": delivery.event.type,
       "X-Webhook-Endpoint": endpoint.id,
