@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build:worker": "prisma generate && tsc -p tsconfig.worker.json",
-    "lint": "eslint app components lib worker tests middleware.ts --ext .ts,.tsx --max-warnings 0"
+    "lint": "eslint app components lib worker tests middleware.ts --ext .ts,.tsx --max-warnings 0",
+    "support:ingest": "tsx scripts/ingest-support.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
@@ -35,7 +36,8 @@
     "react-dom": "19.3.0",
     "tsx": "^4.20.5",
     "zod": "^3.25.76",
-    "ajv": "8.20.0"
+    "ajv": "8.20.0",
+    "@xenova/transformers": "2.17.2"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.1.0",
@@ -60,13 +62,17 @@
   "overrides": {
     "deepmerge-ts": "8.0.0",
     "effect": "3.22.2",
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "sharp": "0.35.4",
+    "protobufjs": "7.6.5"
   },
   "pnpm": {
     "overrides": {
       "deepmerge-ts": "8.0.0",
       "effect": "3.22.2",
-      "postcss": "8.5.28"
+      "postcss": "8.5.28",
+      "sharp": "0.35.4",
+      "protobufjs": "7.6.5"
     }
   }
 }

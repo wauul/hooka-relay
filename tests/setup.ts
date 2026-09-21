@@ -8,7 +8,7 @@ export default async function setup(project: TestProject) {
   // Docker is preinstalled on GitHub's standard Ubuntu runners. Local runs
   // require Docker Desktop (Linux containers) or an equivalent Docker daemon.
   // Never fall back to .env / Neon: failure to start Docker MUST fail this suite.
-  const container = await new PostgreSqlContainer("postgres:18-alpine")
+  const container = await new PostgreSqlContainer("pgvector/pgvector:pg17")
     .withDatabase("hooka_relay_test").withUsername("test").withPassword("test")
     .withStartupTimeout(90_000).start();
   const databaseUrl = container.getConnectionUri();
@@ -46,3 +46,4 @@ export default async function setup(project: TestProject) {
   // Testcontainers' resource reaper also handles abrupt process termination.
   return async () => { await container.stop(); };
 }
+

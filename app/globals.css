@@ -1419,3 +1419,14 @@ button:disabled:has(.spin)::after {
 .api-key-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}.secret-row>code{min-width:0;overflow-wrap:anywhere}.application-delete{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:32px;padding:24px}.application-delete h2{font-size:14px;font-weight:600;margin:0 0 8px}.application-delete p{margin:0;font-size:12px;line-height:1.7}.delete-application-button{background:transparent;color:#f0a3a3;border:1px solid #673c40;flex-shrink:0}.delete-application-button:hover{background:#ef444410;border-color:#b7666b}@media(max-width:600px){.secret-row{flex-wrap:wrap;gap:16px}.secret-row>code{flex-basis:100%}.application-delete{align-items:flex-start;flex-direction:column;gap:18px}}
 
 .portal-layout{max-width:880px;margin:0 auto;padding:48px 24px 80px}.portal-layout>.panel{margin:28px 0}.portal-layout h1{margin:12px 0}.portal-actions{display:flex;gap:12px;margin-top:22px}.portal-url{overflow-wrap:anywhere}.portal-layout details .secret-row{margin-top:16px}
+
+.support-widget { position: fixed; right: 24px; bottom: 100px; z-index: 45; }
+.support-panel { width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 130px); overflow-y: auto; padding: 22px; border: 1px solid var(--line, #272c35); border-radius: 18px; background: var(--panel, #14181f); box-shadow: 0 14px 60px #0002; }
+.support-panel header, .support-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.support-panel header p { font-size: 12px; margin-top: 6px; }
+.support-messages { max-height: 34vh; overflow-y: auto; margin: 18px 0; }
+.support-messages p { white-space: pre-wrap; font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+.support-answer { padding: 12px; border-radius: 10px; background: #8881; }
+.support-panel textarea { width: 100%; margin: 8px 0; padding: 10px; border: 1px solid var(--line, #272c35); border-radius: 8px; color: inherit; background: transparent; resize: vertical; }
+@media (max-width: 600px) { .support-widget { right: 16px; bottom: 90px; } }
+

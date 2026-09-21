@@ -77,3 +77,7 @@ Verification used privilege inspection rather than destructive trial operations,
 
 Keep the encryption key backed up in a password manager or other protected location independent of the database. Never deploy pre-migration binaries against the migrated database. Cloudflare is optional and has not been configured; application rate limits do not provide volumetric DDoS protection.
 
+
+## Support assistant abuse controls
+
+Support is grounded only in explicitly ingested repository documentation, never tenant records. A malformed/off-topic classification stops before embedding/retrieval/generation; the generation prompt separately constrains scope and evidence. User content is rendered as text, never HTML. Shared Postgres quotas cover IPs, authenticated users and a global daily budget, with atomic rollback on rejected admissions. This limits concurrent and distributed inference abuse. Inputs, histories, model output tokens and provider timeouts are bounded; failures do not automatically retry. Global statistics require an explicit operator allowlist. Unit spies and API integration tests prove the rejected-question short circuit, cache behavior, length limits, quotas and stats authorization. LLM scope decisions remain probabilistic; this is not a claim that prompt injection is impossible.

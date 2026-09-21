@@ -204,3 +204,29 @@ enum RetryPolicy {
   AGGRESSIVE
   RELAXED
 }
+model SupportDocument {
+  id String @id
+  source String
+  text String
+  revision String
+  embedding Unsupported("vector(384)")
+}
+model SupportCorpus {
+  id Int @id
+  revision String
+}
+model SupportAnswerCache {
+  key String @id
+  answer String
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+model SupportDecision {
+  id String @id
+  inScope Boolean
+  reason String
+  cacheHit Boolean @default(false)
+  completed Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}

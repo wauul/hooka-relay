@@ -137,7 +137,7 @@ Next.js, React, TypeScript, Prisma, PostgreSQL, RabbitMQ, NextAuth, Tailwind CSS
 
 ## Security hardening
 
-Phase 1 hardening is in progress. See [SECURITY.md](SECURITY.md) for implemented controls, attack scenarios, verification steps, the database role audit, and remaining work. Phase 2 product features are intentionally gated on completing and verifying Phase 1.
+Phase 1 hardening was deployed and verified on 2026-09-21 before Phase 2 began. See [SECURITY.md](SECURITY.md) for controls, attack scenarios, verification steps and the database role audit. See [the troubleshooting FAQ](docs/faq.md) for common delivery and configuration questions.
 
 
 ### Security release configuration
@@ -154,7 +154,7 @@ Only share the link with people authorized to receive the application's matching
 
 Portal tokens are stored as digests plus encrypted copies for authorized admin sharing. Portal and invitation pages omit analytics and send `Referrer-Policy: no-referrer`. API responses are not cacheable. Anonymous visitor credentials are not recoverable from the database.
 
-The portal is the first Phase 2 feature. The support chatbot is not implemented yet.
+The portal is the first Phase 2 feature. See the support assistant section below for documentation-based help.
 
 ## Event payload schemas
 
@@ -179,3 +179,19 @@ These presets reuse the exact existing durable TTL+DLX queues. No plugins, extra
 ## Public status
 
 [/status](https://hooka-relay.vercel.app/status) shows anonymized aggregate HTTP-attempt success over 24 hours, cached for 60 seconds. It detects an incident after two consecutive completed five-minute windows each have at least five attempts and success below 90%. Sparse/missing windows break the sequence. Circuit-open skips are excluded; failing customer receivers and intentionally failing demo receivers count. This is an observed delivery metric, not a platform-uptime SLA. No customer identities, URLs or payloads are exposed.
+
+
+
+## Hooka Relay Support Assistant
+
+The dashboard and docs include a product-only support widget. It answers from README.md, SECURITY.md, docs/api.md and docs/faq.md. It cannot inspect your workspace or perform actions. Do not submit secrets. Questions are sent to Groq; local MiniLM embeddings use `@xenova/transformers`, with documentation vectors stored in the existing Postgres pgvector extension. No paid service or additional database is required.
+
+Every valid, admitted question first receives a small classification call. Off-topic/ambiguous questions receive a fixed decline and **never** run embedding, retrieval or full generation. In-scope questions use cached answers or retrieve up to four relevant documentation chunks; missing evidence returns an explanation. This keeps the assistant focused and bounds token cost. Model classification is not a perfect security boundary: a separate grounded-generation prompt, quotas, token caps and no tools provide additional controls.
+
+`POST /api/support-chat` accepts `{ "question": "Why is my Hooka Relay circuit open?", "history": [] }`. Questions are capped at 500 characters, history at three question/answer exchanges, and bodies at 12 KiB. Fixed-window limits default to 10/minute and 100/day per IP and authenticated user, plus 1000/day globally. Limits apply before model calls, including cache hits. Classifier output is capped at 256 tokens and generation at 768; neither automatically retries. Unavailable providers return 503. Quotas return 429 with a conservative Retry-After. The normal event quotas are unchanged.
+
+Whitespace/case-equivalent questions reuse answers for up to 24 hours; history and corpus revision are included in cache keys. Every classification records its boolean/reason and cache outcome for 30 days. Raw questions/history are not stored as columns; classifier reasons can summarize their content. `GET /api/support-chat/stats` exposes total classifications, declined percentage and cache-hit rate only to the comma-separated user IDs in `SUPPORT_ADMIN_USER_IDS`. Workspace administrator status alone is insufficient. A cache/fresh indicator appears only in development.
+
+Setup: run `npm run db:migrate` using the schema-owner connection (enables pgvector), grant the runtime role SELECT on SupportDocument/SupportCorpus and SELECT/INSERT/UPDATE/DELETE on SupportAnswerCache/SupportDecision, then run `npm run support:ingest` with the owner connection. Re-run ingestion after documentation changes; it atomically publishes the corpus and invalidates cached answers. The first embedding call downloads the quantized Xenova/all-MiniLM-L6-v2 model to the process cache (`/tmp` on Vercel); cold starts can take longer. CI mocks model/embedding calls and uses disposable pgvector Postgres.
+
+Environment: existing `GROQ_API_KEY`; optional `SUPPORT_GROQ_MODEL` (default `openai/gpt-oss-20b`, because the requested `llama-3.1-8b-instant` is no longer in Groq's catalog), `SUPPORT_ADMIN_USER_IDS`, `SUPPORT_LIMIT_PER_MINUTE`, `SUPPORT_LIMIT_PER_DAY`, `SUPPORT_GLOBAL_LIMIT_PER_DAY`, and `HF_HOME` for a local model-cache directory. Keep the Groq account on its free plan; no paid fallback is configured.
