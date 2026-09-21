@@ -9,6 +9,7 @@ import { POST } from "../../app/api/support-chat/route";
 import { GET } from "../../app/api/support-chat/stats/route";
 const send = (question: string) => POST(new Request("https://example.com/api/support-chat", { method: "POST", body: JSON.stringify({ question }) }));
 beforeEach(async () => {
+  vi.clearAllMocks();
   await db.supportCorpus.upsert({ where: { id: 1 }, create: { id: 1, revision: "test" }, update: { revision: "test" } });
   const vector = JSON.stringify([1, ...Array(383).fill(0)]);
   await db.$executeRaw`INSERT INTO "SupportDocument" (id, source, text, revision, embedding) VALUES (${randomUUID()}, 'README.md', 'Hooka Relay retries failures.', 'test', ${vector}::vector)`;
@@ -30,3 +31,4 @@ it("rejects input length and quota excess before model calls", async () => {
 it("restricts global stats to platform operators", async () => {
   expect((await GET()).status).toBe(401); mocks.session.mockResolvedValue({ user: { id: "workspace-admin" } }); expect((await GET()).status).toBe(403); vi.stubEnv("SUPPORT_ADMIN_USER_IDS", "workspace-admin"); expect((await GET()).status).toBe(200);
 });
+
