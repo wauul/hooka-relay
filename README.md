@@ -137,7 +137,7 @@ Next.js, React, TypeScript, Prisma, PostgreSQL, RabbitMQ, NextAuth, Tailwind CSS
 
 ## Security hardening
 
-Phase 1 hardening is in progress. See [SECURITY.md](SECURITY.md) for implemented controls, attack scenarios, verification steps, the database role audit, and remaining work. Phase 2 product features are intentionally gated on completing and verifying Phase 1.
+Phase 1 hardening was deployed and verified on 2026-09-21 before Phase 2 began. See [SECURITY.md](SECURITY.md) for controls, attack scenarios, verification steps and the database role audit. See [the troubleshooting FAQ](docs/faq.md) for common delivery and configuration questions.
 
 
 ### Security release configuration
@@ -179,3 +179,4 @@ These presets reuse the exact existing durable TTL+DLX queues. No plugins, extra
 ## Public status
 
 [/status](https://hooka-relay.vercel.app/status) shows anonymized aggregate HTTP-attempt success over 24 hours, cached for 60 seconds. It detects an incident after two consecutive completed five-minute windows each have at least five attempts and success below 90%. Sparse/missing windows break the sequence. Circuit-open skips are excluded; failing customer receivers and intentionally failing demo receivers count. This is an observed delivery metric, not a platform-uptime SLA. No customer identities, URLs or payloads are exposed.
+
