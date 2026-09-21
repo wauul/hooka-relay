@@ -1,3 +1,4 @@
+import { createApplication } from "../fixtures";
 import { defaultWorkspace } from "../../lib/workspaces";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
@@ -26,7 +27,7 @@ async function endpoint(eventTypes: string[], applicationId = app.id) {
 beforeEach(async () => {
   vi.clearAllMocks(); broker.publish.mockResolvedValue(undefined);
   user = await db.user.create({ data: { email: `test-${randomUUID()}@example.com`, hashedPassword: "not-used-in-api-key-tests" } });
-  app = await db.application.create({ data: { workspaceId: await defaultWorkspace(user.id), name: "Integration test", currentApiKey: randomUUID() } });
+  app = await createApplication({ data: { workspaceId: await defaultWorkspace(user.id), name: "Integration test", currentApiKey: randomUUID() } });
 });
 afterEach(async () => {
   // Every test removes only its own rows, in FK order. No truncation of shared
@@ -77,7 +78,7 @@ describe("POST /api/v1/events with migrated disposable Postgres", () => {
     expect(broker.publish).toHaveBeenCalledTimes(1);
   });
   it("does not deduplicate keys across applications", async () => {
-    const other = await db.application.create({ data: { workspaceId: await defaultWorkspace(user.id), name: "Other app", currentApiKey: randomUUID() } });
+    const other = await createApplication({ data: { workspaceId: await defaultWorkspace(user.id), name: "Other app", currentApiKey: randomUUID() } });
     const first = await (await POST(request())).json();
     const second = await (await POST(request(body, other.currentApiKey))).json();
     expect(first.id).not.toBe(second.id); expect(second.applicationId).toBe(other.id);
@@ -85,7 +86,7 @@ describe("POST /api/v1/events with migrated disposable Postgres", () => {
   it("queues only exact/wildcard matches in the same application", async () => {
     const exact = await endpoint([body.type]); const wildcard = await endpoint(["*"]);
     await endpoint(["payment.failed"]);
-    const other = await db.application.create({ data: { workspaceId: await defaultWorkspace(user.id), name: "Other", currentApiKey: randomUUID() } });
+    const other = await createApplication({ data: { workspaceId: await defaultWorkspace(user.id), name: "Other", currentApiKey: randomUUID() } });
     await endpoint(["*"], other.id);
     const response = await POST(request()); expect(response.status).toBe(202);
     const event = await response.json();

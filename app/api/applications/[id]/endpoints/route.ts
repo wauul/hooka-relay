@@ -1,3 +1,4 @@
+import { encryptSecret } from "@/lib/secrets";
 import { workspaceTransaction } from "@/lib/workspaces";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -10,7 +11,7 @@ export async function GET(
   try {
     await ownApplication((await params).id);
     return Response.json(
-      await db.endpoint.findMany({ where: { applicationId: (await params).id } }),
+      (await db.endpoint.findMany({ where: { applicationId: (await params).id } })).map(({ secret: _secret, ...ep }) => ep),
     );
   } catch (e) {
     return apiError(e);
@@ -45,8 +46,9 @@ export async function POST(
           applicationId: app.id,
           url,
           eventTypes: input.eventTypes,
-          secret: newSecret(),
+          secret: encryptSecret(newSecret(), app.id),
         },
+        select: { id: true, applicationId: true, url: true, eventTypes: true, status: true },
       })),
       { status: 201 },
     );

@@ -1,3 +1,4 @@
+import { hashApiKey } from "@/lib/secrets";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { userId, apiError, sameOrigin } from "@/lib/access";
@@ -17,6 +18,8 @@ export async function POST(req: Request) {
     const uid = await userId();
     const input = z.object({ name: z.string().trim().min(1).max(80), workspaceId: z.string().min(1).optional() }).parse(await req.json());
     const workspaceId = input.workspaceId || req.headers.get("x-workspace-id") || await defaultWorkspace(uid);
-    return Response.json(await workspaceTransaction(workspaceId, uid, "manage", tx => tx.application.create({ data: { name: input.name, workspaceId, currentApiKey: "hr_live_" + newSecret() } })), { status: 201 });
+    const plaintext = "hr_live_" + newSecret();
+    const app = await workspaceTransaction(workspaceId, uid, "manage", tx => tx.application.create({ data: { name: input.name, workspaceId, currentApiKey: hashApiKey(plaintext) } }));
+    return Response.json({ ...app, currentApiKey: plaintext }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (e) { return apiError(e); }
 }

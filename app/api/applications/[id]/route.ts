@@ -6,9 +6,9 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, { params }: Context) {
   try {
     const app = await ownApplication((await params).id);
-    const { currentApiKey, previousApiKey: _previous, ...safe } = app;
+    const { currentApiKey: _current, previousApiKey: _previous, ...safe } = app;
     const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id }, orderBy: { createdAt: "desc" } });
-    return Response.json({ ...safe, currentApiKey: app.role === "MEMBER" ? undefined : currentApiKey, keyGraceHours: keyGraceHours(), endpoints: endpoints.map(({ secret, ...ep }) => ({ ...ep, secret: app.role === "MEMBER" ? undefined : secret })) });
+    return Response.json({ ...safe, keyGraceHours: keyGraceHours(), endpoints: endpoints.map(({ secret: _secret, ...ep }) => ep) });
   } catch (e) { return apiError(e); }
 }
 export async function POST(req: Request, { params }: Context) {
@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: Context) {
     sameOrigin(req);
     const app = await ownApplication((await params).id, "manage");
     const rotated = await rotateKey(app.id, await userId());
-    return Response.json({ currentApiKey: rotated.currentApiKey, previousApiKeyExpiresAt: rotated.previousApiKeyExpiresAt });
+    return Response.json({ currentApiKey: rotated.currentApiKey, previousApiKeyExpiresAt: rotated.previousApiKeyExpiresAt }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) { return apiError(e); }
 }
 export async function DELETE(req: Request, { params }: Context) {

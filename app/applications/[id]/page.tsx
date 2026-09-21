@@ -9,8 +9,6 @@ import {
   Send,
   KeyRound,
   Radio,
-  Eye,
-  EyeOff,
   Trash2,
 } from "lucide-react";
 import { LoadingState } from "@/components/ui";
@@ -81,7 +79,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                     return;
                   setRotating(true);
                   try {
-                    await api(`/api/applications/${resolvedParams.id}`, {});
+                    const rotated = await api(`/api/applications/${resolvedParams.id}`, {});
+                    setRevealedKey(rotated.currentApiKey);
                     await reload();
                   } catch (e) {
                     setFailure((e as Error).message);
@@ -95,55 +94,10 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             </div>
             <div className="panel-body">
               <div className="secret-row">
-                {data.currentApiKey ? (
-                  <>
-                    <code
-                      aria-label={
-                        revealedKey === data.currentApiKey
-                          ? "Application API key"
-                          : "API key hidden"
-                      }
-                    >
-                      {revealedKey === data.currentApiKey
-                        ? data.currentApiKey
-                        : "•".repeat(24)}
-                    </code>
-                    <div className="api-key-actions">
-                      <button
-                        type="button"
-                        className="btn quiet"
-                        aria-label={
-                          revealedKey === data.currentApiKey
-                            ? "Hide API key"
-                            : "Show API key"
-                        }
-                        aria-pressed={revealedKey === data.currentApiKey}
-                        onClick={() =>
-                          setRevealedKey(
-                            revealedKey === data.currentApiKey
-                              ? null
-                              : data.currentApiKey,
-                          )
-                        }
-                      >
-                        {revealedKey === data.currentApiKey ? (
-                          <EyeOff size={15} />
-                        ) : (
-                          <Eye size={15} />
-                        )}
-                        {revealedKey === data.currentApiKey ? "Hide" : "Show"}
-                      </button>
-                      <CopyButton value={data.currentApiKey} />
-                    </div>
-                  </>
-                ) : (
-                  <p className="muted">
-                    API keys are available to workspace admins.
-                  </p>
-                )}
+                {revealedKey ? <><code>{revealedKey}</code><CopyButton value={revealedKey} /><button className="btn quiet" onClick={() => setRevealedKey(null)}>I saved it</button></> : <p className="muted">API keys are shown only at creation or rotation. Your existing key still works; rotate it if you have lost it.</p>}
               </div>
               <p className="muted" style={{ fontSize: 11, marginBottom: 0 }}>
-                Keep this key on your server. Use it as a Bearer token when
+                Copy newly generated keys now; they cannot be retrieved again. Keep them on your server and use a Bearer token when
                 sending events.
               </p>
             </div>

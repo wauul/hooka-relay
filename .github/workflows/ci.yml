@@ -30,6 +30,9 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      # Fail on known exploitable dependencies, including build-time tooling.
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
       - name: ESLint
         run: npm run lint
       - name: Typecheck

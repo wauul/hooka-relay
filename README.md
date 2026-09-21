@@ -77,7 +77,7 @@ Requests contain the event payload as JSON along with these headers:
 
 | Header | Purpose |
 | --- | --- |
-| `X-Webhook-Signature` | HMAC-SHA256 signature of the raw request body |
+| `X-Webhook-Signature` | `t=UNIX_SECONDS,v1=HEX`: HMAC-SHA256 of `timestamp + "." + raw body` |
 | `X-Idempotency-Key` | Producer-supplied key or generated UUID |
 | `X-Webhook-Event` | Event type |
 | `X-Webhook-Endpoint` | Endpoint ID |
@@ -88,15 +88,15 @@ Verify the signature against the endpoint secret before parsing or handling the 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export function verifyWebhook(rawBody, signature, secret) {
-  const expected = Buffer.from(
-    `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`,
-  );
-  const received = Buffer.from(signature ?? '');
-
-  return received.length === expected.length &&
-    timingSafeEqual(received, expected);
+  const parts = /^t=(\d{1,12}),v1=([a-f0-9]{64})$/.exec(signature || '');
+  if (!parts || Math.abs(Date.now() / 1000 - Number(parts[1])) > 300) return false;
+  const expected = createHmac('sha256', secret)
+    .update(parts[1] + '.').update(rawBody).digest();
+  return timingSafeEqual(Buffer.from(parts[2], 'hex'), expected);
 }
 ```
+
+The receiver rejects timestamps more than five minutes in either direction; keep receiver clocks synchronized. Every retry receives a fresh signature. This changes the previous `sha256=...` wire format: update receivers before deploying the updated worker. Never accept the old body-only format as a fallback.
 
 ## Delivery policy
 
@@ -134,3 +134,14 @@ docker run --rm -p 8080:8080 --env-file .env hooka-relay-worker
 ## Stack
 
 Next.js, React, TypeScript, Prisma, PostgreSQL, RabbitMQ, NextAuth, Tailwind CSS, and Vitest.
+
+## Security hardening
+
+Phase 1 hardening is in progress. See [SECURITY.md](SECURITY.md) for implemented controls, attack scenarios, verification steps, the database role audit, and remaining work. Phase 2 product features are intentionally gated on completing and verifying Phase 1.
+
+
+### Security release configuration
+
+New settings: `ENDPOINT_SECRET_ENCRYPTION_KEY` (required, identical on web/worker; 32 random bytes encoded as hex), `EVENTS_IP_LIMIT_PER_MINUTE` (1000), and `AUTH_IP_LIMIT_PER_MINUTE` (20). API keys are shown only when created/rotated and stored as SHA-256 digests; signing secrets are encrypted. The previous API key remains valid during its configured grace period.
+
+The production security migration was completed on 2026-09-21. Other existing installations must follow the offline credential migration and receiver signature update in [SECURITY.md](SECURITY.md) before upgrading. Request bodies over 256 KiB return 413; JSON depth over 32 returns 400. IP throttling runs before authentication and returns 429 with `Retry-After: 60` and `{ "error": "Too many requests. Try again shortly.", "retryAfter": 60 }`. The existing per-application admission limit is separate.

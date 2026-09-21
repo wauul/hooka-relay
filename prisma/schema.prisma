@@ -35,6 +35,7 @@ model Application {
   workspaceId String
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name String
+  // SHA-256 digests; legacy column name retained to avoid a structural migration.
   currentApiKey String @unique @map("apiKey")
   previousApiKey String? @unique
   previousApiKeyExpiresAt DateTime?
@@ -49,6 +50,7 @@ model Endpoint {
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   url String
+  // Versioned AES-256-GCM ciphertext, bound to applicationId.
   secret String
   eventTypes String[]
   status EndpointStatus @default(ACTIVE)
@@ -172,4 +174,12 @@ model WorkspaceInvite {
   createdAt DateTime @default(now())
   expiresAt DateTime
   @@index([workspaceId, status])
+}
+model IpRateBucket {
+  key String
+  bucket BigInt
+  hits Int
+  expiresAt DateTime
+  @@id([key, bucket])
+  @@index([expiresAt])
 }

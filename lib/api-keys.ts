@@ -1,3 +1,4 @@
+import { hashApiKey } from "./secrets";
 import { workspaceTransaction } from "./workspaces";
 import { db } from "./db";
 import { newSecret } from "./security";
@@ -17,18 +18,19 @@ export function keyIsValid(
   now = new Date(),
 ) {
   return (
-    app.currentApiKey === key ||
-    (app.previousApiKey === key &&
+    app.currentApiKey === hashApiKey(key) ||
+    (app.previousApiKey === hashApiKey(key) &&
       !!app.previousApiKeyExpiresAt &&
       app.previousApiKeyExpiresAt > now)
   );
 }
 export function applicationForKey(key: string) {
+  if (key.length > 256) return Promise.resolve(null);
   return db.application.findFirst({
     where: {
       OR: [
-        { currentApiKey: key },
-        { previousApiKey: key, previousApiKeyExpiresAt: { gt: new Date() } },
+        { currentApiKey: hashApiKey(key) },
+        { previousApiKey: hashApiKey(key), previousApiKeyExpiresAt: { gt: new Date() } },
       ],
     },
   });
@@ -48,16 +50,18 @@ export async function rotateKey(id: string, userId: string) {
         app.previousApiKeyExpiresAt > new Date()
       )
         throw new Error("KEY_GRACE_ACTIVE");
-      return tx.application.update({
+      const plaintext = "hr_live_" + newSecret();
+      const rotated = await tx.application.update({
         where: { id },
         data: {
-          currentApiKey: "hr_live_" + newSecret(),
+          currentApiKey: hashApiKey(plaintext),
           previousApiKey: app.currentApiKey,
           previousApiKeyExpiresAt: new Date(
             Date.now() + keyGraceHours() * 3600000,
           ),
         },
       });
+      return { ...rotated, currentApiKey: plaintext };
     },
   );
 }

@@ -198,6 +198,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             <div style={{ marginTop: 22 }}>
               <label>Subscribed event types</label>
               <CodeBlock>{ep.eventTypes.join(", ")}</CodeBlock>
+              {ep.secret && <>
               <label>HMAC signing secret</label>
               <div className="secret-row">
                 <code>{ep.secret}</code>
@@ -207,6 +208,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 Used to verify X-Webhook-Signature. Never expose this secret in
                 client applications.
               </p>
+              </>}
             </div>
           </details>
         </>

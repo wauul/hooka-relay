@@ -7,7 +7,7 @@ export default defineConfig({
     environment: "node",
     // Tests never load .env. This invalid URL is a second guard against a unit
     // test accidentally using a developer's exported production credentials.
-    env: { DATABASE_URL: "postgresql://test:test@127.0.0.1:1/never_connect", RABBITMQ_URL: "amqp://127.0.0.1:1", NEXTAUTH_SECRET: "test-only-secret" },
+    env: { DATABASE_URL: "postgresql://test:test@127.0.0.1:1/never_connect", RABBITMQ_URL: "amqp://127.0.0.1:1", NEXTAUTH_SECRET: "test-only-secret", ENDPOINT_SECRET_ENCRYPTION_KEY: "11".repeat(32) },
     projects: [
       { extends: true, test: { name: "unit", include: ["tests/unit/**/*.test.ts"], clearMocks: true } },
       { extends: true, test: {

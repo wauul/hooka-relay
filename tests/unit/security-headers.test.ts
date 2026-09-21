@@ -1,0 +1,25 @@
+import { expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+import { middleware } from "../../middleware";
+it("adds independent CSP nonces and hardening headers in production", () => {
+  vi.stubEnv("NODE_ENV", "production");
+  try {
+    const a = middleware(new NextRequest("https://example.com/login"));
+    const b = middleware(new NextRequest("https://example.com/login"));
+    expect(a.headers.get("Content-Security-Policy")).not.toBe(
+      b.headers.get("Content-Security-Policy"),
+    );
+    expect(a.headers.get("Content-Security-Policy")).toContain(
+      "'strict-dynamic'",
+    );
+    expect(a.headers.get("Content-Security-Policy")).not.toContain(
+      "'unsafe-eval'",
+    );
+    expect(a.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(a.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(a.headers.get("Strict-Transport-Security")).toContain("31536000");
+    expect(a.headers.get("Referrer-Policy")).toBe("same-origin");
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

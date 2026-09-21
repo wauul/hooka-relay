@@ -1,3 +1,4 @@
+import { decryptSecret } from "@/lib/secrets";
 import { db } from "@/lib/db";
 import { ownEndpoint, apiError } from "@/lib/access";
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
       }),
     ]);
     return Response.json({
-      endpoint: ep,
+      endpoint: { ...ep, secret: ep.role === "MEMBER" ? undefined : decryptSecret(ep.secret, ep.applicationId) },
       attempts,
       successRate: total ? Math.round((success / total) * 100) : null,
       total,

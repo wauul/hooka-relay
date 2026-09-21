@@ -1,3 +1,4 @@
+import { ipRateLimit } from "@/lib/ip-rate-limit";
 import { userDisplayName } from "@/lib/display-name";
 import { hash } from "bcryptjs";
 import { z } from "zod";
@@ -6,6 +7,8 @@ import { apiError, sameOrigin } from "@/lib/access";
 import { invitationDetails, WorkspaceError } from "@/lib/workspaces";
 export async function POST(req: Request) {
   try {
+    const limited = await ipRateLimit(req, "auth");
+    if (limited) return limited;
     sameOrigin(req);
     const data = z
       .object({
