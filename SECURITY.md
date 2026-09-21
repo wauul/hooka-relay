@@ -1,6 +1,6 @@
 # Security hardening status
 
-Phase 1 is **in progress**, not complete. Phase 2 has not started. This document distinguishes implemented controls from remaining work; it is not a claim that the whole application is production-hardened.
+Phase 1 was deployed and verified on 2026-09-21. Phase 2 has not started. The controls and their limits are documented below; this is not a guarantee against every security issue.
 
 ## SSRF: outbound endpoints
 
@@ -18,7 +18,7 @@ Endpoint signing secrets use AES-256-GCM with random 96-bit nonces, authenticati
 
 ### Required offline migration and release procedure
 
-This has **not run on production**. No hosted data or runtime environment has been changed by this branch.
+Production migration completed on 2026-09-21: five applications and ten endpoints were transformed atomically. An encrypted snapshot was taken first. Every pre-migration user, workspace, membership, invite, application, endpoint, event, delivery and attempt ID was verified to remain present. All migrated key digests and decrypted signing secrets match their original values. The procedure below is retained for future installations.
 
 1. Generate 32 random bytes as 64 hexadecimal characters; securely back up the value. Set the same `ENDPOINT_SECRET_ENCRYPTION_KEY` on the web app, worker, and migration process. Never commit it or print it in logs.
 2. Test the release and `scripts/migrate-secrets.ts` on a disposable database seeded with legacy current/previous keys and endpoint secrets. CI tests original-key authentication, grace expiry, receiver signature compatibility with decrypted secrets, idempotency, and complete rollback with a wrong encryption key.
@@ -46,26 +46,34 @@ NextAuth still handles credentials POSTs itself, including its built-in double-s
 
 Outgoing signatures now use `t=UNIX_SECONDS,v1=HEX`, authenticating `timestamp + "." + exactBody`. Each attempt gets a fresh timestamp. Receiver verification rejects malformed signatures, tampered timestamps, and times more than 300 seconds in the past or future, using constant-time digest comparison. Captured requests can no longer be replayed indefinitely; receivers must still atomically deduplicate X-Idempotency-Key to prevent duplicate processing within the tolerance window.
 
-Verify: an unchanged signed body succeeds within the window, fails at 301 seconds, and fails if either timestamp or body changes. Tests cover both clock directions and the exact boundary. README and /docs contain receiver examples. **Wire-format change:** receivers must be updated before the worker rollout; old body-only signatures are intentionally rejected. This branch has not been deployed.
+Verify: an unchanged signed body succeeds within the window, fails at 301 seconds, and fails if either timestamp or body changes. Tests cover both clock directions and the exact boundary. README and /docs contain receiver examples. **Wire-format change:** receivers must be updated before the worker rollout; old body-only signatures are intentionally rejected. The updated worker and web app are deployed. All registered destinations were built-in test receivers; the separate CLI has no signature verifier.
 
 ## Browser and dependency controls
 
 Middleware supplies a fresh per-response nonce CSP (no production unsafe-eval or script unsafe-inline), frame-ancestors none, object-src none, base-uri self, form-action self, X-Frame-Options DENY, nosniff, same-origin referrer policy and production HSTS. Inline styles remain allowed because the existing UI uses them. Root layout renders per request so nonce-bearing HTML is not statically cached. These controls mitigate injected script execution, clickjacking, MIME confusion, referrer leakage and protocol downgrades. Nonces follow the [Next.js CSP guidance](https://nextjs.org/docs/app/guides/content-security-policy).
 
-NextAuth is patched to 4.24.15 (malformed bearer denial-of-service and provider/email validation advisories). PostCSS 8.5.28 prevents source-map file disclosure; Effect 3.22.2 addresses asynchronous context contamination; DeepmergeTS 8.0.0 addresses recursive-graph stack exhaustion. Overrides keep the existing Next.js/Prisma architecture. Both lockfiles must pass CI before deployment.
+NextAuth is patched to 4.24.15 (malformed bearer denial-of-service and provider/email validation advisories). PostCSS 8.5.28 prevents source-map file disclosure; Effect 3.22.2 addresses asynchronous context contamination; DeepmergeTS 8.0.0 addresses recursive-graph stack exhaustion. Overrides keep the existing Next.js/Prisma architecture. Both lockfiles were validated by the passing CI/builds before deployment.
 
-CI runs `npm audit --audit-level=high`, including development dependencies. Dependabot checks npm and GitHub Actions weekly. Repository owners should check Settings > Code security for Dependabot alerts and security updates; configuration alone does not prove those settings are enabled.
+CI runs `npm audit --audit-level=high`, including development dependencies. Dependabot checks npm and GitHub Actions weekly. Dependabot vulnerability alerts and automated security updates were enabled through the GitHub API (both returned 204). No manual GitHub settings step is needed.
 
-## Database least privilege: action required
+## Database least privilege
 
-Read-only production inspection on 2026-09-20 found `neondb_owner`, with CREATEROLE, CREATEDB, BYPASSRLS, public-schema CREATE permission and ownership of 12 public tables. **The runtime role can perform destructive schema operations. This has not been fixed.** No permissions were changed and no destructive verification was attempted.
+The original `neondb_owner` runtime had CREATEROLE, CREATEDB, BYPASSRLS, schema CREATE and table ownership, allowing a compromised application to destroy or alter its schema. Both production services now use a separate `hooka_runtime` login: NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS, with no object ownership. SQL provisioning required no manual Neon dashboard changes.
 
-Create a separate Neon runtime login with NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS, no object ownership, and no membership in owner/admin roles. Grant CONNECT to the application database, USAGE on public, SELECT/INSERT/UPDATE/DELETE only on application tables, and USAGE/SELECT on sequences if needed. Do not grant CREATE on schemas/database, TRUNCATE, ownership, or access to `_prisma_migrations`. Remove PUBLIC schema CREATE if present after reviewing other consumers. Set matching owner default privileges for future application tables. Use a separate owner connection only for migrations, never in the Vercel/Railway runtime. Replace DATABASE_URL on both runtimes after testing this role in staging. Neon role creation/privilege changes remain a manual owner step.
+The role has CONNECT, public-schema USAGE, and SELECT/INSERT/UPDATE/DELETE on application tables only. It cannot CREATE database/schema objects, TRUNCATE application tables, or access `_prisma_migrations`. Owner credentials remain separate for migrations. Future migrations must explicitly grant runtime DML on new application tables; do not grant blanket ownership or schema CREATE. If a future table uses sequences, grant only the necessary USAGE/SELECT on those sequences.
 
-## Remaining Phase 1 work
+Verification used privilege inspection rather than destructive trial operations, then successful live reads/writes and worker delivery using the restricted credentials. Historical Vercel deployment URLs redirect to Vercel authentication; they are not public alternate versions of the API.
 
-- Provision the encryption key and verify the offline secret migration/live rollout.
-- Verify deployed headers, CSRF, layered limits and existing delivery flows after the security release.
-- Restricted database runtime role (manual owner action above).
+## Production verification
 
-No Phase 2 portal, schema registry, retry policies, public status or support chatbot has been implemented in this security checkpoint. Do not start Phase 2 until remaining Phase 1 work is complete and verified.
+- CI: 237 tests (188 unit, 49 Testcontainers integration), enforced coverage, npm audit, lint, TypeScript, Next.js build and non-root worker image smoke checks passed.
+- Existing account browser/API login, workspace access and original pre-migration API-key authentication passed.
+- Existing endpoint delivery succeeded; the timestamped signature was independently verified with the pre-migration signing secret.
+- Live metadata URL registration returned 400; oversize payload returned 413; excessive nesting returned 400.
+- Rendered HTML used the CSP nonce from its response header. Security headers and missing-CSRF login rejection passed.
+- Public IP quota returned 429 before authentication (only the test caller's identified counter was temporarily brought to its threshold, then restored). Authentication throttling returned 429 without submitting passwords.
+- A dedicated verification application confirmed old/new keys both authenticate during rotation grace, with only their digests stored. Grace expiry is covered by integration tests.
+- Vercel web deployment: `dpl_DWhHy9VHPLRqcFgaXKauuNnUhebv`; Railway worker: `1defb3ab-3c08-4f91-a2ba-bd0c5c6ef133`.
+
+Keep the encryption key backed up in a password manager or other protected location independent of the database. Never deploy pre-migration binaries against the migrated database. Cloudflare is optional and has not been configured; application rate limits do not provide volumetric DDoS protection.
+
