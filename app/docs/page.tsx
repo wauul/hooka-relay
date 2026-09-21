@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { faq } from "@/lib/site";
@@ -6,7 +7,7 @@ export default function Page() {
   return (
     <Shell>
       <article className="docs">
-        <div className="eyebrow">DEVELOPER DOCUMENTATION</div>
+        <div className="eyebrow">DEVELOPER DOCUMENTATION</div><Link href="/status">View service status</Link>
         <h1 style={{ fontSize: 34, letterSpacing: -1 }}>
           Your first webhook, delivered.
         </h1>

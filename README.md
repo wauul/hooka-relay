@@ -154,7 +154,7 @@ Only share the link with people authorized to receive the application's matching
 
 Portal tokens are stored as digests plus encrypted copies for authorized admin sharing. Portal and invitation pages omit analytics and send `Referrer-Policy: no-referrer`. API responses are not cacheable. Anonymous visitor credentials are not recoverable from the database.
 
-The portal is the first Phase 2 feature. Public status and the support chatbot are not implemented yet.
+The portal is the first Phase 2 feature. The support chatbot is not implemented yet.
 
 ## Event payload schemas
 
@@ -175,3 +175,7 @@ Owners/admins choose a policy in Endpoint configuration or `PATCH /api/endpoints
 | RELAXED | 4 | 5m, 15m, 30m |
 
 These presets reuse the exact existing durable TTL+DLX queues. No plugins, extra infrastructure, or arbitrary custom queue intervals are required. Policy changes affect subsequent failures; already scheduled deliveries retain their due time, and attempt counts never reset. Circuit-open skips still consume no HTTP attempt and the existing cooldown can extend the effective schedule. Standard behavior is unchanged for all migrated endpoints.
+
+## Public status
+
+[/status](https://hooka-relay.vercel.app/status) shows anonymized aggregate HTTP-attempt success over 24 hours, cached for 60 seconds. It detects an incident after two consecutive completed five-minute windows each have at least five attempts and success below 90%. Sparse/missing windows break the sequence. Circuit-open skips are excluded; failing customer receivers and intentionally failing demo receivers count. This is an observed delivery metric, not a platform-uptime SLA. No customer identities, URLs or payloads are exposed.
