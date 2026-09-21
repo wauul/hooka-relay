@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const config = {
   poweredByHeader: false,
+  serverExternalPackages: ["@xenova/transformers", "onnxruntime-node", "sharp"],
+  outputFileTracingExcludes: { "/api/support-chat": ["**/onnxruntime-node/bin/napi-v3/darwin/**", "**/onnxruntime-node/bin/napi-v3/win32/**", "**/onnxruntime-node/bin/napi-v3/linux/arm64/**"] },
   images: { unoptimized: true },
   experimental: {
     cpus: 2,
@@ -27,3 +29,4 @@ const config = {
   },
 };
 export default config;
+

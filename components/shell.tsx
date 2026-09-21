@@ -1,4 +1,5 @@
 "use client";
+import { SupportChat } from "./support-chat";
 import { ProfileLink } from "./profile-link";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import Link from "next/link";
@@ -140,8 +141,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="content" id="main-content" tabIndex={-1}>
           {children}
+          {(path === "/docs" || path.startsWith("/dashboard")) && <SupportChat />}
         </main>
       </div>
     </div>
   );
 }
+
