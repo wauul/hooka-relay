@@ -1,3 +1,4 @@
+import { validateEventPayload } from "./event-schemas";
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -35,6 +36,13 @@ export async function ingest(
   const idempotencyKey = input.idempotencyKey || randomUUID();
   try {
     const event = await db.$transaction(async (tx) => {
+      // Serialize schema changes/admission and check duplicates first so a new
+      // schema cannot reject an event already accepted under its original key.
+      await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${applicationId} FOR UPDATE`;
+      const existing = await tx.event.findUnique({ where: { applicationId_idempotencyKey: { applicationId, idempotencyKey } } });
+      if (existing) return existing;
+      const registered = await tx.eventSchema.findUnique({ where: { applicationId_eventType: { applicationId, eventType: input.type } } });
+      if (registered) validateEventPayload(registered.schema, input.payload);
       const event = await tx.event.create({
         data: {
           applicationId,

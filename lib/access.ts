@@ -1,3 +1,4 @@
+import { PayloadSchemaError } from "./event-schemas";
 import { InputLimitError } from "./input-limits";
 import { WorkspaceError, membership } from "./workspaces";
 import type { Action } from "./permissions";
@@ -36,6 +37,7 @@ export function sameOrigin(request: Request) {
     throw new Error("FORBIDDEN");
 }
 export function apiError(e: unknown) {
+  if (e instanceof PayloadSchemaError) return Response.json({ error: e.message, failures: e.failures }, { status: 400 });
   if (e instanceof InputLimitError) return Response.json({ error: e.message }, { status: e.status });
   if (e instanceof WorkspaceError) return Response.json({ error: e.message }, { status: e.status });
   if (e instanceof Error && e.message === "KEY_GRACE_ACTIVE") return Response.json({ error: "The previous key is still in its grace period. Wait until it expires before rotating again." }, { status: 409 });

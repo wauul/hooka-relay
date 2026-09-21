@@ -24,7 +24,7 @@ export function checkJsonDepth(text: string, maximum = 32) {
       if (++depth > maximum)
         throw new InputLimitError(
           400,
-          "JSON exceeds maximum nesting depth of 32",
+          `JSON exceeds maximum nesting depth of ${maximum}`,
         );
     } else if (char === "}" || char === "]") depth--;
   }

@@ -34,7 +34,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tsx": "^4.20.5",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "ajv": "8.20.0"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.1.0",

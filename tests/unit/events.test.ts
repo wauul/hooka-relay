@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@prisma/client";
 const mocks = vi.hoisted(() => ({
-  event: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
+  event: { findUnique: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn() },
   endpoint: { findMany: vi.fn() },
   delivery: { createMany: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
   transaction: vi.fn(), publish: vi.fn(),
@@ -13,7 +13,7 @@ const input = { type: "order.shipped", idempotencyKey: "order-42", payload: { or
 const event = { id: "event-1", applicationId: "app-1", ...input };
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.transaction.mockImplementation(async callback => callback({ event: mocks.event, endpoint: mocks.endpoint, delivery: mocks.delivery }));
+  mocks.transaction.mockImplementation(async callback => callback({ $queryRaw: vi.fn(), eventSchema: { findUnique: vi.fn() }, event: mocks.event, endpoint: mocks.endpoint, delivery: mocks.delivery }));
   mocks.event.create.mockResolvedValue(event);
   mocks.endpoint.findMany.mockResolvedValue([]);
   mocks.delivery.findMany.mockResolvedValue([]);

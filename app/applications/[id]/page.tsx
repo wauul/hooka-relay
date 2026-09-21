@@ -1,5 +1,6 @@
 "use client";
 import { use } from "react";
+import { EventSchemas } from "@/components/event-schemas";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
@@ -113,6 +114,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             <h2>Customer portal</h2><p className="muted">Share this private link with customers who may receive events from this application. Each visitor manages only the endpoints created in their browser.</p>
             {data.portalPath ? <div className="secret-row"><code>{window.location.origin + data.portalPath}</code><CopyButton value={window.location.origin + data.portalPath} /></div> : <button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/applications/${resolvedParams.id}/portal`, {}); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>Enable customer portal</button>}
           </section>}
+          <EventSchemas applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} />
           <div className="split">
             <section className="panel">
               <div className="panel-head">

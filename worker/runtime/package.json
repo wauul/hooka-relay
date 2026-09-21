@@ -8,6 +8,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
     "@prisma/client": "6.19.0",
+    "ajv": "8.20.0",
     "amqplib": "0.10.9",
     "dotenv": "16.6.1",
     "ipaddr.js": "2.5.0",

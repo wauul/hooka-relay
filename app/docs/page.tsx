@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { faq } from "@/lib/site";
@@ -6,7 +7,7 @@ export default function Page() {
   return (
     <Shell>
       <article className="docs">
-        <div className="eyebrow">DEVELOPER DOCUMENTATION</div>
+        <div className="eyebrow">DEVELOPER DOCUMENTATION</div><Link href="/status">View service status</Link>
         <h1 style={{ fontSize: 34, letterSpacing: -1 }}>
           Your first webhook, delivered.
         </h1>
@@ -51,10 +52,9 @@ export default function Page() {
         </p>
         <h2 id="retries">Retries & circuit breaking</h2>
         <p>
-          Each delivery has at most five HTTP attempts: immediately, then after
+          Standard policy allows five HTTP attempts: immediately, then after
           30 seconds, 2 minutes, 5 minutes, and 15 minutes. Each request has a
-          10-second deadline. A final failure becomes DEAD_LETTERED. A 30-minute
-          delay queue is also declared for future policies.
+          10-second deadline. A final failure becomes DEAD_LETTERED. Admins can choose aggressive (seven attempts) or relaxed (four attempts) per endpoint. The relaxed policy uses the existing 30-minute delay queue.
         </p>
         <ul>
           <li>

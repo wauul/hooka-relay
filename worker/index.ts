@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { db } from "../lib/db";
 import { channel, closeQueue } from "../lib/queue/client";
+import { retryPlan } from "../lib/retry-policy";
 import { DELAYS, QUEUE } from "../lib/queue/topology";
 import { beforeAttempt, afterAttempt } from "../lib/circuitBreaker";
 import { decryptSecret, encryptionKey } from "../lib/secrets";
@@ -76,7 +77,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
           },
         }),
       ]);
-      return; // Skips do not spend any of the five HTTP attempts.
+      return; // Skips do not spend the endpoint HTTP attempt budget.
     }
     if (gate.state.circuitState !== endpoint.circuitState)
       endpoint = await db.endpoint.update({
@@ -94,9 +95,10 @@ async function processJob(job: { id: string; attemptNumber: number }) {
     const result = await deliver(endpoint.url, raw, headers);
     const success =
       result.code !== null && result.code >= 200 && result.code < 300;
-    const dead = !success && delivery.attemptNumber >= 5;
+    const retry = retryPlan(endpoint.retryPolicy, delivery.attemptNumber);
+    const dead = !success && retry.exhausted;
     const next = afterAttempt(gate.state, success);
-    const delay = DELAYS[delivery.attemptNumber - 1];
+    const delay = retry.delay;
     await db.$transaction(async (tx) => {
       const owned = await tx.endpoint.updateMany({
         where: { id: endpoint.id, leaseToken: token },
