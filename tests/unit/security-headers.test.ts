@@ -23,3 +23,9 @@ it("adds independent CSP nonces and hardening headers in production", () => {
     vi.unstubAllEnvs();
   }
 });
+
+it("keeps capability links out of referrers and marks them for analytics exclusion", () => {
+  const r = middleware(new NextRequest("https://example.com/portal/private-token", { headers: { "x-hooka-private-page": "0" } }));
+  expect(r.headers.get("Referrer-Policy")).toBe("no-referrer");
+  expect(r.headers.get("x-middleware-request-x-hooka-private-page")).toBe("1");
+});

@@ -1,6 +1,6 @@
 # Security hardening status
 
-Phase 1 was deployed and verified on 2026-09-21. Phase 2 has not started. The controls and their limits are documented below; this is not a guarantee against every security issue.
+Phase 1 was deployed and verified on 2026-09-21. Phase 2 begins separately with the customer portal. The controls and their limits are documented below; this is not a guarantee against every security issue.
 
 ## SSRF: outbound endpoints
 

@@ -15,13 +15,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   // Nonce CSP requires per-request rendering, not cached static HTML.
-  await headers();
+  const privatePage = (await headers()).get("x-hooka-private-page") === "1";
   return (
     <html lang="en">
       <body>
         <SiteTools>{children}</SiteTools>
-        <Analytics />
-        <SpeedInsights />
+        {!privatePage && <><Analytics /><SpeedInsights /></>}
       </body>
     </html>
   );

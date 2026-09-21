@@ -109,6 +109,10 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               your integration before then.
             </p>
           )}
+          {data.role !== "MEMBER" && <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
+            <h2>Customer portal</h2><p className="muted">Share this private link with customers who may receive this application's events. Each visitor manages only the endpoints created in their browser.</p>
+            {data.portalPath ? <div className="secret-row"><code>{window.location.origin + data.portalPath}</code><CopyButton value={window.location.origin + data.portalPath} /></div> : <button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/applications/${resolvedParams.id}/portal`, {}); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>Enable customer portal</button>}
+          </section>}
           <div className="split">
             <section className="panel">
               <div className="panel-head">
