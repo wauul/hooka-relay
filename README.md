@@ -154,4 +154,12 @@ Only share the link with people authorized to receive the application's matching
 
 Portal tokens are stored as digests plus encrypted copies for authorized admin sharing. Portal and invitation pages omit analytics and send `Referrer-Policy: no-referrer`. API responses are not cacheable. Anonymous visitor credentials are not recoverable from the database.
 
-The portal is the first Phase 2 feature. Event schemas, configurable retry policies, public status, and the support chatbot are not implemented yet.
+The portal is the first Phase 2 feature. Configurable retry policies, public status, and the support chatbot are not implemented yet.
+
+## Event payload schemas
+
+Owners/admins can add, replace and remove schemas in an application's Event schemas panel (`GET/PUT/DELETE /api/applications/:id/schemas`). Members can view schemas. The request body for PUT is `{ "eventType": "order.shipped", "schema": { "type": "object", "properties": { "orderId": { "type": "string" } }, "required": ["orderId"] } }`; DELETE takes `eventType` only.
+
+Ingestion and dashboard test events validate the payload with Ajv when that exact type has a schema. Other types pass through. Invalid payloads return 400 with `{ "error": "Payload does not match the event schema", "failures": [{ "path": "/orderId", "message": "must be string" }] }` and create no event or delivery intent. Validation stops at the first error to bound work. Previously accepted idempotency keys still return their original event regardless of later schema changes.
+
+Schemas use a bounded draft-07 subset: types, object properties/required/additionalProperties, array items and bounds, string length, numeric bounds/multipleOf, enum/const, title/description. Regex, formats, references, combinators and uniqueItems are rejected to prevent expensive untrusted validation. Definitions are capped at 16 KiB, depth 12, 250 schema nodes, 100 enum options and 50 types per application. Payloads are never coerced or modified. These limits follow [Ajv's security considerations](https://ajv.js.org/security.html).

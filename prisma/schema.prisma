@@ -43,6 +43,7 @@ model Application {
   portalTokenEncrypted String?
   createdAt DateTime @default(now())
   @@index([workspaceId])
+  schemas EventSchema[]
   admissions EventAdmission[]
   endpoints Endpoint[]
   events Event[]
@@ -186,4 +187,13 @@ model IpRateBucket {
   expiresAt DateTime
   @@id([key, bucket])
   @@index([expiresAt])
+}
+
+model EventSchema {
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  eventType String
+  schema Json
+  createdAt DateTime @default(now())
+  @@id([applicationId, eventType])
 }
