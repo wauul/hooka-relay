@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
+    "dev": "next dev --webpack",
+    "build": "prisma generate && next build --webpack",
     "start": "next start",
     "worker": "tsx worker/index.ts",
     "test": "vitest run",
@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build:worker": "prisma generate && tsc -p tsconfig.worker.json",
-    "lint": "eslint app components lib worker tests middleware.ts --ext .ts,.tsx --max-warnings 0",
+    "lint": "eslint app components lib worker tests middleware.ts --max-warnings 0",
     "support:ingest": "tsx scripts/ingest-support.ts"
   },
   "dependencies": {
@@ -29,7 +29,7 @@
     "dotenv": "^16.6.1",
     "ipaddr.js": "^2.2.0",
     "lucide-react": "^0.468.0",
-    "next": "15.5.25",
+    "next": "16.3.5",
     "next-auth": "4.24.15",
     "pg": "^8.23.0",
     "react": "19.3.0",
@@ -47,8 +47,8 @@
     "@types/react-dom": "^19.3.0",
     "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.21",
-    "eslint": "8.57.1",
-    "eslint-config-next": "15.5.25",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.5",
     "postcss": "8.5.28",
     "prisma": "6.19.0",
     "tailwindcss": "^3.4.17",
@@ -56,7 +56,7 @@
     "vitest": "^4.1.11"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   },
   "packageManager": "pnpm@10.30.3",
   "overrides": {

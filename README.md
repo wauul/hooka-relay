@@ -195,3 +195,6 @@ Whitespace/case-equivalent questions reuse answers for up to 24 hours; history a
 Setup: run `npm run db:migrate` using the schema-owner connection (enables pgvector), grant the runtime role SELECT on SupportDocument/SupportCorpus and SELECT/INSERT/UPDATE/DELETE on SupportAnswerCache/SupportDecision, then run `npm run support:ingest` with the owner connection. Re-run ingestion after documentation changes; it atomically publishes the corpus and invalidates cached answers. The first embedding call downloads the quantized Xenova/all-MiniLM-L6-v2 model to the process cache (`/tmp` on Vercel); cold starts can take longer. CI mocks model/embedding calls and uses disposable pgvector Postgres.
 
 Environment: existing `GROQ_API_KEY`; optional `SUPPORT_GROQ_MODEL` (default `openai/gpt-oss-20b`, because the requested `llama-3.1-8b-instant` is no longer in Groq's catalog), `SUPPORT_ADMIN_USER_IDS`, `SUPPORT_LIMIT_PER_MINUTE`, `SUPPORT_LIMIT_PER_DAY`, `SUPPORT_GLOBAL_LIMIT_PER_DAY`, and `HF_HOME` for a local model-cache directory. Keep the Groq account on its free plan; no paid fallback is configured.
+
+The web application runs Next.js 16.3.5. Development and production builds explicitly retain webpack; the existing edge middleware remains in place. ESLint runs separately through its flat configuration and CI.
+
