@@ -39,6 +39,8 @@ model Application {
   currentApiKey String @unique @map("apiKey")
   previousApiKey String? @unique
   previousApiKeyExpiresAt DateTime?
+  portalTokenHash String? @unique
+  portalTokenEncrypted String?
   createdAt DateTime @default(now())
   @@index([workspaceId])
   admissions EventAdmission[]
@@ -50,6 +52,8 @@ model Endpoint {
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   url String
+  portalOwnerHash String?
+  @@index([applicationId, portalOwnerHash])
   // Versioned AES-256-GCM ciphertext, bound to applicationId.
   secret String
   eventTypes String[]

@@ -145,3 +145,13 @@ Phase 1 hardening is in progress. See [SECURITY.md](SECURITY.md) for implemented
 New settings: `ENDPOINT_SECRET_ENCRYPTION_KEY` (required, identical on web/worker; 32 random bytes encoded as hex), `EVENTS_IP_LIMIT_PER_MINUTE` (1000), and `AUTH_IP_LIMIT_PER_MINUTE` (20). API keys are shown only when created/rotated and stored as SHA-256 digests; signing secrets are encrypted. The previous API key remains valid during its configured grace period.
 
 The production security migration was completed on 2026-09-21. Other existing installations must follow the offline credential migration and receiver signature update in [SECURITY.md](SECURITY.md) before upgrading. Request bodies over 256 KiB return 413; JSON depth over 32 returns 400. IP throttling runs before authentication and returns 429 with `Retry-After: 60` and `{ "error": "Too many requests. Try again shortly.", "retryAfter": 60 }`. The existing per-application admission limit is separate.
+
+## Customer portal
+
+Workspace admins can enable a private customer link from an application page. Visitors need no account: they can register public HTTPS endpoints, inspect their signing secrets and recent delivery results, pause/resume, and delete their own endpoints. Each visitor receives a separate HttpOnly browser credential; possessing the shared application link alone does not grant access to other visitors' or dashboard-created endpoints. Clearing cookies or changing browsers loses that visitor access; the workspace admin can still manage the endpoints.
+
+Only share the link with people authorized to receive the application's matching events. Subscription filtering is by event type, not by a customer field inside the payload. Use separate applications when event data must be isolated between customers. Portal endpoint registration has the same SSRF protection, an 8 KiB request limit, maximum JSON depth 32, a separate `PORTAL_IP_LIMIT_PER_MINUTE` quota (30 by default), and caps of 10 endpoints per visitor / 50 portal endpoints per application. Pausing prevents new delivery work; resuming does not backfill missed events.
+
+Portal tokens are stored as digests plus encrypted copies for authorized admin sharing. Portal and invitation pages omit analytics and send `Referrer-Policy: no-referrer`. API responses are not cacheable. Anonymous visitor credentials are not recoverable from the database.
+
+The portal is the first Phase 2 feature. Event schemas, configurable retry policies, public status, and the support chatbot are not implemented yet.

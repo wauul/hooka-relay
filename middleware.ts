@@ -18,13 +18,15 @@ export function middleware(request: NextRequest) {
     ...(development ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
   const headers = new Headers(request.headers);
+  const privatePage = request.nextUrl.pathname.startsWith("/portal/") || request.nextUrl.pathname.startsWith("/invites/");
+  headers.set("x-hooka-private-page", privatePage ? "1" : "0");
   headers.set("x-nonce", nonce);
   headers.set("Content-Security-Policy", csp);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set("Content-Security-Policy", csp);
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "same-origin");
+  response.headers.set("Referrer-Policy", privatePage ? "no-referrer" : "same-origin");
   if (!development)
     response.headers.set(
       "Strict-Transport-Security",
