@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/select";
 import { useState } from "react";
 import { useConfirm } from "@/components/site-tools";
 import { api } from "@/components/ui";
@@ -190,6 +191,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 </Link>
               </div>
             )}
+          </section>
+          <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
+            <h2>Retry policy</h2><p className="muted">Standard: 5 attempts · Aggressive: 7 attempts · Relaxed: 4 attempts. Circuit protection still applies.</p>
+            {ep.role === "MEMBER" ? <Badge value={ep.retryPolicy} /> : <Select label="Retry policy" value={ep.retryPolicy} options={[{ value: "STANDARD", label: "Standard", description: "30s, 2m, 5m, 15m" }, { value: "AGGRESSIVE", label: "Aggressive", description: "30s, 30s, 30s, 2m, 2m, 5m" }, { value: "RELAXED", label: "Relaxed", description: "5m, 15m, 30m" }]} onChange={async retryPolicy => { try { await api(`/api/endpoints/${ep.id}/retry-policy`, { retryPolicy }, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } }} />}
+            <p className="muted">Changes apply to subsequent failures. Already scheduled delays keep their due times.</p>
           </section>
           <details className="panel panel-body">
             <summary style={{ cursor: "pointer" }}>

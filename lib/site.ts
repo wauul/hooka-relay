@@ -2,7 +2,7 @@ export const faq = [
   {
     question: "What happens when my endpoint goes offline?",
     answer:
-      "Accepted events remain in the durable outbox. Hooka Relay retries failed deliveries up to five total attempts, with delays of 30 seconds, 2 minutes, 5 minutes and 15 minutes.",
+      "Accepted events remain in the durable outbox. By default, Hooka Relay retries failed deliveries up to five total attempts, with delays of 30 seconds, 2 minutes, 5 minutes and 15 minutes.",
   },
   {
     question: "Can I receive the same event twice?",

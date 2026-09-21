@@ -59,6 +59,7 @@ model Endpoint {
   secret String
   eventTypes String[]
   status EndpointStatus @default(ACTIVE)
+  retryPolicy RetryPolicy @default(STANDARD)
   circuitState CircuitState @default(CLOSED)
   consecutiveFailures Int @default(0)
   circuitOpenedAt DateTime?
@@ -196,4 +197,10 @@ model EventSchema {
   schema Json
   createdAt DateTime @default(now())
   @@id([applicationId, eventType])
+}
+
+enum RetryPolicy {
+  STANDARD
+  AGGRESSIVE
+  RELAXED
 }

@@ -1,3 +1,4 @@
+import { PATCH as changeRetry } from "../../app/api/endpoints/[id]/retry-policy/route";
 import { POST as createAppRoute } from "../../app/api/applications/route";
 import { GET as endpointList } from "../../app/api/applications/[id]/endpoints/route";
 import { GET as endpointDetails } from "../../app/api/endpoints/[id]/attempts/route";
@@ -587,4 +588,15 @@ it("discloses a new API key only once and restricts signing secrets to admins", 
   expect((await (await endpointDetails(req(undefined, "GET"), context(endpoint.id))).json()).endpoint.secret).toBeUndefined();
   const listed = await (await endpointList(req(undefined, "GET"), context(app.id))).json();
   expect(listed[0].secret).toBeUndefined();
+});
+
+it("keeps standard retries by default and restricts policy changes to admins", async () => {
+  const app = await createApplication({ data: { workspaceId, name: "Retry", currentApiKey: randomUUID() } });
+  const ep = await db.endpoint.create({ data: { applicationId: app.id, url: "https://example.com", eventTypes: ["*"], secret: encryptSecret("secret", app.id) } });
+  expect(ep.retryPolicy).toBe("STANDARD"); session(2);
+  expect((await changeRetry(req({ retryPolicy: "AGGRESSIVE" }, "PATCH"), context(ep.id))).status).toBe(403);
+  session(1); expect((await changeRetry(req({ retryPolicy: "AGGRESSIVE" }, "PATCH"), context(ep.id))).status).toBe(200);
+  expect((await db.endpoint.findUniqueOrThrow({ where: { id: ep.id } })).retryPolicy).toBe("AGGRESSIVE");
+  expect((await changeRetry(req({ retryPolicy: "UNKNOWN" }, "PATCH"), context(ep.id))).status).toBe(400);
+  session(3); expect((await changeRetry(req({ retryPolicy: "RELAXED" }, "PATCH"), context(ep.id))).status).toBe(404);
 });

@@ -33,6 +33,6 @@ export async function declareTopology(ch: Channel) {
         "x-dead-letter-routing-key": "deliver",
       },
     });
-  // No consumer is registered on a delay queue. Five TOTAL HTTP attempts means
-  // only four retries; the 30m queue is declared but reserved for future policy.
+  // No consumer is registered on a delay queue. Endpoint retry policies choose
+  // among these same fixed TTL queues; existing queue declarations never change.
 }
