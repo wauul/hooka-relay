@@ -1,4 +1,4 @@
-import { afterAll, expect, it } from "vitest";
+import { afterAll, expect, it, vi } from "vitest";
 import { trace, context, metrics, ROOT_CONTEXT, SpanStatusCode } from "@opentelemetry/api";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
@@ -49,4 +49,18 @@ it("records unsampled latency, outcome, queue and retry metrics without tenant d
   expect(data.find(m => m.descriptor.name === "hooka.delivery.duration")?.dataPoints[0].value).toMatchObject({ count: 1, sum: 1.5 });
   expect(data.find(m => m.descriptor.name === "hooka.queue.depth")?.dataPoints[0].value).toBe(4);
   expect(data.find(m => m.descriptor.name === "hooka.delivery.retries")?.dataPoints[0].attributes).toEqual({ delay: "retry-delay-30s" });
+});
+
+it("flushes the shared SDK across independently bundled Next modules", async () => {
+  const traces = { forceFlush: vi.fn().mockResolvedValue(undefined) };
+  const meters = { forceFlush: vi.fn().mockResolvedValue(undefined) };
+  const shared = globalThis as typeof globalThis & { hookaObservability?: unknown };
+  shared.hookaObservability = { traces, meters };
+  try {
+    vi.resetModules();
+    const bundledRoute = await import("../../lib/observability-runtime");
+    await bundledRoute.flushObservability();
+    expect(traces.forceFlush).toHaveBeenCalledOnce();
+    expect(meters.forceFlush).toHaveBeenCalledOnce();
+  } finally { delete shared.hookaObservability; }
 });

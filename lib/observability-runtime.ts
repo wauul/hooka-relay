@@ -31,9 +31,11 @@ export class PrivateSpanProcessor implements SpanProcessor {
   forceFlush() { return this.delegate.forceFlush(); }
   shutdown() { return this.delegate.shutdown(); }
 }
-let providers: { traces: NodeTracerProvider; meters: MeterProvider } | undefined;
+// Next bundles instrumentation and route handlers separately. A module-local
+// singleton makes after() flush a different (empty) SDK and loses serverless spans.
+const runtime = globalThis as typeof globalThis & { hookaObservability?: { traces: NodeTracerProvider; meters: MeterProvider } };
 export function startObservability(service: "web" | "worker") {
-  if (providers || !process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_SDK_DISABLED === "true") return;
+  if (runtime.hookaObservability || !process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.OTEL_SDK_DISABLED === "true") return;
   try {
     const endpoint = new URL(process.env.OTEL_EXPORTER_OTLP_ENDPOINT);
     if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new Error("Invalid telemetry endpoint");
@@ -42,12 +44,14 @@ export function startObservability(service: "web" | "worker") {
     const resource = resourceFromAttributes({ "service.name": `hooka-relay-${service}` });
     const traces = new NodeTracerProvider({ resource, sampler: new TraceIdRatioBasedSampler(ratio), spanProcessors: [new PrivateSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter({ timeoutMillis: 3000 }), { maxQueueSize: 512, maxExportBatchSize: 64, scheduledDelayMillis: 2000, exportTimeoutMillis: 4000 }))] });
     const meters = new MeterProvider({ resource, readers: [new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter({ timeoutMillis: 3000 }), exportIntervalMillis: 60000, exportTimeoutMillis: 4000 })] });
-    traces.register(); metrics.setGlobalMeterProvider(meters); providers = { traces, meters };
+    traces.register(); metrics.setGlobalMeterProvider(meters); runtime.hookaObservability = { traces, meters };
   } catch { console.warn("Telemetry disabled: check OTLP configuration"); }
 }
 export async function flushObservability() {
+  const providers = runtime.hookaObservability;
   if (providers) await Promise.allSettled([providers.traces.forceFlush(), providers.meters.forceFlush()]);
 }
 export async function stopObservability() {
+  const providers = runtime.hookaObservability;
   if (providers) await Promise.allSettled([providers.traces.shutdown(), providers.meters.shutdown()]);
 }
