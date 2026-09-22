@@ -33,7 +33,7 @@ export function SearchButton() {
   const { search, signedIn } = useContext(Tools);
   if (!signedIn) return null;
   return (
-    <button className="search-trigger" type="button" onClick={search}>
+    <button className="search-trigger" type="button" aria-label="Search everything" onClick={search}>
       <Search size={16} />
       <span><T text={"Search everything"} /></span>
       <kbd>⌘ / Ctrl K</kbd>

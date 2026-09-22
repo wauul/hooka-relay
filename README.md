@@ -264,3 +264,15 @@ The public [homepage](https://hooka-relay.vercel.app/) introduces the delivery f
 The header includes persisted light/dark and English/French interface preferences. API identifiers, event payloads and copied code are not translated; the detailed technical reference and legal text remain in English. Search is available only after sign-in. The support assistant uses distinct question/answer bubbles, a waiting indicator and a responsive panel; its scope, limits and generation pipeline are unchanged. The contact control can be dismissed for later visits.
 
 [Terms of Use](https://hooka-relay.vercel.app/terms) and [Privacy & data use](https://hooka-relay.vercel.app/privacy) are public and linked from account pages and the homepage. See the [page-by-page UI audit](docs/ui-audit-2026-09-22.md) and [auth/email setup and deliverability findings](docs/auth-and-email.md).
+
+### Current interface
+
+Screenshots from the deployed September 2026 interface (review workspace contains synthetic test data).
+
+![Public landing page, dark desktop theme](docs/images/landing-desktop.jpg)
+
+![Workspace management with separate form sections](docs/images/workspace-desktop.jpg)
+
+| Mobile landing, light theme | Mobile endpoint overview |
+| --- | --- |
+| ![Mobile landing](docs/images/landing-mobile.jpg) | ![Mobile endpoint](docs/images/endpoint-mobile.jpg) |

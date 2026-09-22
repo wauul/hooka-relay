@@ -28,3 +28,7 @@ Live DNS and Resend API checks found:
 | Content | Existing subjects were descriptive, without excessive urgency, capitals or punctuation. Existing messages were text-only and had no Reply-To; those are improved, but not proven causes of spam placement. |
 
 No missing SPF/DKIM/DMARC record was found, so no registrar change is currently justified. Do not tighten DMARC until reports confirm alignment for every legitimate sender. Domain/IP reputation, recipient filtering and engagement can still affect placement. A delivered message's Authentication-Results headers and recipient spam-folder observation are required before claiming a root cause or a fix to inbox placement. Templates alone do not guarantee deliverability.
+
+## Public branding links
+
+The deployed homepage, `/privacy`, and `/terms` are public. Google OAuth branding now has `https://hooka-relay.vercel.app/terms` saved as its Terms of Use URL. Branding review/verification status remains managed by Google; saving these URLs is not a claim of Google verification approval.
