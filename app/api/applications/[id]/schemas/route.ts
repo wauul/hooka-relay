@@ -1,5 +1,5 @@
+import { publishEventType } from "@/lib/event-catalog";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ownApplication, userId, sameOrigin, apiError } from "@/lib/access";
 import { boundedJson } from "@/lib/input-limits";
@@ -18,12 +18,8 @@ async function mutate(req: Request, { params }: Context) {
     if (req.method === "PUT") compileEventSchema(input.schema);
     await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
       await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${app.id} FOR UPDATE`;
-      if (req.method === "DELETE") { await tx.eventSchema.deleteMany({ where: { applicationId: app.id, eventType: input.eventType } }); return; }
-      const count = await tx.eventSchema.count({ where: { applicationId: app.id } });
-      const where = { applicationId_eventType: { applicationId: app.id, eventType: input.eventType } };
-      if (count >= 50 && !await tx.eventSchema.findUnique({ where })) throw new Error("Application schema limit reached");
-      const schema = input.schema as Prisma.InputJsonValue;
-      await tx.eventSchema.upsert({ where, create: { applicationId: app.id, eventType: input.eventType, schema }, update: { schema } });
+      const latest = await tx.eventTypeVersion.findFirst({ where: { applicationId: app.id, eventType: input.eventType }, orderBy: { version: "desc" } });
+      await publishEventType(tx, app.id, { eventType: input.eventType, description: latest?.description || "", schema: req.method === "DELETE" ? null : input.schema });
     });
     return Response.json({ ok: true });
   } catch (e) { return apiError(e); }

@@ -43,6 +43,11 @@ model Application {
   portalTokenEncrypted String?
   createdAt DateTime @default(now())
   @@index([workspaceId])
+  apiKeys ApplicationKey[]
+  eventTypes EventTypeVersion[]
+  recoveries RecoveryJob[]
+  notifications OperationalNotice[]
+  recoveryAvailableAt DateTime?
   schemas EventSchema[]
   admissions EventAdmission[]
   endpoints Endpoint[]
@@ -64,6 +69,12 @@ model Endpoint {
   previousSecretExpiresAt DateTime?
   eventTypes String[]
   status EndpointStatus @default(ACTIVE)
+  environment String @default("production")
+  kind EndpointKind @default(BUSINESS)
+  customHeadersEncrypted String?
+  deliveryRatePerMinute Int?
+  nextDeliveryAt DateTime?
+  transform String?
   retryPolicy RetryPolicy @default(STANDARD)
   circuitState CircuitState @default(CLOSED)
   consecutiveFailures Int @default(0)
@@ -83,10 +94,12 @@ model Event {
   idempotencyKey String
   type String
   payload Json
+  operational Boolean @default(false)
   createdAt DateTime @default(now())
   attempts DeliveryAttempt[]
   deliveries Delivery[]
   @@unique([applicationId, idempotencyKey])
+  @@index([applicationId, createdAt, id])
 }
 model Delivery {
   id String @id @default(cuid())
@@ -250,4 +263,60 @@ model AuditLog {
   createdAt DateTime @default(now())
   @@index([applicationId, createdAt])
   @@index([endpointId, createdAt])
+}
+
+enum EndpointKind {
+  BUSINESS
+  OPERATIONAL
+}
+enum ApplicationKeyScope {
+  READ_ONLY
+  INGEST_ONLY
+}
+model ApplicationKey {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  name String
+  hash String @unique
+  scope ApplicationKeyScope
+  expiresAt DateTime?
+  lastUsedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([applicationId])
+}
+model EventTypeVersion {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  eventType String
+  version Int
+  description String
+  schema Json?
+  createdAt DateTime @default(now())
+  @@unique([applicationId, eventType, version])
+}
+model OperationalNotice {
+  id String @id
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  endpointId String
+  since DateTime
+  sentAt DateTime?
+  nextAttemptAt DateTime @default(now())
+  attempts Int @default(0)
+  @@index([sentAt, nextAttemptAt])
+}
+
+model RecoveryJob {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  endpointId String?
+  since DateTime
+  until DateTime @default(now())
+  status String @default("PENDING")
+  queued Int @default(0)
+  createdAt DateTime @default(now())
+  @@index([status, createdAt])
 }

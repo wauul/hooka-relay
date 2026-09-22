@@ -196,3 +196,29 @@ Environment: existing `GROQ_API_KEY`; optional `SUPPORT_GROQ_MODEL` (default `op
 
 The web application runs Next.js 16.3.5. Development and production builds explicitly retain webpack; the existing edge middleware remains in place. ESLint runs separately through its flat configuration and CI.
 
+
+## Recovery and endpoint lifecycle
+
+`GET /api/v1/applications/:id/events?since=<ISO timestamp or event ID>&endpoint_id=<id>&limit=50` returns `{ events, hasMore, nextCursor }`. Pass `cursor=nextCursor` for the next page (maximum 100); ordering is by creation time and ID. A read-only or existing unscoped application key is required. Dashboard sessions use `/api/applications/:id/events`. Endpoint filters include historical delivery matches and events matching current subscriptions, including events received while paused; historical subscription changes cannot be reconstructed for events never enqueued. This is a pull API, not a retry-policy change.
+
+`POST /api/v1/applications/:id/recovery` with `{ "since": "2026-01-01T00:00:00Z", "endpointId": "optional" }` starts a durable recovery job and returns 202 with its ID/status. `GET` lists job progress. It selects the latest exhausted (`DEAD_LETTERED`) generation only, up to the job's start time. Pending/successful generations are excluded. The worker schedules batches of at most five per job every five seconds (up to ten jobs per pass), with staggered due times; endpoint throttles also apply. One job per application may run at a time, and starts are limited to one per minute. Dashboard routes use the same path without `/v1` and require ADMIN/OWNER for starting recovery. Single-event replay and bulk recovery share the original event lock, generation allocation and durable outbox.
+
+Endpoint API responses now expose `ACTIVE`, `PAUSED`, or `DISABLED`, plus `userStatus` for the stored user choice. `DISABLED` means the circuit is open, not permanent deactivation: the existing ten-minute cooldown and automatic recovery probe remain unchanged. `PATCH /api/v1/endpoints/:id/pause` and `/resume` control user pause. Pausing prevents new delivery intents and holds queued attempts without spending retries or creating skip logs; a request already in flight may finish. Resume releases queued work but does not backfill events received while paused. Select those events from the backlog and replay explicitly.
+
+`PATCH /api/v1/endpoints/:id/configuration` accepts:
+
+- `environment`: freeform label, up to 64 characters; defaults to `production`. The dashboard suggests development/staging/production.
+- `customHeaders`: up to ten headers / 8 KiB; protocol and connection headers are reserved. Values are encrypted at rest and redacted in attempt logs.
+- `deliveryRatePerMinute`: 1–6000 or null (no throttle). The existing endpoint lease enforces spacing across workers. Throttled wakeups use the outbox watchdog, so low rates can add about 20 seconds of scheduling latency.
+- `transform`: a synchronous function expression such as `payload => ({ order: payload.orderId })`, or null. It runs in QuickJS WebAssembly before signing, with no Node/network/filesystem APIs, a 25 ms execution deadline, 16 MiB heap, 128 KiB stack, and 256 KiB/32-level JSON output limit. Code is limited to 4096 characters. Transform errors become failed attempts under the existing retry/circuit policy; the original stored event is unchanged.
+- `kind`: `BUSINESS` (default) or `OPERATIONAL`. Operational endpoints subscribe to `endpoint.disabled`, `endpoint.re-enabled`, and `message.failed` (final exhaustion only), or `*`. Notifications use the existing outbox and delivery pipeline. Operational delivery failures do not emit further operational events.
+
+Session configuration routes omit `/v1` and require ADMIN/OWNER. The dashboard displays circuit incidents with a recovery link. The worker also sends the workspace OWNER a notification through the existing Resend account; configure `RESEND_API_KEY`, `RESEND_FROM`, and `NEXTAUTH_URL` on the worker as well as the web app. Failed email sends retry up to five times; the dashboard banner remains available.
+
+Retry timing defaults are unchanged. Optional `RETRY_STANDARD_QUEUES`, `RETRY_AGGRESSIVE_QUEUES`, and `RETRY_RELAXED_QUEUES` accept comma-separated existing queue names (1–10 intervals). Supported names: `retry-delay-30s`, `retry-delay-2m`, `retry-delay-5m`, `retry-delay-15m`, `retry-delay-30m`. Queue TTLs are never rewritten; already scheduled deliveries keep their due times. Configure the worker deliberately when changing a schedule.
+
+### Versioned event types and scoped keys
+
+The dashboard event catalog and `GET/POST /api/v1/applications/:id/event-types` expose descriptions, optional schemas, and immutable versions. Publishing `{ eventType, description, schema? }` makes that version's schema active; null/omitted schema disables validation. Existing schema-editor changes also create catalog versions. Existing schemas are imported as version 1. Free-form event types still work; duplicate idempotency keys still return the original event before validation. Catalog listing returns up to 500 versions; at most 50 distinct event types may be defined.
+
+ADMIN/OWNER can create/list/revoke up to 20 extra keys through `/api/applications/:id/keys`. Keys are SHA-256 hashed and shown once, with optional expiry and last-use tracking. `READ_ONLY` permits GET management/history APIs; `INGEST_ONLY` permits POST `/api/v1/events`; neither can change configuration or replay. Existing unscoped keys retain their original full access and rotation behavior. All keys share the application's ingestion quota.

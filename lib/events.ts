@@ -20,7 +20,7 @@ export const eventInput = z.object({
 });
 export async function flushDelivery(id: string) {
   const d = await db.delivery.findUnique({ where: { id } });
-  if (!d || d.status !== "PENDING" || d.publishedAt) return;
+  if (!d || d.status !== "PENDING" || d.publishedAt || (!d.delayQueue && d.dueAt > new Date())) return;
   await publish({ id: d.id, attemptNumber: d.attemptNumber }, d.delayQueue);
   await db.delivery.updateMany({
     where: { id, attemptNumber: d.attemptNumber, status: "PENDING" },
@@ -58,6 +58,7 @@ export async function ingest(
         where: {
           applicationId,
           status: "ACTIVE",
+          kind: "BUSINESS",
           OR: [
             { eventTypes: { has: "*" } },
             { eventTypes: { has: input.type } },

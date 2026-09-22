@@ -1,3 +1,4 @@
+import { effectiveEndpointStatus } from "./endpoint-options";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { newSecret, resolveEndpoint } from "./security";
@@ -8,7 +9,7 @@ export async function newEndpointData(applicationId: string, url: string, eventT
   const context = { applicationId, id: randomUUID(), secretVersion: 1 };
   return { ...context, ...input, signatureFormat: "STANDARD" as const, secret: encryptEndpointSecret(newSecret(), context) };
 }
-export function publicEndpoint<T extends { secret: string; previousSecret?: string | null }>(endpoint: T) {
-  const { secret: _secret, previousSecret: _previous, ...safe } = endpoint;
-  return safe;
+export function publicEndpoint<T extends { secret: string; previousSecret?: string | null; customHeadersEncrypted?: string | null; status: string; circuitState: string }>(endpoint: T) {
+  const { secret: _secret, previousSecret: _previous, customHeadersEncrypted: _headers, ...safe } = endpoint;
+  return { ...safe, userStatus: endpoint.status, status: effectiveEndpointStatus(endpoint) };
 }
