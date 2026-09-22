@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { encryptEndpointSecret, decryptEndpointSecret } from "./endpoint-secrets";
-const headers = z.record(z.string().max(1024)).superRefine((value, ctx) => {
+const headers = z.record(z.string(), z.string().max(1024)).superRefine((value, ctx) => {
   if (Object.keys(value).length > 10 || Buffer.byteLength(JSON.stringify(value)) > 8192) ctx.addIssue({ code: "custom", message: "At most 10 headers / 8 KiB" });
   for (const [name, content] of Object.entries(value)) {
     if (!/^[A-Za-z0-9-]{1,64}$/.test(name) || /^(host|content-type|content-length|connection|transfer-encoding|te|trailer|upgrade|proxy-authorization|proxy-connection|expect|accept-encoding)$/i.test(name) || /^(webhook-|x-webhook-|x-idempotency-key)/i.test(name) || /[^\x20-\x7e]/.test(content))

@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "CommonJS", "moduleResolution": "Node", "noEmit": false,
+    "module": "Node16", "moduleResolution": "Node16", "noEmit": false,
     "rootDir": ".", "outDir": "dist", "incremental": false,
     "declaration": false, "sourceMap": true, "plugins": []
   },

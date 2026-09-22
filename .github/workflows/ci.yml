@@ -92,7 +92,7 @@ jobs:
         run: |
           docker run --rm --entrypoint node hooka-relay-worker:ci -e '
             const fs = require("node:fs");
-            for (const path of ["dist/worker/index.js", "node_modules/.prisma/client/query_compiler_bg.wasm"]) {
+            for (const path of ["dist/worker/index.js", "node_modules/.prisma/client/query_compiler_fast_bg.wasm"]) {
               if (!fs.existsSync(path)) throw new Error("Missing runtime file: " + path);
             }
             for (const pkg of ["@prisma/client", "@prisma/adapter-pg", "amqplib"]) require(pkg);

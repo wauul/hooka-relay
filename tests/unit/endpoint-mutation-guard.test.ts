@@ -6,7 +6,9 @@ import { resolveEndpoint } from "../../lib/security";
 import { newEndpointData } from "../../lib/endpoint-config";
 import { decryptEndpointSecret } from "../../lib/endpoint-secrets";
 function sources(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? sources(join(dir, e.name)) : e.name.endsWith(".ts") ? [join(dir, e.name).replaceAll("\\", "/")] : []);
+  return readdirSync(dir, { withFileTypes: true })
+    .filter(e => e.name !== "node_modules" && e.name !== "dist")
+    .flatMap(e => e.isDirectory() ? sources(join(dir, e.name)) : e.name.endsWith(".ts") ? [join(dir, e.name).replaceAll("\\", "/")] : []);
 }
 it("requires every production endpoint creator to use the shared validation/encryption factory", () => {
   const creators = ["app/api/applications/[id]/endpoints/route.ts", "lib/cli-api.ts", "lib/portal.ts"];

@@ -6,6 +6,7 @@ WORKDIR /app
 
 FROM base AS build
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm ci --no-audit --no-fund
 COPY tsconfig.json tsconfig.worker.json ./
