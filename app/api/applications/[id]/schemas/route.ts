@@ -14,7 +14,7 @@ async function mutate(req: Request, { params }: Context) {
   try {
     sameOrigin(req);
     const app = await ownApplication((await params).id, "manage");
-    const input = z.object({ eventType, schema: z.unknown() }).parse(await boundedJson(req, 18432));
+    const input = z.object({ eventType, schema: z.unknown().optional() }).parse(await boundedJson(req, 18432));
     if (req.method === "PUT") compileEventSchema(input.schema);
     await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
       await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${app.id} FOR UPDATE`;
