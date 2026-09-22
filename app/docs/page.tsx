@@ -3,6 +3,7 @@ import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { faq } from "@/lib/site";
 import { OutboundLink } from "@/components/site-tools";
+import { ApiExplorer } from "@/components/api-explorer";
 export default function Page() {
   return (
     <Shell>
@@ -54,7 +55,7 @@ const payload = new Webhook(secret).verify(rawBody, {
         <p>
           At-least-once delivery means a receiver can see an event more than
           once—for example, if it processes a request but the acknowledgement is
-          lost. Atomically store the <code>X-Idempotency-Key</code> with your
+          lost. For Standard Webhooks, atomically store the verified <code>webhook-id</code> with your
           business changes. Return 2xx for an already processed event. Replays
           preserve the original key.
         </p>
@@ -120,6 +121,7 @@ const payload = new Webhook(secret).verify(rawBody, {
         >
           Explore the CLI ↗
         </OutboundLink>
+        <ApiExplorer />
         <section className="faq-section" aria-labelledby="faq">
           <div className="eyebrow">GOOD QUESTIONS. CLEAR ANSWERS.</div>
           <h2 id="faq">Frequently asked questions</h2>

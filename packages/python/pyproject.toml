@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hooka-relay-python"
+version = "1.0.0"
+description = "Typed Hooka Relay event client and Standard Webhooks verification"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["standardwebhooks==1.1.0"]
+
+[project.urls]
+Documentation = "https://hooka-relay.vercel.app/docs"
+Source = "https://github.com/wauul/hooka-relay/tree/master/packages/python"
+
+[tool.setuptools.package-data]
+hooka_relay = ["py.typed"]

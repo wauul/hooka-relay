@@ -13,6 +13,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sdks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Check generated contract and SDK models
+        run: |
+          node scripts/openapi.mjs
+          node scripts/generate-sdk-types.mjs
+          git diff --exit-code -- docs/openapi.json packages/node/src/generated.ts packages/python/src/hooka_relay/generated.py
+      - name: Test and pack Node SDK
+        working-directory: packages/node
+        run: |
+          npm ci
+          npm audit --audit-level=high
+          npm run build
+          npm test
+          npm pack
+      - name: Build and test installed Python wheel
+        run: |
+          python -m pip install build
+          python -m build packages/python
+          python -m pip install packages/python/dist/*.whl
+          python -m unittest discover -s packages/python/tests -v
   test-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 12
