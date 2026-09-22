@@ -23,7 +23,7 @@ export default async function RootLayout({
   const language = preferences.get("hooka-language")?.value === "fr" ? "fr" : "en";
   const theme = preferences.get("hooka-theme")?.value === "light" ? "light" : "dark";
   return (
-    <html lang={language} data-theme={theme}>
+    <html lang={language} data-theme={theme} data-scroll-behavior="smooth">
       <body>
         <PreferencesProvider initialLanguage={language} initialTheme={theme}><SiteTools signedIn={!!(session?.user as { id?: string } | undefined)?.id}>{children}</SiteTools></PreferencesProvider>
         {!privatePage && <Telemetry />}

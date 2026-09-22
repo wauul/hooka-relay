@@ -28,6 +28,7 @@ const Tools = createContext({
   confirm: async (_options: Confirmation) => false,
 });
 export const useConfirm = () => useContext(Tools).confirm;
+export const useSignedIn = () => useContext(Tools).signedIn;
 export function SearchButton() {
   const { search, signedIn } = useContext(Tools);
   if (!signedIn) return null;
