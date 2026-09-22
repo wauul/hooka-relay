@@ -213,7 +213,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 <CopyButton value={ep.secret} />
               </div>
               <p className="muted" style={{ fontSize: 11 }}>
-                Used to verify X-Webhook-Signature. Never expose this secret in
+                Used to verify {ep.signatureFormat === "STANDARD" ? "webhook-signature" : "X-Webhook-Signature"}. Never expose this secret in
                 client applications.
               </p>
               </>}
