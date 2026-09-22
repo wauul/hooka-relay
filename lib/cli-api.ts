@@ -110,7 +110,7 @@ export async function cliApi(req: Request, path: string[]) {
       if (req.method === "POST" && path[2] === "replay") {
         const raw = await req.text();
         const { endpointId: requestedEndpoint } = z.object({ endpointId: z.string().min(1).optional() }).parse(raw ? JSON.parse(raw) : {});
-        if (requestedEndpoint && !await db.endpoint.findFirst({ where: { id: requestedEndpoint, applicationId: app.id, status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] } })) throw new ApiFailure(404, "Active matching endpoint not found");
+        if (requestedEndpoint && !await db.endpoint.findFirst({ where: { id: requestedEndpoint, applicationId: app.id, kind: event.operational ? "OPERATIONAL" : "BUSINESS", status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] } })) throw new ApiFailure(404, "Active matching endpoint not found");
         // Same row lock and durable-outbox semantics as dashboard replay.
         const result = await db.$transaction(tx => replayEvent(tx, event.id, requestedEndpoint ? [requestedEndpoint] : undefined));
         return json(result, 202);

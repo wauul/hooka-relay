@@ -15,7 +15,7 @@ export async function POST(
     if (!event) throw new Error("NOT_FOUND");
     const raw = await req.text();
     const { endpointId: requestedEndpoint } = z.object({ endpointId: z.string().min(1).optional() }).parse(raw ? JSON.parse(raw) : {});
-    if (requestedEndpoint && !await db.endpoint.findFirst({ where: { id: requestedEndpoint, applicationId: event.applicationId, status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] } })) throw new Error("NOT_FOUND");
+    if (requestedEndpoint && !await db.endpoint.findFirst({ where: { id: requestedEndpoint, applicationId: event.applicationId, kind: event.operational ? "OPERATIONAL" : "BUSINESS", status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] } })) throw new Error("NOT_FOUND");
     const result = await db.$transaction(tx => replayEvent(tx, event.id, requestedEndpoint ? [requestedEndpoint] : undefined));
     return Response.json({ queued: result.queued }, { status: 202 });
   } catch (e) {

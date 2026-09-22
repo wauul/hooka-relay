@@ -17,16 +17,18 @@ import { startRecovery, drainRecovery } from "../../lib/recovery";
 import { operationalEvent, sendOperationalNotice } from "../../lib/operational-events";
 import { POST as createKey, GET as keys } from "../../app/api/applications/[id]/keys/route";
 import { PATCH as configure } from "../../app/api/endpoints/[id]/configuration/route";
+let extraUsers: string[] = [];
 let uid: string, workspaceId: string, app: { id: string; currentApiKey: string }, other: { id: string; currentApiKey: string };
 const context = (id: string) => ({ params: Promise.resolve({ id }) });
 const req = (body: unknown, method = "POST") => new Request("http://localhost/api/test", { method, body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
 beforeEach(async () => {
+  extraUsers = [];
   uid = (await db.user.create({ data: { email: randomUUID() + "@example.com", hashedPassword: "unused" } })).id;
   workspaceId = await defaultWorkspace(uid); session.mockResolvedValue({ user: { id: uid } });
   app = await createApplication({ data: { workspaceId, name: "Lifecycle", currentApiKey: randomUUID() } });
   other = await createApplication({ data: { workspaceId, name: "Other", currentApiKey: randomUUID() } });
 });
-afterEach(async () => { await db.workspace.delete({ where: { id: workspaceId } }); await db.user.delete({ where: { id: uid } }); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(async () => { await db.workspace.delete({ where: { id: workspaceId } }); await db.user.deleteMany({ where: { id: { in: [uid, ...extraUsers] } } }); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 afterAll(() => db.$disconnect());
 async function endpoint(kind: "BUSINESS" | "OPERATIONAL" = "BUSINESS", applicationId = app.id) {
   const ctx = { id: randomUUID(), applicationId, secretVersion: 1 };
@@ -53,8 +55,9 @@ it("shows scoped keys once and denies member configuration/key creation", async 
   const ep = await endpoint();
   expect((await configure(req({ environment: "preview-42", deliveryRatePerMinute: 2, customHeaders: { Authorization: "test" } }, "PATCH"), context(ep.id))).status).toBe(200);
   const changed = await db.endpoint.findUniqueOrThrow({ where: { id: ep.id } }); expect(changed.environment).toBe("preview-42"); expect(changed.customHeadersEncrypted).not.toContain("test");
-  // Fixture role downgrade exercises authorization, not the ownership service.
-  await db.workspaceMember.update({ where: { workspaceId_userId: { workspaceId, userId: uid } }, data: { role: "MEMBER" } });
+  const member = await db.user.create({ data: { email: randomUUID() + "@example.com", hashedPassword: "unused" } }); extraUsers.push(member.id);
+  await db.workspaceMember.create({ data: { workspaceId, userId: member.id, role: "MEMBER" } });
+  session.mockResolvedValue({ user: { id: member.id } });
   expect((await configure(req({ environment: "forbidden" }, "PATCH"), context(ep.id))).status).toBe(403);
   expect((await createKey(req({ name: "forbidden", scope: "INGEST_ONLY" }), context(app.id))).status).toBe(403);
 });
