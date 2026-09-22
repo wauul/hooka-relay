@@ -26,6 +26,6 @@ export function SupportChat() {
       {error && <p role="alert" className="error">{error}</p>}<form onSubmit={send}><label htmlFor="support-question"><T text="Your question" /></label><textarea ref={input} id="support-question" rows={2} maxLength={500} value={question} disabled={busy} onChange={e => setQuestion(e.target.value)} placeholder="Why is my Hooka Relay endpoint circuit open?" required /><div className="support-actions"><small className="muted">{question.length}/500</small><button className="btn" disabled={busy || !question.trim()}><Send size={15} aria-hidden="true" /><T text={busy ? "Please wait…" : "Ask support"} /></button></div></form>
       {process.env.NODE_ENV === "development" && cached !== undefined && <small className="muted">{cached ? "Cache hit" : "Fresh response"}</small>}
     </section>
-    <button ref={launcher} className="btn secondary support-launcher" hidden={open} onClick={() => setOpen(true)} aria-expanded={open} aria-controls="support-panel"><MessageCircle size={18} aria-hidden="true" />Hooka Relay support</button>
+    <button ref={launcher} className="btn secondary support-launcher" hidden={open} onClick={() => setOpen(true)} aria-label="Hooka Relay support" aria-expanded={open} aria-controls="support-panel"><MessageCircle size={18} aria-hidden="true" /><span>Hooka Relay support</span></button>
   </aside>;
 }

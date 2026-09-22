@@ -324,7 +324,7 @@ export function SiteTools({ children, signedIn = false }: { children: React.Reac
         style={{ transform: "scaleX(0)" }}
       />
       {children}
-      <div className={`floating-tools ${cookie ? "with-cookie" : ""}`}>
+      <div className={`floating-tools ${cookie ? "with-cookie" : ""} ${(pathname === "/docs" || pathname.startsWith("/dashboard")) ? "with-support" : ""}`}>
         {up && (
           <button
             className="icon-button back-top"

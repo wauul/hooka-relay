@@ -1,10 +1,13 @@
+"use client";
 import Link from "next/link";
+import { Section, SectionNav, useSection } from "@/components/section-nav";
 import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { faq } from "@/lib/site";
 import { OutboundLink } from "@/components/site-tools";
 import { ApiExplorer } from "@/components/api-explorer";
 export default function Page() {
+  const section = useSection(["send", "signatures", "retries", "api-reference", "faq"]);
   return (
     <Shell>
       <article className="docs">
@@ -17,7 +20,8 @@ export default function Page() {
           Hooka Relay stores it durably and delivers matching events
           asynchronously.
         </p>
-        <nav className="docs-contents" aria-label="Documentation sections"><a href="#send">Send an event</a><a href="#signatures">Verify signatures</a><a href="#retries">Retries</a><a href="#api-reference">API reference</a><a href="#faq">FAQ</a></nav>
+        <SectionNav active={section} items={[{ id: "send", label: "Getting started" }, { id: "signatures", label: "Security" }, { id: "retries", label: "Delivery" }, { id: "api-reference", label: "API reference" }, { id: "faq", label: "FAQ" }]} />
+        <Section active={section} name="send">
           <h2 id="send">1. Send an event</h2>
         <CodeBlock>{`curl -X POST "$RELAY_URL/api/v1/events" \\\n  -H "Authorization: Bearer $API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"order.shipped","idempotencyKey":"order-1042-shipped",\n       "payload":{"orderId":"ord_1042"}}'`}</CodeBlock>
         <p>
@@ -26,6 +30,8 @@ export default function Page() {
           to their exact type or <code>*</code>. Delivery never blocks on a
           receiver.
         </p>
+        </Section>
+        <Section active={section} name="signatures">
         <h2 id="signatures">2. Verify the signature</h2>
         <p>New endpoints use Standard Webhooks. Use the displayed whsec_ secret with the standardwebhooks library, and deduplicate the authenticated webhook-id after verification. The ID stays the same across retries; timestamps are refreshed per attempt.</p>
         <CodeBlock>{`import { Webhook } from "standardwebhooks";
@@ -60,6 +66,8 @@ const payload = new Webhook(secret).verify(rawBody, {
           business changes. Return 2xx for an already processed event. Replays
           preserve the original key.
         </p>
+        </Section>
+        <Section active={section} name="retries">
         <h2 id="retries">Retries & circuit breaking</h2>
         <p>
           Standard policy allows five HTTP attempts: immediately, then after
@@ -101,6 +109,8 @@ const payload = new Webhook(secret).verify(rawBody, {
           and never blocks future delivery if unavailable.
         </p>
         <p>Use “Send synthetic test” on an endpoint to verify a fix. It sends a real, signed <code>hooka.test</code> event only to that destination through the normal outbox and worker. Pause, circuit protection, throttling, schemas and retries still apply. Tests are limited to five per endpoint per minute plus the application budget. The dashboard follows the result for 30 seconds; delivery logs remain available afterward. Auto-Heal suggests and tests; it never edits receiver configuration automatically.</p>
+        </Section>
+        <Section active={section} name="api-reference">
         <h2 id="api-overview">API reference</h2>
         <CodeBlock>{`POST /api/v1/events                     API-key authentication\nGET/POST /api/applications/:id/endpoints Session authentication\nGET /api/endpoints/:id/attempts          Session authentication\nPOST /api/events/:id/replay              Session authentication\nGET/POST /api/fake-receiver/:mode        Public demo receiver`}</CodeBlock>
         <p>
@@ -124,7 +134,9 @@ const payload = new Webhook(secret).verify(rawBody, {
         >
           Explore the CLI ↗
         </OutboundLink>
-        <ApiExplorer />
+        {section === "api-reference" && <ApiExplorer />}
+        </Section>
+        <Section active={section} name="faq">
         <section className="faq-section" aria-labelledby="faq">
           <div className="eyebrow">GOOD QUESTIONS. CLEAR ANSWERS.</div>
           <h2 id="faq">Frequently asked questions</h2>
@@ -138,6 +150,7 @@ const payload = new Webhook(secret).verify(rawBody, {
             </details>
           ))}
         </section>
+        </Section>
       </article>
     </Shell>
   );

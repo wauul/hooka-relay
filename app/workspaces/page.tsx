@@ -1,6 +1,7 @@
 "use client";
 import { Trash2, UserMinus, LogOut, ArrowRightLeft, Mail, Plus, Pencil, Ban } from "lucide-react";
 import { T } from "@/components/preferences";
+import { Section, SectionNav, useSection } from "@/components/section-nav";
 import { userDisplayName } from "@/lib/display-name";
 import { Select } from "@/components/select";
 import { useState } from "react";
@@ -20,7 +21,7 @@ type Details = {
   }[];
 };
 type Invite = { id: string; email: string; role: string; expiresAt: string };
-function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
+function Team({ id, refresh, section }: { id: string; refresh: () => Promise<void>; section: string }) {
   const { data, error, reload } = useData<Details>(
     `/api/workspaces/${id}`,
     true,
@@ -50,6 +51,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
           <h2>
             {data.name} · {data.role}
           </h2>
+          <Section active={section} name="settings">
           {admin && (
             <form
               onSubmit={(e) => {
@@ -71,6 +73,8 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
               <button className="btn" disabled={busy}><Pencil size={16} aria-hidden="true" /><T text={"Rename"} /></button>
             </form>
           )}
+          </Section>
+          <Section active={section} name="members">
           <h3><T text={"Members"} /></h3>
           <div className="table-wrap">
             <table>
@@ -166,6 +170,8 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
               </tbody>
             </table>
           </div>
+          </Section>
+          <Section active={section} name="invitations">
           {admin && (
             <>
               <h3>Invite a teammate</h3>
@@ -212,6 +218,9 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
               />
             </>
           )}
+          {!admin && <p className="muted">Only workspace owners and admins can invite teammates.</p>}
+          </Section>
+          <Section active={section} name="settings">
           <p className="muted">
             Members can view activity and send test events. Admins manage
             applications, endpoints, keys, and invitations. Only the owner can
@@ -268,6 +277,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
               }}
             ><LogOut size={16} aria-hidden="true" /><T text={"Leave workspace"} /></button>
           )}
+          </Section>
         </>
       )}
     </section>
@@ -309,6 +319,7 @@ function Invites({
   );
 }
 export default function Page() {
+  const section = useSection(["overview", "members", "invitations", "settings"]);
   const { data, error, reload } =
     useData<WorkspaceMembership[]>("/api/workspaces");
   const [failure, setFailure] = useState("");
@@ -318,6 +329,30 @@ export default function Page() {
       <div className="workspaces-page">
         <h1>Workspaces &amp; teams</h1>
         <ErrorBox error={error || failure} />
+        <label><T text={"Manage workspace"} /><Select
+            label="Manage workspace"
+            workspace
+            value={selected || data?.[0]?.workspaceId || ""}
+            onChange={setSelected}
+            options={(data || []).map((m) => ({
+              value: m.workspaceId,
+              label: m.workspace.name,
+              description:
+                m.role === "OWNER"
+                  ? "Owner"
+                  : m.role === "ADMIN"
+                    ? "Admin"
+                    : "Member",
+            }))}
+          />
+        </label>
+        <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "members", label: "Members" }, { id: "invitations", label: "Invitations" }, { id: "settings", label: "Settings" }]} />
+        <Section active={section} name="overview">
+        {data?.length ? <section className="panel panel-body">
+          <h2>{(data.find((m) => m.workspaceId === selected) || data[0]).workspace.name}</h2>
+          <p className="muted">Your role: {(data.find((m) => m.workspaceId === selected) || data[0]).role}</p>
+          <a className="btn secondary" href="#members"><T text="Manage members" /></a>
+        </section> : <p className="muted">Create a workspace to invite teammates and manage applications.</p>}
         <form
           className="panel panel-body workspace-create"
           onSubmit={async (e) => {
@@ -337,29 +372,16 @@ export default function Page() {
           </label>
           <button className="btn"><Plus size={16} aria-hidden="true" /><T text={"Create workspace"} /></button>
         </form>
-        <label><T text={"Manage workspace"} /><Select
-            label="Manage workspace"
-            workspace
-            value={selected || data?.[0]?.workspaceId || ""}
-            onChange={setSelected}
-            options={(data || []).map((m) => ({
-              value: m.workspaceId,
-              label: m.workspace.name,
-              description:
-                m.role === "OWNER"
-                  ? "Owner"
-                  : m.role === "ADMIN"
-                    ? "Admin"
-                    : "Member",
-            }))}
-          />
-        </label>
+        </Section>
         {(selected || data?.[0]) && (
+          <div hidden={section === "overview"}>
           <Team
             key={selected || data?.[0]?.workspaceId}
             id={selected || data![0].workspaceId}
             refresh={reload}
+            section={section}
           />
+          </div>
         )}
       </div>
     </Shell>
