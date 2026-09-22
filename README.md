@@ -229,3 +229,15 @@ The [Node SDK](packages/node/README.md) (`hooka-relay-node`) and [Python SDK](pa
 The integration API contract is [OpenAPI 3.0](docs/openapi.json), available at `/openapi.json` and in the [interactive documentation](https://hooka-relay.vercel.app/docs#api-reference). Try-it requests operate on the current deployment: use a test application key. Authorization is kept in page memory, not local storage. Run `npm run sdk:generate` after editing `scripts/openapi.mjs`; CI rejects generated model drift and tests independently built packages.
 
 SDK releases use `.github/workflows/publish-sdks.yml` and require successful CI for the exact master commit. Temporary `NPM_TOKEN` and `PYPI_API_TOKEN` bootstrap secrets are used only with the explicit bootstrap option; normal releases use registry trusted publishing bound to this repository and workflow.
+
+### OpenTelemetry and Grafana
+
+[Live operator dashboard](https://happybadger1637.grafana.net/d/hooka-relay) (Grafana sign-in required).
+
+The web and worker export OTLP/HTTP traces and metrics when `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` are configured. Leave the endpoint blank (or set `OTEL_SDK_DISABLED=true`) to disable export. Use a Grafana Cloud free stack and a stack-scoped token with only `metrics:write` and `traces:write`; no collector or paid Application Observability product is required. Headers use `Authorization=Basic%20<base64(instance-id:token)>`. Keep this value in server environment secrets, never `NEXT_PUBLIC_*`.
+
+`HOOKA_TRACE_SAMPLE_RATIO` defaults to `0.1` (10%); metrics are unsampled. Trace context is committed with each event, so ingestion, outbox enqueue, worker attempts, retries, circuit decisions and final outcomes stay connected after restarts. Ingestion returns `X-Trace-Id` when tracing is enabled. Old events without context start new traces. Export outages never block delivery success. Next request spans have generic names; API ingestion flushes after responding, while other serverless request traces are best effort.
+
+Import [`docs/grafana-dashboard.json`](docs/grafana-dashboard.json) into Grafana and select your Prometheus source. It shows attempt success rate, p50/p95/p99 HTTP duration, retry volume by delay, queue depth, final outcomes and circuit transitions by endpoint. Metrics export every minute, so allow two collection intervals for rate panels. Queue depth counts ready messages, not unacknowledged jobs or TTL queues.
+
+Only opaque event/delivery/endpoint IDs and bounded operational labels leave the app. Payloads, receiver URLs, headers, email, exception text and capability links are excluded. Keep Grafana operator-only; this is not a tenant-facing view. The free tier has ingestion/retention limits: monitor usage and reduce sampling when needed; no automatic paid upgrade is configured. See the [telemetry ADR](docs/adr/2026-09-22-observability.md).

@@ -1,3 +1,6 @@
+import { after } from "next/server";
+import { traced } from "@/lib/observability";
+import { flushObservability } from "@/lib/observability-runtime";
 import { ipRateLimit } from "@/lib/ip-rate-limit";
 import { boundedJson } from "@/lib/input-limits";
 import { applicationForKey } from "@/lib/api-keys";
@@ -6,6 +9,16 @@ import { apiError } from "@/lib/access";
 import { admitEvent } from "@/lib/rate-limit";
 export const maxDuration = 30;
 export async function POST(req: Request) {
+  if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) after(flushObservability);
+  return traced("api.events", { "http.request.method": "POST" }, async span => {
+    const response = await handlePost(req);
+    span.setAttribute("http.response.status_code", response.status);
+    const traceId = span.spanContext().traceId;
+    if (traceId !== "0".repeat(32)) response.headers.set("X-Trace-Id", traceId);
+    return response;
+  });
+}
+async function handlePost(req: Request) {
   try {
     const limited = await ipRateLimit(req, "events");
     if (limited) return limited;

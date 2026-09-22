@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
 import { publish } from "./queue/client";
+import { traced, traceparent } from "./observability";
 export const eventInput = z.object({
   type: z
     .string()
@@ -19,9 +20,9 @@ export const eventInput = z.object({
     .optional(),
 });
 export async function flushDelivery(id: string) {
-  const d = await db.delivery.findUnique({ where: { id } });
+  const d = await db.delivery.findUnique({ where: { id }, include: { event: { select: { traceparent: true } } } });
   if (!d || d.status !== "PENDING" || d.publishedAt || (!d.delayQueue && d.dueAt > new Date())) return;
-  await publish({ id: d.id, attemptNumber: d.attemptNumber }, d.delayQueue);
+  await traced("outbox.enqueue", { "hooka.delivery.id": d.id, "hooka.attempt": d.attemptNumber }, () => publish({ id: d.id, attemptNumber: d.attemptNumber }, d.delayQueue), d.event?.traceparent ?? null);
   await db.delivery.updateMany({
     where: { id, attemptNumber: d.attemptNumber, status: "PENDING" },
     data: { publishedAt: new Date() },
@@ -31,6 +32,7 @@ export async function ingest(
   applicationId: string,
   input: z.infer<typeof eventInput>,
 ) {
+  return traced("event.ingest", {}, async span => {
   // Application-scoped uniqueness handles simultaneous producer retries. A
   // duplicate returns the original event even if the new body is different.
   const idempotencyKey = input.idempotencyKey || randomUUID();
@@ -48,6 +50,7 @@ export async function ingest(
           applicationId,
           idempotencyKey,
           type: input.type,
+          traceparent: traceparent(),
           payload:
             input.payload === null
               ? Prisma.JsonNull
@@ -78,6 +81,7 @@ export async function ingest(
       select: { id: true },
     });
     await Promise.allSettled(jobs.map((j) => flushDelivery(j.id)));
+    span.setAttribute("hooka.event.id", event.id);
     return event;
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
@@ -88,4 +92,5 @@ export async function ingest(
       });
     throw e;
   }
+  });
 }
