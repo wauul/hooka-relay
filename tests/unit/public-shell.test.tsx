@@ -14,6 +14,7 @@ describe("public documentation shell", () => {
     expect(controls.profile).not.toHaveBeenCalled();
     expect(html).not.toContain("Search everything");
     expect(html).not.toContain("Sign out");
+    expect(html).not.toContain("topbar-signout");
     expect(html).toContain("Public documentation");
   });
   it("retains workspace controls and search for an authenticated session", () => {
@@ -22,5 +23,6 @@ describe("public documentation shell", () => {
     expect(controls.profile).toHaveBeenCalled();
     expect(html).toContain("Search everything");
     expect(html).toContain("Sign out");
+    expect(html).toContain("topbar-signout");
   });
 });

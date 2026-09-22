@@ -137,7 +137,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     : "Applications"} />
             </Link>
           </nav>
-          <div className="topbar-actions"><PreferencesMenu /><SearchButton /></div>
+          <div className="topbar-actions">
+            <PreferencesMenu />
+            <SearchButton />
+            {signedIn && <button
+              className="topbar-signout"
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+            >
+              <LogOut size={16} aria-hidden="true" /><T text="Sign out" />
+            </button>}
+          </div>
         </header>
         <main className="content" id="main-content" tabIndex={-1}>
           {children}

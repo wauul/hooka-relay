@@ -729,6 +729,7 @@ a:not(.btn):hover {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
 }
 .mobile-brand-row {
   display: flex;
@@ -1475,6 +1476,8 @@ main h3 { font-size: 15px; line-height: 1.5; font-weight: 600; margin: 0 0 10px;
 .legal-links { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin: 28px 0; font-size: 13px; }.legal-links a { color: var(--green); text-decoration: underline; text-underline-offset: 4px; }
 .contact-control { position: relative; }.contact-dismiss { position: absolute; right: -8px; top: -16px; width: 28px; min-height: 28px; height: 28px; border: 1px solid var(--line); background: var(--panel); border-radius: 50%; color: var(--muted); }
 .topbar-actions { display: flex; align-items: center; gap: 14px; }.preferences { display: flex; align-items: center; gap: 8px; }.preferences .relay-select { width: 122px; }.preferences .select-trigger { padding: 8px 10px; }
+.topbar-signout { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); white-space: nowrap; }
+.topbar-signout:hover { border-color: var(--green); }
 .api-explorer .swagger-ui { color-scheme: inherit; background: var(--panel); color: var(--text); border: 1px solid var(--line); padding: 24px; }
 .api-explorer .swagger-ui :is(.info .title,.info p,.info li,.opblock-tag,.opblock-summary-path,.opblock-summary-description,.parameter__name,.parameter__type,.model-title,.model,.response-col_status,table thead tr th,table tbody tr td,.tab li,.btn) { color: var(--text); }
 .api-explorer .swagger-ui :is(input,textarea,select,.scheme-container,.opblock-section-header,.dialog-ux .modal-ux,.model-box) { color: var(--text); background: var(--input); border-color: var(--line); }
