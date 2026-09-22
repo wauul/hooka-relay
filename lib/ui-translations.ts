@@ -207,3 +207,48 @@ No matches yet|Aucun résultat
 Got it|Compris
 `.trim().split("\n").map(line => line.split("|")));
 export function translate(text: string, language: string) { return language === "fr" ? french[text.trim().replace(/\s+/g, " ")] || text : text; }
+
+Object.assign(french, Object.fromEntries(`
+Status|État du service
+Send once.|Envoyez une fois.
+Deliver with confidence.|Livrez en confiance.
+Your app creates the event. Hooka Relay handles the delivery trail: signed webhooks, retries, recovery and the tools to see what happened.|Votre application crée l’événement. Hooka Relay prend le relais : webhooks signés, nouvelles tentatives, récupération et outils pour comprendre chaque livraison.
+Read the quickstart|Guide de démarrage
+Free to start. Open source. No credit card.|Démarrage gratuit. Open source. Sans carte bancaire.
+Stored. Queued. Ready to deliver.|Enregistré. En file. Prêt à livrer.
+A route for the unexpected|Un parcours qui prévoit l’imprévu
+Your application|Votre application
+Durable queue|File durable
+Your endpoint|Votre endpoint
+Failure → delay → retry|Échec → délai → nouvelle tentative
+Accepted first. Delivered asynchronously. Every attempt leaves a trail.|Accepté d’abord, livré de manière asynchrone. Chaque tentative laisse une trace.
+The delivery layer your product deserves.|La couche de livraison que votre produit mérite.
+Build your product. Keep control of the difficult delivery cases.|Développez votre produit. Gardez le contrôle des livraisons difficiles.
+Retries with a plan|Des nouvelles tentatives planifiées
+Durable delivery work and configurable retry policies keep transient failures from becoming lost work.|Des livraisons enregistrées durablement et des politiques configurables pour gérer les échecs temporaires.
+Protection at the edge|Protégez vos récepteurs
+Circuit breakers give failing receivers room to recover. Pause, resume and throttle each destination.|Les disjoncteurs laissent les récepteurs se rétablir. Mettez en pause, reprenez et limitez le débit de chaque destination.
+One event. A stable identity.|Un événement. Une identité stable.
+Idempotency keys prevent duplicate submissions. Signed event IDs help receivers safely deduplicate deliveries.|Les clés d’idempotence évitent les envois en double. Les identifiants signés permettent aux récepteurs de dédupliquer les livraisons.
+Verify deliveries with an open signature standard. Rotate signing keys with a seven-day transition window.|Vérifiez les livraisons avec un standard de signature ouvert. Renouvelez les clés avec sept jours de transition.
+Every attempt, explained|Chaque tentative, expliquée
+Inspect delivery logs, latency and response details. AI diagnosis helps investigate patterns without changing your receiver.|Consultez les journaux, la latence et les réponses. Le diagnostic IA aide à identifier des tendances sans modifier votre récepteur.
+Built for your team|Conçu pour votre équipe
+Separate applications into workspaces, assign roles and give customers a scoped endpoint portal.|Organisez vos applications en espaces, attribuez des rôles et offrez à vos clients un portail d’endpoints à accès limité.
+Fewer blind spots. More useful answers.|Moins d’angles morts. Des réponses utiles.
+A delivery failure should be something you can investigate, understand and recover from.|Un échec de livraison doit pouvoir être analysé, compris et corrigé.
+See the evidence|Consultez les faits
+Follow an event from acceptance to its delivery attempts. Inspect the actual status, timing and captured response.|Suivez un événement de son acceptation aux tentatives de livraison. Examinez l’état, les délais et la réponse enregistrée.
+Recover deliberately|Reprenez le contrôle
+Browse missed events and replay failed deliveries when your receiver is ready. No silent backfills or hidden changes.|Parcourez les événements manqués et rejouez les échecs quand votre récepteur est prêt. Sans rattrapage silencieux ni modification cachée.
+Keep the protocol open|Gardez un protocole ouvert
+Standard signatures, documented behavior and open-source SDKs make your integration portable and reviewable.|Signatures standard, comportement documenté et SDK open source rendent votre intégration portable et vérifiable.
+Your language. Your terminal.|Votre langage. Votre terminal.
+Send events with a typed SDK, verify signatures with the reference standard, or follow deliveries from the command line.|Envoyez des événements avec un SDK typé, vérifiez les signatures avec le standard de référence ou suivez les livraisons en ligne de commande.
+Give your next event a reliable route.|Offrez un parcours fiable à votre prochain événement.
+Create a workspace, connect a destination, and send your first test event.|Créez un espace, connectez une destination et envoyez votre premier événement de test.
+At-least-once delivery. Bounded retries. No ordering guarantee. Clear documentation.|Livraison au moins une fois. Tentatives limitées. Ordre non garanti. Documentation claire.
+The last mile, handled.|Le dernier kilomètre, pris en charge.
+How can we help?|Comment pouvons-nous vous aider ?
+Ask about Hooka Relay. Answers use our documentation and cannot inspect or change your workspace. Don’t share secrets or API keys.|Posez vos questions sur Hooka Relay. Les réponses s’appuient sur notre documentation, sans consulter ni modifier votre espace. Ne partagez aucun secret ni clé API.
+`.trim().split("\n").map(line => line.split("|"))));
