@@ -2,8 +2,11 @@ import { expect, it, vi, afterEach } from "vitest";
 import { transformPayload } from "../../lib/payload-transform";
 import { endpointOptions, endpointOptionData, outboundCustomHeaders, redactedDeliveryHeaders, endpointAvailability, effectiveEndpointStatus } from "../../lib/endpoint-options";
 import { retryPlan } from "../../lib/retry-policy";
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 it("transforms JSON in isolation and leaves unconfigured payloads unchanged", async () => {
+  // Test output/isolation independently of CI scheduling; deadline rejection is
+  // exercised below with the real clock and an infinite-loop transform.
+  vi.spyOn(Date, "now").mockReturnValue(1000);
   expect(await transformPayload(null, { orderId: 42 })).toBe('{"orderId":42}');
   expect(await transformPayload('p => ({ order: p.orderId })', { orderId: 42 })).toBe('{"order":42}');
   expect(await transformPayload('p => [typeof process, typeof require, typeof fetch]', {})).toBe('["undefined","undefined","undefined"]');

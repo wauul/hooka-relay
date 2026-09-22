@@ -232,6 +232,8 @@ SDK releases use `.github/workflows/publish-sdks.yml` and require successful CI 
 
 ### OpenTelemetry and Grafana
 
+[Live operator dashboard](https://happybadger1637.grafana.net/d/hooka-relay) (Grafana sign-in required).
+
 The web and worker export OTLP/HTTP traces and metrics when `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` are configured. Leave the endpoint blank (or set `OTEL_SDK_DISABLED=true`) to disable export. Use a Grafana Cloud free stack and a stack-scoped token with only `metrics:write` and `traces:write`; no collector or paid Application Observability product is required. Headers use `Authorization=Basic%20<base64(instance-id:token)>`. Keep this value in server environment secrets, never `NEXT_PUBLIC_*`.
 
 `HOOKA_TRACE_SAMPLE_RATIO` defaults to `0.1` (10%); metrics are unsampled. Trace context is committed with each event, so ingestion, outbox enqueue, worker attempts, retries, circuit decisions and final outcomes stay connected after restarts. Ingestion returns `X-Trace-Id` when tracing is enabled. Old events without context start new traces. Export outages never block delivery success. Next request spans have generic names; API ingestion flushes after responding, while other serverless request traces are best effort.
