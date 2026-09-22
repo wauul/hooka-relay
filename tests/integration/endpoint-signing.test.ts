@@ -13,7 +13,7 @@ it("migrates legacy ciphertext without changing IDs, keys or formats; is atomic 
   // Dedicated schema inside the Testcontainers database, never production data.
   const schema = "signing_" + randomUUID().replaceAll("-", "");
   await db.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
-  const enums = await db.$queryRaw<{ name: string }[]>`SELECT DISTINCT t.typname AS name FROM pg_attribute a JOIN pg_type t ON t.oid = a.atttypid WHERE a.attrelid = 'public."Endpoint"'::regclass AND t.typtype = 'e'`;
+  const enums = await db.$queryRaw<{ name: string }[]>`SELECT DISTINCT t.typname::text AS name FROM pg_attribute a JOIN pg_type t ON t.oid = a.atttypid WHERE a.attrelid = 'public."Endpoint"'::regclass AND t.typtype = 'e'`;
   // Prisma qualifies enum parameters using the selected schema. Domain aliases
   // preserve the cloned table's base enum types without touching public tables.
   for (const { name } of enums) {
@@ -54,3 +54,4 @@ it("migrates legacy ciphertext without changing IDs, keys or formats; is atomic 
     await db.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
   }
 });
+
