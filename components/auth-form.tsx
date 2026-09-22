@@ -1,10 +1,11 @@
 "use client";
+import { T } from "@/components/preferences";
+import { PreferencesMenu } from "@/components/preferences";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
-import { SearchButton } from "./site-tools";
 import { Brand } from "./shell";
 import { OAuthButtons } from "./oauth-buttons";
 import { api, ErrorBox } from "./ui";
@@ -93,34 +94,34 @@ export function AuthForm({
           }}
         >
           <div className="auth-utilities">
-            <Brand />
-            {!invitation && <SearchButton />}
+            <Brand /><PreferencesMenu />
           </div>
           <div className="eyebrow">
             {invitation ? "STEP 1 OF 2 · YOUR ACCOUNT" : "HOOKA RELAY"}
           </div>
           <h2>
-            {invitation
+            <T text={invitation
               ? signup
                 ? "Create your account."
                 : "Sign in to continue."
               : signup
                 ? "Start delivering."
-                : "Welcome back."}
+                : "Welcome back."} />
           </h2>
           <p className="muted" style={{ marginBottom: 28 }}>
             {invitation
               ? `You’re invited to ${invitation.workspaceName}. ${signup ? "Create an account" : "Sign in"} to review your invitation.`
               : signup
-                ? "Create your account and put your events in motion."
-                : "Sign in to your webhook workspace."}
+                ? <T text="Create your account and put your events in motion." />
+                : <T text="Sign in to your webhook workspace." />}
           </p>
+          {signup && <p className="muted auth-help"><T text={"Email signups require confirmation before you can sign in."} /></p>}
           <ErrorBox error={error} />
           {message && <p role="status" style={{ marginBottom: 20 }}>{message}</p>}
           <OAuthButtons callbackUrl={invitation ? `/invites/accept?token=${encodeURIComponent(invitation.token)}` : "/dashboard"} />
-          <p className="muted" style={{ textAlign: "center", marginBottom: 20 }}>Or use your email and password</p>
+          <p className="muted" style={{ textAlign: "center", marginBottom: 20 }}><T text={"Or use your email and password"} /></p>
           <div className="field">
-            <label htmlFor="email">Email address</label>
+            <label htmlFor="email"><T text={"Email address"} /></label>
             <input
               defaultValue={invitation?.email}
               readOnly={!!invitation}
@@ -139,7 +140,7 @@ export function AuthForm({
             </p>
           )}
           <div className="field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password"><T text={"Password"} /></label>
             <div className="password-field">
               <input
                 id="password"
@@ -165,20 +166,20 @@ export function AuthForm({
             </div>
           </div>
           <button disabled={busy} className="btn">
-            {busy ? "One moment…" : signup ? "Create account" : "Sign in"}
+            <T text={busy ? "One moment…" : signup ? "Create account" : "Sign in"} />
             {busy ? (
               <Loader2 size={15} className="spin" />
             ) : (
               <ArrowRight size={15} />
             )}
           </button>
-          <p style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 20, fontSize: 12 }}><Link className="auth-link" href="/forgot-password">Forgot password?</Link><Link className="auth-link" href="/resend-verification">Resend confirmation</Link></p>
+          <p style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 20, fontSize: 12 }}>{!signup && <Link className="auth-link" href="/forgot-password"><T text={"Forgot password?"} /></Link>}<Link className="auth-link" href="/resend-verification"><T text={"Resend confirmation"} /></Link></p>
           {!invitation && (
             <p
               className="muted"
               style={{ textAlign: "center", marginTop: 24, fontSize: 12 }}
             >
-              {signup ? "Already have an account?" : "New to Hooka Relay?"}{" "}
+              <T text={signup ? "Already have an account?" : "New to Hooka Relay?"} />{" "}
               <Link
                 className="auth-link"
                 href={
@@ -186,7 +187,7 @@ export function AuthForm({
                   (typeof window === "undefined" ? "" : window.location.search)
                 }
               >
-                {signup ? "Sign in" : "Create an account"}
+                <T text={signup ? "Sign in" : "Create an account"} />
               </Link>
             </p>
           )}
@@ -196,8 +197,9 @@ export function AuthForm({
               {signup ? "creating your account" : "signing in"}.
             </p>
           )}
+          <p className="legal-links"><Link href="/terms"><T text={"Terms of Use"} /></Link><Link href="/privacy"><T text={"Privacy"} /></Link></p>
           <p className="muted" style={{ textAlign: "center", fontSize: 11 }}>
-            <Link href="/docs">Read the documentation ↗</Link>
+            <Link href="/docs"><T text={"Read the documentation ↗"} /></Link>
           </p>
         </form>
       </main>

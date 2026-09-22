@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -50,8 +51,7 @@ export function InviteDecision({
           You haven’t joined {workspaceName}. If you change your mind, ask an
           admin for a new invitation.
         </p>
-        <Link className="btn" href="/dashboard">
-          Go to dashboard <ArrowRight size={16} />
+        <Link className="btn" href="/dashboard"><T text={"Go to dashboard"} /><ArrowRight size={16} />
         </Link>
       </>
     );
@@ -83,7 +83,7 @@ export function InviteDecision({
           <ShieldCheck size={18} />
           <div>
             <small>YOUR ROLE</small>
-            <strong>{role === "ADMIN" ? "Admin" : "Member"}</strong>
+            <strong><T text={role === "ADMIN" ? "Admin" : "Member"} /></strong>
           </div>
         </div>
       </div>
@@ -117,7 +117,7 @@ export function InviteDecision({
             disabled={!!busy}
             onClick={() => respond("accept")}
           >
-            {busy === "accept" ? "Joining workspace…" : "Accept invitation"}
+            <T text={busy === "accept" ? "Joining workspace…" : "Accept invitation"} />
             <ArrowRight size={16} />
           </button>
           <button
@@ -125,7 +125,7 @@ export function InviteDecision({
             disabled={!!busy}
             onClick={() => respond("decline")}
           >
-            {busy === "decline" ? "Declining…" : "Decline invitation"}
+            <T text={busy === "decline" ? "Declining…" : "Decline invitation"} />
           </button>
           <small className="invite-expiry">
             Expires{" "}

@@ -1,4 +1,7 @@
 "use client";
+import { T } from "@/components/preferences";
+import { Section, SectionNav, useSection } from "@/components/section-nav";
+import { ScopedKeys } from "@/components/application-lifecycle";
 import { use } from "react";
 import { ApplicationLifecycle } from "@/components/application-lifecycle";
 import { EventSchemas } from "@/components/event-schemas";
@@ -18,6 +21,7 @@ import { Shell } from "@/components/shell";
 import { api, useData, Badge, CopyButton, ErrorBox } from "@/components/ui";
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
+  const section = useSection(["overview", "endpoints", "events", "security", "settings"]);
   const { data, error, reload } = useData<any>(
     `/api/applications/${resolvedParams.id}`,
     true,
@@ -32,9 +36,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Shell>
       <Link className="back" href="/dashboard">
-        <ArrowLeft size={13} />
-        All applications
-      </Link>
+        <ArrowLeft size={13} /><T text={"All applications"} /></Link>
       <div className="page-head">
         <div>
           <div className="eyebrow">APPLICATION</div>
@@ -44,24 +46,23 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
           className="btn"
           href={`/applications/${resolvedParams.id}/endpoints/new`}
         >
-          <Plus size={14} />
-          Add endpoint
-        </Link>
+          <Plus size={14} /><T text={"Add endpoint"} /></Link>
       </div>
 
       <ErrorBox error={error || failure} />
       {!data && !error && <LoadingState />}
       {data && (
         <>
+          <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "endpoints", label: "Endpoints" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "API Keys & Security" }, { id: "settings", label: "Settings" }]} />
+          <Section active={section} name="overview"><div className="stats"><div className="stat"><div className="stat-label"><T text={"Endpoints"} /></div><div className="stat-value">{data.endpoints.length}</div><p className="muted"><T text={"Connected delivery destinations"} /></p></div><div className="stat"><div className="stat-label"><T text={"Active endpoints"} /></div><div className="stat-value">{data.endpoints.filter((endpoint: any) => endpoint.status === "ACTIVE").length}</div><p className="muted"><T text={"Ready for matching events"} /></p></div></div><section className="panel panel-body"><h2><T text={"Start delivering"} /></h2><p className="muted">Connect a destination, send a test event, then follow its delivery attempts.</p><div className="action-row"><a className="btn secondary" href="#endpoints"><Radio size={16} /><T text={"View endpoints"} /></a><a className="btn" href="#events"><Send size={16} /><T text={"Send a test event"} /></a></div></section></Section>
+          <Section active={section} name="security">
           <section className="panel">
             <div className="panel-head">
               <h2>
                 <KeyRound
                   size={14}
                   style={{ display: "inline", marginRight: 9 }}
-                />
-                Application API key
-              </h2>
+                /><T text={"Application API key"} /></h2>
               <button
                 className="btn quiet"
                 disabled={
@@ -91,8 +92,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   }
                 }}
               >
-                Regenerate key
-              </button>
+                <KeyRound size={16} aria-hidden="true" /><T text={"Regenerate key"} /></button>
             </div>
             <div className="panel-body">
               <div className="secret-row">
@@ -112,16 +112,15 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             </p>
           )}
           {data.role !== "MEMBER" && <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
-            <h2>Customer portal</h2><p className="muted">Share this private link with customers who may receive events from this application. Each visitor manages only the endpoints created in their browser.</p>
-            {data.portalPath ? <div className="secret-row"><code>{window.location.origin + data.portalPath}</code><CopyButton value={window.location.origin + data.portalPath} /></div> : <button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/applications/${resolvedParams.id}/portal`, {}); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>Enable customer portal</button>}
+            <h2><T text={"Customer portal"} /></h2><p className="muted">Share this private link with customers who may receive events from this application. Each visitor manages only the endpoints created in their browser.</p>
+            {data.portalPath ? <div className="secret-row"><code>{window.location.origin + data.portalPath}</code><CopyButton value={window.location.origin + data.portalPath} /></div> : <button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/applications/${resolvedParams.id}/portal`, {}); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); } }}><T text={"Enable customer portal"} /></button>}
           </section>}
-          <EventSchemas applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} />
-          <ApplicationLifecycle id={resolvedParams.id} canManage={data.role !== "MEMBER"} />
-          <div className="split">
+          {data.role !== "MEMBER" && <ScopedKeys id={resolvedParams.id} />}
+          </Section>
+          <Section active={section} name="endpoints">
             <section className="panel">
               <div className="panel-head">
-                <h2>
-                  Endpoints{" "}
+                <h2><T text={"Endpoints"} />{" "}
                   <span className="count">{data.endpoints.length}</span>
                 </h2>
                 <Radio size={15} color="#92a398" />
@@ -167,21 +166,21 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               ) : (
                 <div className="empty">
                   <Radio size={25} />
-                  <h3>Connect your first endpoint</h3>
-                  <p>Use your own URL or try a built-in test receiver.</p>
+                  <h3><T text={"Connect your first endpoint"} /></h3>
+                  <p><T text={"Use your own URL or try a built-in test receiver."} /></p>
                   <Link
                     className="btn secondary"
                     href={`/applications/${resolvedParams.id}/endpoints/new`}
-                  >
-                    Add an endpoint
-                    <Plus size={14} />
+                  ><T text={"Add an endpoint"} /><Plus size={14} />
                   </Link>
                 </div>
               )}
             </section>
+          </Section>
+          <Section active={section} name="events">
             <section className="panel">
               <div className="panel-head">
-                <h2>Send a test event</h2>
+                <h2><T text={"Send a test event"} /></h2>
                 <Send size={14} />
               </div>
               <form
@@ -211,7 +210,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 }}
               >
                 <div className="field">
-                  <label htmlFor="type">Event type</label>
+                  <label htmlFor="type"><T text={"Event type"} /></label>
                   <input
                     id="type"
                     name="type"
@@ -220,7 +219,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="payload">JSON payload</label>
+                  <label htmlFor="payload"><T text={"JSON payload"} /></label>
                   <textarea
                     id="payload"
                     name="payload"
@@ -232,7 +231,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 <button className="btn" disabled={busy}>
                   <Send size={13} />
-                  {busy ? "Sending…" : "Send event"}
+                  <T text={busy ? "Sending…" : "Send event"} />
                 </button>
                 {message && (
                   <div role="status" className="notice">
@@ -241,11 +240,15 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 )}
               </form>
             </section>
-          </div>
+          <EventSchemas applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} />
+          <ApplicationLifecycle id={resolvedParams.id} canManage={data.role !== "MEMBER"} />
+          </Section>
+          <Section active={section} name="settings">
+          <section className="panel panel-body"><h2><T text={"Workspace & Team"} /></h2><p className="muted">Application access follows your workspace role. Manage members and invitations in your workspace.</p><Link href="/workspaces" className="btn secondary"><T text={"Manage team"} /></Link></section>
           {data.role !== "MEMBER" && (
             <section className="panel application-delete">
               <div>
-                <h2>Delete application</h2>
+                <h2><T text={"Delete application"} /></h2>
                 <p className="muted">
                   Permanently remove this application, its endpoints, and
                   delivery history.
@@ -279,10 +282,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 }}
               >
                 <Trash2 size={14} />
-                {deleting ? "Deleting..." : "Delete application"}
+                <T text={deleting ? "Deleting..." : "Delete application"} />
               </button>
             </section>
           )}
+          </Section>
         </>
       )}
     </Shell>

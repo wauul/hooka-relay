@@ -1,3 +1,4 @@
+import { T } from "@/components/preferences";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { invitationDetails, WorkspaceError } from "@/lib/workspaces";
@@ -22,9 +23,7 @@ export async function InviteAuth({
       <InviteLayout>
         <h1>Invitation unavailable</h1>
         <p>{e.message}</p>
-        <Link className="btn" href="/login">
-          Sign in
-        </Link>
+        <Link className="btn" href="/login"><T text={"Sign in"} /></Link>
       </InviteLayout>
     );
   }

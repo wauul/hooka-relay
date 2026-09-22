@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import {
   createContext,
   useCallback,
@@ -22,16 +23,19 @@ import { outboundUrl, searchSite, type SearchResult } from "@/lib/site";
 
 type Confirmation = { title: string; description: string; label?: string };
 const Tools = createContext({
+  signedIn: false,
   search: () => {},
   confirm: async (_options: Confirmation) => false,
 });
 export const useConfirm = () => useContext(Tools).confirm;
+export const useSignedIn = () => useContext(Tools).signedIn;
 export function SearchButton() {
-  const { search } = useContext(Tools);
+  const { search, signedIn } = useContext(Tools);
+  if (!signedIn) return null;
   return (
-    <button className="search-trigger" type="button" onClick={search}>
+    <button className="search-trigger" type="button" aria-label="Search everything" onClick={search}>
       <Search size={16} />
-      <span>Search everything</span>
+      <span><T text={"Search everything"} /></span>
       <kbd>⌘ / Ctrl K</kbd>
     </button>
   );
@@ -196,14 +200,16 @@ function SiteSearch({ close }: { close: () => void }) {
       {!busy && query.trim().length >= 2 && !results.length && (
         <div className="empty">
           <Search size={28} />
-          <h3>No matches yet</h3>
+          <h3><T text={"No matches yet"} /></h3>
           <p>Try a shorter phrase, an application name or an event ID.</p>
         </div>
       )}
     </Modal>
   );
 }
-export function SiteTools({ children }: { children: React.ReactNode }) {
+export function SiteTools({ children, signedIn = false }: { children: React.ReactNode; signedIn?: boolean }) {
+  const [contactHidden, setContactHidden] = useState(false);
+  useEffect(() => { try { setContactHidden(localStorage.getItem("hooka-contact-hidden") === "1"); } catch {} }, []);
   const [overlay, setOverlay] = useState<"search" | "contact" | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const pending = useRef<((value: boolean) => void) | null>(null);
@@ -294,7 +300,7 @@ export function SiteTools({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
-        (event.metaKey || event.ctrlKey) &&
+        signedIn && (event.metaKey || event.ctrlKey) &&
         event.key.toLowerCase() === "k" &&
         !pending.current
       ) {
@@ -307,12 +313,10 @@ export function SiteTools({ children }: { children: React.ReactNode }) {
       window.removeEventListener("keydown", key);
       pending.current?.(false);
     };
-  }, []);
+  }, [signedIn]);
   return (
-    <Tools.Provider value={{ search: () => setOverlay("search"), confirm }}>
-      <a className="skip-link" href="#main-content">
-        Skip to content
-      </a>
+    <Tools.Provider value={{ signedIn, search: () => { if (signedIn) setOverlay("search"); }, confirm }}>
+      <a className="skip-link" href="#main-content"><T text={"Skip to content"} /></a>
       <div
         ref={progress}
         className="scroll-progress"
@@ -341,15 +345,15 @@ export function SiteTools({ children }: { children: React.ReactNode }) {
             <ArrowUp size={19} />
           </button>
         )}
-        <button
+        {!contactHidden && <div className="contact-control"><button
           className="contact-button"
           aria-label="Get in touch"
           type="button"
           onClick={() => setOverlay("contact")}
         >
           <MessageCircle size={18} />
-          <span>Get in touch</span>
-        </button>
+          <span><T text={"Get in touch"} /></span>
+        </button><button className="contact-dismiss icon-button" aria-label="Hide Get in touch" onClick={() => { setContactHidden(true); try { localStorage.setItem("hooka-contact-hidden", "1"); } catch {} }}><X size={14} aria-hidden="true" /></button></div>}
       </div>
       {cookie && (
         <section className="cookie-banner" aria-label="Cookie notice">
@@ -370,12 +374,10 @@ export function SiteTools({ children }: { children: React.ReactNode }) {
                 localStorage.setItem("hooka-cookie-notice-v1", "dismissed");
               } catch {}
             }}
-          >
-            Got it
-          </button>
+          ><T text={"Got it"} /></button>
         </section>
       )}
-      {overlay === "search" && <SiteSearch close={() => setOverlay(null)} />}
+      {signedIn && overlay === "search" && <SiteSearch close={() => setOverlay(null)} />}
       {overlay === "contact" && (
         <Modal
           title="Let’s make delivery better."
@@ -414,9 +416,7 @@ export function SiteTools({ children }: { children: React.ReactNode }) {
               type="button"
               className="btn secondary"
               onClick={() => resolve(false)}
-            >
-              Cancel
-            </button>
+            ><T text={"Cancel"} /></button>
             <button
               type="button"
               className="btn danger"

@@ -1,3 +1,4 @@
+import { T } from "@/components/preferences";
 import Link from "next/link";
 import { Shell } from "@/components/shell";
 import { SearchButton } from "@/components/site-tools";
@@ -17,12 +18,9 @@ export default function NotFound() {
           webhooks haven’t gone anywhere.
         </p>
         <div className="recovery-actions">
-          <Link className="btn" href="/dashboard">
-            Back to workspace <ArrowRight size={16} />
+          <Link className="btn" href="/dashboard"><T text={"Back to workspace"} /><ArrowRight size={16} />
           </Link>
-          <Link className="btn secondary" href="/docs">
-            Read the docs
-          </Link>
+          <Link className="btn secondary" href="/docs"><T text={"Read the docs"} /></Link>
         </div>
         <SearchButton />
       </section>

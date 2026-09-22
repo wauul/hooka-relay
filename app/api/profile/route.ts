@@ -6,9 +6,9 @@ export async function GET() {
   try {
     const user = await db.user.findUniqueOrThrow({
       where: { id: await userId() },
-      select,
+      select: { ...select, oauthAccounts: { select: { provider: true } } },
     });
-    return Response.json({ ...user, displayName: userDisplayName(user) });
+    return Response.json({ id: user.id, email: user.email, displayName: userDisplayName(user), connectedProviders: user.oauthAccounts.map(account => account.provider) });
   } catch (e) {
     return apiError(e);
   }

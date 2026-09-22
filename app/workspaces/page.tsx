@@ -1,4 +1,6 @@
 "use client";
+import { Trash2, UserMinus, LogOut, ArrowRightLeft, Mail, Plus, Pencil, Ban } from "lucide-react";
+import { T } from "@/components/preferences";
 import { userDisplayName } from "@/lib/display-name";
 import { Select } from "@/components/select";
 import { useState } from "react";
@@ -59,28 +61,24 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                 );
               }}
             >
-              <label>
-                Workspace name
-                <input
+              <label><T text={"Workspace name"} /><input
                   name="name"
                   defaultValue={data.name}
                   maxLength={100}
                   required
                 />
               </label>
-              <button className="btn" disabled={busy}>
-                Rename
-              </button>
+              <button className="btn" disabled={busy}><Pencil size={16} aria-hidden="true" /><T text={"Rename"} /></button>
             </form>
           )}
-          <h3>Members</h3>
+          <h3><T text={"Members"} /></h3>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Member</th>
-                  <th>Role</th>
-                  <th>Actions</th>
+                  <th><T text={"Member"} /></th>
+                  <th><T text={"Role"} /></th>
+                  <th><T text={"Actions"} /></th>
                 </tr>
               </thead>
               <tbody>
@@ -139,9 +137,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                                         "DELETE",
                                       );
                                   }}
-                                >
-                                  Remove
-                                </button>
+                                ><UserMinus size={16} aria-hidden="true" /><T text={"Remove"} /></button>
                               )}
                               {data.role === "OWNER" && (
                                 <button
@@ -159,9 +155,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                                         userId: m.userId,
                                       });
                                   }}
-                                >
-                                  Transfer ownership
-                                </button>
+                                ><ArrowRightLeft size={16} aria-hidden="true" /><T text={"Transfer ownership"} /></button>
                               )}
                             </>
                           )}
@@ -189,9 +183,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                   Email
                   <input name="email" type="email" required />
                 </label>
-                <label>
-                  Role
-                  <Select
+                <label><T text={"Role"} /><Select
                     name="role"
                     label="Invitation role"
                     defaultValue="MEMBER"
@@ -211,7 +203,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                   />
                 </label>
                 <button className="btn" disabled={busy}>
-                  Send invitation
+                  <Mail size={16} aria-hidden="true" />Send invitation
                 </button>
               </form>
               <Invites
@@ -250,9 +242,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                     setBusy(false);
                   }
                 }}
-              >
-                Delete workspace
-              </button>
+              ><Trash2 size={16} aria-hidden="true" /><T text={"Delete workspace"} /></button>
             </>
           ) : (
             <button
@@ -276,9 +266,7 @@ function Team({ id, refresh }: { id: string; refresh: () => Promise<void> }) {
                   setFailure((e as Error).message);
                 }
               }}
-            >
-              Leave workspace
-            </button>
+            ><LogOut size={16} aria-hidden="true" /><T text={"Leave workspace"} /></button>
           )}
         </>
       )}
@@ -311,9 +299,7 @@ function Invites({
                 await revoke(i.id);
                 await reload();
               }}
-            >
-              Revoke
-            </button>
+            ><Ban size={16} aria-hidden="true" /><T text={"Revoke"} /></button>
           </p>
         ))
       ) : (
@@ -347,15 +333,11 @@ export default function Page() {
             }
           }}
         >
-          <label>
-            New workspace name
-            <input name="name" maxLength={100} required />
+          <label><T text={"New workspace name"} /><input name="name" maxLength={100} required />
           </label>
-          <button className="btn">Create workspace</button>
+          <button className="btn"><Plus size={16} aria-hidden="true" /><T text={"Create workspace"} /></button>
         </form>
-        <label>
-          Manage workspace
-          <Select
+        <label><T text={"Manage workspace"} /><Select
             label="Manage workspace"
             workspace
             value={selected || data?.[0]?.workspaceId || ""}

@@ -1,4 +1,5 @@
 "use client";
+import { T } from "./preferences";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Layers } from "lucide-react";
@@ -191,7 +192,7 @@ export function Select({
                 onClick={() => choose(index)}
               >
                 <div className="select-option-text">
-                  <span>{option.label}</span>
+                  <span>{workspace ? option.label : <T text={option.label} />}</span>
                   {option.description && <small>{option.description}</small>}
                 </div>
                 {option.value === selected && <Check size={16} />}

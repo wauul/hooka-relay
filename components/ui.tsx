@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw } from "lucide-react";
@@ -28,10 +29,9 @@ export function useData<T>(url: string, poll = false) {
   }, [url, router]);
   useEffect(() => {
     load();
-    if (poll) {
-      const timer = setInterval(load, 5000);
-      return () => clearInterval(timer);
-    }
+    window.addEventListener("hooka-workspace-changed", load);
+    const timer = poll ? setInterval(load, 5000) : undefined;
+    return () => { window.removeEventListener("hooka-workspace-changed", load); if (timer) clearInterval(timer); };
   }, [load, poll]);
   return { data, error, reload: load };
 }
@@ -69,7 +69,7 @@ export function CopyButton({ value }: { value: string }) {
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
       <span role="status">
-        {failed ? "Select text to copy" : copied ? "Copied" : "Copy"}
+        <T text={failed ? "Select text to copy" : copied ? "Copied" : "Copy"} />
       </span>
     </button>
   );
@@ -90,7 +90,7 @@ export function Refresh({ onClick }: { onClick: () => void }) {
       }}
     >
       <RefreshCw size={13} className={busy ? "spin" : ""} />
-      {busy ? "Refreshing…" : "Refresh"}
+      <T text={busy ? "Refreshing…" : "Refresh"} />
     </button>
   );
 }
@@ -107,7 +107,7 @@ export function CodeBlock({
   return (
     <div className="code-block">
       <div className="code-toolbar">
-        <span>Code / data</span>
+        <span><T text={"Code / data"} /></span>
         <CopyButton value={value} />
       </div>
       <pre ref={ref} className={className}>

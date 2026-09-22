@@ -1,4 +1,7 @@
 "use client";
+import { T } from "@/components/preferences";
+import { PreferencesMenu } from "./preferences";
+import { Users, Settings } from "lucide-react";
 import { SupportChat } from "./support-chat";
 import { ProfileLink } from "./profile-link";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -6,7 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { SearchButton } from "./site-tools";
+import { SearchButton, useSignedIn } from "./site-tools";
 import { Menu, X } from "lucide-react";
 import {
   Layers3,
@@ -19,7 +22,7 @@ import {
 } from "lucide-react";
 export function Brand() {
   return (
-    <Link href="/dashboard" className="brand">
+    <Link href="/" className="brand">
       <span className="brand-mark">
         <Webhook size={23} />
       </span>
@@ -32,6 +35,7 @@ export function Brand() {
 }
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const signedIn = useSignedIn();
   const [menu, setMenu] = useState(false);
   useEffect(() => setMenu(false), [path]);
   return (
@@ -62,26 +66,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
             }
           }}
         >
-          <WorkspaceSwitcher />
-          <div className="nav-label">WORKSPACE</div>
+          {signedIn && <WorkspaceSwitcher />}
+          <div className="nav-label">{signedIn ? "WORKSPACE" : "HOOKA RELAY"}</div>
           <nav aria-label="Main navigation" onClick={() => setMenu(false)}>
             <Link
               className={`nav-link ${path === "/dashboard" || path.startsWith("/applications") || path.startsWith("/endpoints") ? "active" : ""}`}
               href="/dashboard"
             >
-              <Layers3 size={17} />
-              Applications
-            </Link>
+              <Layers3 size={17} /><T text={"Applications"} /></Link>
             <Link
               className={`nav-link ${path === "/docs" ? "active" : ""}`}
               href="/docs"
             >
-              <BookOpen size={17} />
-              Documentation
-            </Link>
+              <BookOpen size={17} /><T text={"Documentation"} /></Link>
+            {signedIn && <><Link className={`nav-link ${path === "/workspaces" ? "active" : ""}`} href="/workspaces"><Users size={17} /><T text={"Workspace & Team"} /></Link>
+            <Link className={`nav-link ${path === "/profile" ? "active" : ""}`} href="/profile"><Settings size={17} /><T text={"Settings"} /></Link></>}
           </nav>
           <div className="sidebar-bottom">
-            <ProfileLink />
+            {signedIn && <ProfileLink />}
             <div className="plan">
               <strong>
                 <span className="dot" /> Built for reliability
@@ -101,20 +103,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 Explore the API <ArrowUpRight size={13} />
               </Link>
             </div>
-            <button
+            {signedIn ? <button
               className="nav-link"
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
-              <LogOut size={16} />
-              Sign out
-            </button>
+              <LogOut size={16} /><T text={"Sign out"} /></button> : <Link className="btn" href="/login"><ArrowRight size={16} /><T text="Sign in" /></Link>}
           </div>
         </div>
       </aside>
       <div>
         <header className="topbar">
           <nav className="breadcrumbs" aria-label="Breadcrumb">
-            <Link href="/dashboard">Workspace</Link>
+            <Link href={signedIn ? "/dashboard" : "/"}><T text={signedIn ? "Workspace" : "Home"} /></Link>
             <ArrowRight size={12} aria-hidden="true" />
             <Link
               href={
@@ -128,16 +128,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
               }
               aria-current="page"
             >
-              {path === "/docs"
+              <T text={path === "/docs"
                 ? "Documentation"
                 : path === "/profile"
                   ? "Your profile"
                   : path === "/workspaces"
                     ? "Teams"
-                    : "Applications"}
+                    : "Applications"} />
             </Link>
           </nav>
-          <SearchButton />
+          <div className="topbar-actions"><PreferencesMenu /><SearchButton /></div>
         </header>
         <main className="content" id="main-content" tabIndex={-1}>
           {children}

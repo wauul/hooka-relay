@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import { use } from "react";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
@@ -25,9 +26,7 @@ export default function Page({
   return (
     <Shell>
       <Link className="back" href={`/endpoints/${resolvedParams.id}`}>
-        <ArrowLeft size={13} />
-        Delivery overview
-      </Link>
+        <ArrowLeft size={13} /><T text={"Delivery overview"} /></Link>
       <div className="page-head">
         <div>
           <div className="eyebrow">EVENT INSPECTOR</div>
@@ -63,9 +62,7 @@ export default function Page({
             }
           }}
         >
-          <RotateCcw size={14} />
-          Replay event
-        </button>
+          <RotateCcw size={14} /><T text={"Replay event"} /></button>
       </div>
       <ErrorBox error={error || failure} />
       {message && (
@@ -77,14 +74,14 @@ export default function Page({
       {data && (
         <>
           <div className="panel panel-body">
-            <label>Idempotency key</label>
+            <label><T text={"Idempotency key"} /></label>
             <code>{data.event.idempotencyKey}</code>
             <p className="muted" style={{ fontSize: 12 }}>
               Receivers should deduplicate this key atomically with their
               business operation, including on replay.
             </p>
             <div className="section-title">
-              <h2>Delivery runs</h2>
+              <h2><T text={"Delivery runs"} /></h2>
             </div>
             {data.deliveries.map((d: any) => (
               <p key={d.id}>
@@ -117,21 +114,21 @@ export default function Page({
                   </div>
                   <div className="split">
                     <div>
-                      <label>Request headers</label>
+                      <label><T text={"Request headers"} /></label>
                       <CodeBlock>
                         {JSON.stringify(a.requestHeaders, null, 2)}
                       </CodeBlock>
-                      <label>Raw request body</label>
+                      <label><T text={"Raw request body"} /></label>
                       <CodeBlock>
                         {a.requestBody || "No HTTP request made"}
                       </CodeBlock>
                     </div>
                     <div>
-                      <label>Response headers</label>
+                      <label><T text={"Response headers"} /></label>
                       <CodeBlock>
                         {JSON.stringify(a.responseHeaders, null, 2)}
                       </CodeBlock>
-                      <label>Response body (up to 16 KB)</label>
+                      <label><T text={"Response body (up to 16 KB)"} /></label>
                       <CodeBlock>
                         {a.responseBody || "No response body"}
                       </CodeBlock>

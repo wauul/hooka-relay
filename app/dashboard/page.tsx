@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -30,41 +31,33 @@ export default function Page() {
       <div className="page-head">
         <div>
           <div className="eyebrow">YOUR DELIVERY CONTROL CENTER</div>
-          <h1>Applications</h1>
+          <h1><T text={"Applications"} /></h1>
           <div className="muted">
             Your events, endpoints, and everything in between.
           </div>
         </div>
         <button className="btn" onClick={() => setCreating(!creating)}>
-          <Plus size={15} />
-          New application
-        </button>
+          <Plus size={15} /><T text={"New application"} /></button>
       </div>
       <ErrorBox error={error || failure} />
       {newKey && <section className="panel panel-body" role="status"><h2>Save your API key</h2><p>This key is shown only now. Copy it before leaving this page.</p><div className="secret-row"><code>{newKey}</code><CopyButton value={newKey} /><button className="btn quiet" onClick={() => setNewKey(null)}>I saved it</button></div></section>}
       <div className="stats">
         <div className="stat">
-          <div className="stat-label">
-            Applications
-            <Layers3 size={16} />
+          <div className="stat-label"><T text={"Applications"} /><Layers3 size={16} />
           </div>
           <div className="stat-value">{data?.length ?? "—"}</div>
           <div className="stat-note">Independent webhook workspaces</div>
         </div>
         <div className="stat">
-          <div className="stat-label">
-            Registered endpoints
-            <Radio size={16} />
+          <div className="stat-label"><T text={"Registered endpoints"} /><Radio size={16} />
           </div>
           <div className="stat-value">
             {data?.reduce((n, a) => n + a._count.endpoints, 0) ?? "—"}
           </div>
-          <div className="stat-note">Connected delivery destinations</div>
+          <div className="stat-note"><T text={"Connected delivery destinations"} /></div>
         </div>
         <div className="stat">
-          <div className="stat-label">
-            Events accepted
-            <Send size={16} />
+          <div className="stat-label"><T text={"Events accepted"} /><Send size={16} />
           </div>
           <div className="stat-value">
             {data?.reduce((n, a) => n + a._count.events, 0) ?? "—"}
@@ -94,7 +87,7 @@ export default function Page() {
         >
           <div className="form-row">
             <div className="field">
-              <label htmlFor="name">Application name</label>
+              <label htmlFor="name"><T text={"Application name"} /></label>
               <input
                 autoFocus
                 id="name"
@@ -104,16 +97,13 @@ export default function Page() {
                 required
               />
             </div>
-            <button className="btn" disabled={busy}>
-              Create application
-              <ArrowRight size={14} />
+            <button className="btn" disabled={busy}><T text={"Create application"} /><ArrowRight size={14} />
             </button>
           </div>
         </form>
       )}
       <div className="section-title">
-        <h2>
-          All applications <span className="count">{data?.length ?? 0}</span>
+        <h2><T text={"All applications"} /><span className="count">{data?.length ?? 0}</span>
         </h2>
         <span className="muted" style={{ fontSize: 11 }}>
           Updates every 5 seconds
@@ -136,7 +126,7 @@ export default function Page() {
                 <ArrowUpRight size={17} color="#718092" />
               </div>
               <h3>{a.name}</h3>
-              <div className="mono muted">{a.id}</div>
+
               <div className="app-meta">
                 <span>◉ {a._count.endpoints} endpoints</span>
                 <span>↗ {a._count.events} events</span>

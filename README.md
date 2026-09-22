@@ -255,3 +255,24 @@ The UI shows pass/fail when the first attempt completes, updates for 30 seconds,
 GitHub and Google sign-in are available when their server credentials are configured, alongside email/password. New credentials accounts confirm their email before signing in; existing accounts retain access. Forgot-password uses a short-lived, single-use link and revokes previous sessions. Link an OAuth identity from Your profile after signing in with your existing method; matching email addresses alone never merge accounts.
 
 All transactional messages share branded React Email templates and a text fallback. See [auth setup and deliverability findings](docs/auth-and-email.md) for exact local/production callbacks, account linking, limits and the sending-domain DNS audit.
+
+
+### Interface and account pages
+
+The public [homepage](https://hooka-relay.vercel.app/) introduces the delivery flow; signed-in visitors go straight to their workspace. Application and endpoint pages separate Overview, Events & Logs, Security and Settings. Panels stay mounted when switching sections, so a newly revealed key or an unfinished form is not discarded. Workspace/team and profile settings remain available in the sidebar.
+
+The header includes persisted light/dark and English/French interface preferences. API identifiers, event payloads and copied code are not translated; the detailed technical reference and legal text remain in English. Search is available only after sign-in. The support assistant uses distinct question/answer bubbles, a waiting indicator and a responsive panel; its scope, limits and generation pipeline are unchanged. The contact control can be dismissed for later visits.
+
+[Terms of Use](https://hooka-relay.vercel.app/terms) and [Privacy & data use](https://hooka-relay.vercel.app/privacy) are public and linked from account pages and the homepage. See the [page-by-page UI audit](docs/ui-audit-2026-09-22.md) and [auth/email setup and deliverability findings](docs/auth-and-email.md).
+
+### Current interface
+
+Screenshots from the deployed September 2026 interface (review workspace contains synthetic test data).
+
+![Public landing page, dark desktop theme](docs/images/landing-desktop.jpg)
+
+![Workspace management with separate form sections](docs/images/workspace-desktop.jpg)
+
+| Mobile landing, light theme | Mobile endpoint overview |
+| --- | --- |
+| ![Mobile landing](docs/images/landing-mobile.jpg) | ![Mobile endpoint](docs/images/endpoint-mobile.jpg) |

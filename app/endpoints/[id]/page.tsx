@@ -1,4 +1,7 @@
 "use client";
+import { T } from "@/components/preferences";
+import { Section, SectionNav, useSection } from "@/components/section-nav";
+import { Trash2, RotateCcw, Play, Pause } from "lucide-react";
 import { EndpointOptions } from "@/components/endpoint-options";
 import { EndpointTest } from "@/components/endpoint-test";
 import { EndpointSigning } from "@/components/endpoint-signing";
@@ -22,6 +25,7 @@ import { Shell } from "@/components/shell";
 import { useData, Badge, CopyButton, ErrorBox, Refresh } from "@/components/ui";
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
+  const section = useSection(["overview", "events", "security", "settings"]);
   const { data, error, reload } = useData<any>(
     `/api/endpoints/${resolvedParams.id}/attempts`,
     true,
@@ -36,13 +40,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         className="back"
         href={ep ? `/applications/${ep.applicationId}` : "/dashboard"}
       >
-        <ArrowLeft size={13} />
-        Back to application
-      </Link>
+        <ArrowLeft size={13} /><T text={"Back to application"} /></Link>
       <div className="page-head">
         <div>
           <div className="eyebrow">ENDPOINT OBSERVABILITY</div>
-          <h1>Delivery overview</h1>
+          <h1><T text={"Delivery overview"} /></h1>{ep && <p style={{ marginBottom: 14 }}><Badge value={ep.status} /></p>}
           <div className="muted mono" style={{ wordBreak: "break-all" }}>
             {ep?.url || "Loading endpoint…"}
           </div>
@@ -50,17 +52,21 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <Refresh onClick={reload} />
       </div>
       <ErrorBox error={error || failure} />
-      {ep && <section className="panel panel-body"><h2>Endpoint status: {ep.status}</h2>{ep.status === "DISABLED" && <p role="status"><Link href={`/applications/${ep.applicationId}/backlog?endpoint_id=${ep.id}`}>View missed events and recovery tools</Link></p>}<p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : ep.status === "DISABLED" ? "Delivery disabled by the circuit breaker; automatic recovery probes remain enabled." : "Active: matching new events create deliveries."} Pausing also holds queued attempts until resumed; a request already in flight may finish.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? "Resume" : "Pause"}</button><button className="btn quiet" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}>Delete endpoint</button></>}</section>}
-      {ep && ep.status === "ACTIVE" && <form className="panel panel-body" onSubmit={async e => { e.preventDefault(); const eventId = String(new FormData(e.currentTarget).get("eventId")); try { await api(`/api/events/${encodeURIComponent(eventId)}/replay`, { endpointId: ep.id }); await reload(); } catch(e) { setFailure((e as Error).message); } }}><label>Replay a stored event to this endpoint<input name="eventId" placeholder="Event ID (including events received while paused)" required /></label><button className="btn secondary">Replay event</button></form>}
-      {ep && <><EndpointSigning endpoint={ep} reload={reload} /><EndpointOptions endpoint={ep} reload={reload} /></>}
+      <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "Signing & Security" }, { id: "settings", label: "Settings" }]} />
+      <Section active={section} name="settings">
+      {ep && <section className="panel panel-body"><h2><T text={"Endpoint status:"} />{" "}{ep.status}</h2>{ep.status === "DISABLED" && <p role="status"><Link href={`/applications/${ep.applicationId}/backlog?endpoint_id=${ep.id}`}>View missed events and recovery tools</Link></p>}<p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : ep.status === "DISABLED" ? "Delivery disabled by the circuit breaker; automatic recovery probes remain enabled." : "Active: matching new events create deliveries."} Pausing also holds queued attempts until resumed; a request already in flight may finish.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}<T text={ep.status === "PAUSED" ? "Resume" : "Pause"} /></button><button className="btn danger" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}><Trash2 size={16} aria-hidden="true" /><T text={"Delete endpoint"} /></button></>}</section>}
+      </Section>
+      <Section active={section} name="events">
+      {ep && ep.status === "ACTIVE" && <form className="panel panel-body" onSubmit={async e => { e.preventDefault(); const eventId = String(new FormData(e.currentTarget).get("eventId")); try { await api(`/api/events/${encodeURIComponent(eventId)}/replay`, { endpointId: ep.id }); await reload(); } catch(e) { setFailure((e as Error).message); } }}><label>Replay a stored event to this endpoint<input name="eventId" placeholder="Event ID (including events received while paused)" required /></label><button className="btn secondary"><RotateCcw size={16} aria-hidden="true" /><T text={"Replay event"} /></button></form>}
+      </Section>
+      <Section active={section} name="security">{ep && <EndpointSigning endpoint={ep} reload={reload} />}</Section>
+      <Section active={section} name="settings">{ep && <EndpointOptions endpoint={ep} reload={reload} />}</Section>
       {!data && !error && <LoadingState />}
       {data && (
         <>
-          <div className="stats">
+          <Section active={section} name="overview"><div className="stats">
             <div className="stat">
-              <div className="stat-label">
-                Circuit breaker
-                <ShieldCheck size={16} />
+              <div className="stat-label"><T text={"Circuit breaker"} /><ShieldCheck size={16} />
               </div>
               <div style={{ margin: "21px 0 13px" }}>
                 <Badge value={ep.circuitState} />
@@ -68,13 +74,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               <div className="stat-note">
                 {ep.circuitState === "OPEN"
                   ? "Recovery probe after 10-minute cooldown"
-                  : "Protecting your destination"}
+                  : ep.circuitState === "HALF_OPEN" ? "One probe checks whether delivery can recover" : "Healthy: requests are delivered normally"}
               </div>
             </div>
             <div className="stat">
-              <div className="stat-label">
-                Success rate
-                <Activity size={16} />
+              <div className="stat-label"><T text={"Success rate"} /><Activity size={16} />
               </div>
               <div className="stat-value">
                 {data.successRate === null ? "—" : `${data.successRate}%`}
@@ -84,17 +88,13 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </div>
             <div className="stat">
-              <div className="stat-label">
-                Consecutive failures
-                <Timer size={16} />
+              <div className="stat-label"><T text={"Consecutive failures"} /><Timer size={16} />
               </div>
               <div className="stat-value">
                 {ep.consecutiveFailures}
                 <span style={{ fontSize: 14, color: "#657082" }}> / 5</span>
               </div>
-              <div className="stat-note">
-                Success resets the failure counter
-              </div>
+              <div className="stat-note"><T text={"Success resets the failure counter"} /></div>
             </div>
           </div>
           {data.pattern?.observed > 0 && <section className="panel panel-body" style={{ marginBottom: 24 }}>
@@ -132,11 +132,10 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </section>
           )}
-          <EndpointTest endpoint={ep} />
-          <section className="panel">
+          <EndpointTest endpoint={ep} /></Section>
+          <Section active={section} name="events"><section className="panel">
             <div className="panel-head">
-              <h2>
-                Recent delivery attempts{" "}
+              <h2><T text={"Recent delivery attempts"} />{" "}
                 <span className="count">{data.attempts.length}</span>
               </h2>
               <span className="muted" style={{ fontSize: 11 }}>
@@ -190,7 +189,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             ) : (
               <div className="empty">
                 <Radio size={28} />
-                <h3>Waiting for your first event</h3>
+                <h3><T text={"Waiting for your first event"} /></h3>
                 <p>
                   Send a test event from your application. Every attempt will
                   appear here automatically.
@@ -204,20 +203,18 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </div>
             )}
           </section>
-          <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
-            <h2>Retry policy</h2><p className="muted">Default schedules: Standard: 5 attempts · Aggressive: 7 attempts · Relaxed: 4 attempts. Circuit protection still applies.</p>
+          </Section><Section active={section} name="settings"><section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
+            <h2><T text={"Retry policy"} /></h2><p className="muted">Default schedules: Standard: 5 attempts · Aggressive: 7 attempts · Relaxed: 4 attempts. Circuit protection still applies.</p>
             {ep.role === "MEMBER" ? <Badge value={ep.retryPolicy} /> : <Select label="Retry policy" value={ep.retryPolicy} options={[{ value: "STANDARD", label: "Standard", description: "30s, 2m, 5m, 15m" }, { value: "AGGRESSIVE", label: "Aggressive", description: "30s, 30s, 30s, 2m, 2m, 5m" }, { value: "RELAXED", label: "Relaxed", description: "5m, 15m, 30m" }]} onChange={async retryPolicy => { try { await api(`/api/endpoints/${ep.id}/retry-policy`, { retryPolicy }, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } }} />}
             <p className="muted">Changes apply to subsequent failures. Already scheduled delays keep their due times.</p>
           </section>
-          <details className="panel panel-body">
-            <summary style={{ cursor: "pointer" }}>
-              Endpoint configuration & signing secret
-            </summary>
+          </Section><Section active={section} name="security"><details className="panel panel-body">
+            <summary style={{ cursor: "pointer" }}><T text={"Endpoint configuration & signing secret"} /></summary>
             <div style={{ marginTop: 22 }}>
-              <label>Subscribed event types</label>
+              <label><T text={"Subscribed event types"} /></label>
               <CodeBlock>{ep.eventTypes.join(", ")}</CodeBlock>
               {ep.secret && <>
-              <label>HMAC signing secret</label>
+              <label><T text={"HMAC signing secret"} /></label>
               <div className="secret-row">
                 <code>{ep.secret}</code>
                 <CopyButton value={ep.secret} />
@@ -228,7 +225,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </p>
               </>}
             </div>
-          </details>
+          </details></Section>
         </>
       )}
     </Shell>

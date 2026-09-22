@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Select } from "./select";
@@ -19,11 +20,12 @@ export function WorkspaceSwitcher() {
       data[0].workspaceId;
     localStorage.setItem("workspaceId", id);
     setSelected(id);
-    if (saved && saved !== id) window.location.assign("/dashboard");
+    // Reconcile stale workspace preferences without losing an OAuth callback or profile route.
+    if (saved !== id) window.dispatchEvent(new Event("hooka-workspace-changed"));
   }, [data]);
   return (
     <div className="workspace" style={{ display: "grid", gap: 8 }}>
-      <label htmlFor="workspace-switch">Workspace</label>
+      <label htmlFor="workspace-switch"><T text={"Workspace"} /></label>
       <Select
         id="workspace-switch"
         label="Workspace"
