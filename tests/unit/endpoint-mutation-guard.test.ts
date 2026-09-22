@@ -22,3 +22,13 @@ it("validates DNS before encrypting and binds newly created endpoints to their o
   expect(() => decryptEndpointSecret(data.secret, { ...data, id: "other" })).toThrow();
   await expect(newEndpointData("app", "file:///etc/passwd", [])).rejects.toThrow();
 });
+
+it("requires review of every new endpoint write path", () => {
+  const writers = [...sources("app"), ...sources("lib"), ...sources("worker")].filter(file => /\.endpoint\.(create|createMany|upsert|update|updateMany)\(/.test(readFileSync(file, "utf8")));
+  expect(writers.sort()).toEqual([
+    "app/api/applications/[id]/endpoints/route.ts", "app/api/endpoints/[id]/pause/route.ts",
+    "app/api/endpoints/[id]/resume/route.ts", "app/api/endpoints/[id]/retry-policy/route.ts",
+    "app/api/endpoints/[id]/signature-format/route.ts", "lib/cli-api.ts", "lib/diagnosis.ts",
+    "lib/migrate-endpoint-secrets.ts", "lib/migrate-secrets.ts", "lib/portal.ts", "lib/signing-secrets.ts", "worker/index.ts",
+  ].sort());
+});
