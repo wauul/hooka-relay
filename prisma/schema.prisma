@@ -22,7 +22,11 @@ model User {
   id String @id @default(cuid())
   email String @unique
   displayName String?
-  hashedPassword String
+  hashedPassword String?
+  emailVerified DateTime?
+  sessionVersion Int @default(0)
+  oauthAccounts OAuthAccount[]
+  authTokens AuthToken[]
   createdAt DateTime @default(now())
   legacyApplications Application[]
   memberships WorkspaceMember[]
@@ -320,4 +324,25 @@ model RecoveryJob {
   queued Int @default(0)
   createdAt DateTime @default(now())
   @@index([status, createdAt])
+}
+
+model OAuthAccount {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider String
+  providerAccountId String
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+model AuthToken {
+  hash String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  callbackPath String @default("/dashboard")
+  @@index([userId, purpose])
+  @@index([expiresAt])
 }

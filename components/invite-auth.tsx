@@ -6,11 +6,13 @@ import { InviteLayout } from "./invite-layout";
 export async function InviteAuth({
   signup,
   token,
+  authError,
 }: {
   signup: boolean;
   token?: string;
+  authError?: string;
 }) {
-  if (!token) return <AuthForm signup={signup} />;
+  if (!token) return <AuthForm authError={authError} signup={signup} />;
   let invite;
   try {
     invite = await invitationDetails(token);
@@ -30,5 +32,5 @@ export async function InviteAuth({
     redirect(
       `/${invite.accountExists ? "login" : "signup"}?invite=${encodeURIComponent(token)}`,
     );
-  return <AuthForm signup={signup} invitation={{ token, ...invite }} />;
+  return <AuthForm authError={authError} signup={signup} invitation={{ token, ...invite }} />;
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { UserRound, Check } from "lucide-react";
+import { OAuthButtons } from "@/components/oauth-buttons";
 import { Shell } from "@/components/shell";
 import { api, ErrorBox, useData } from "@/components/ui";
 export default function Page() {
@@ -85,6 +86,7 @@ export default function Page() {
           </form>
         )}
       </section>
+      <section className="panel panel-body profile-panel" style={{ marginTop: 24 }}><h2>Connected sign-in methods</h2><p className="muted">Link your GitHub or Google account while signed in. Use your existing sign-in method first if a provider says your email is already registered.</p><OAuthButtons callbackUrl="/profile" linking /></section>
     </Shell>
   );
 }

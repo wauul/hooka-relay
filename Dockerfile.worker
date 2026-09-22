@@ -15,7 +15,7 @@ RUN npm run build:worker
 
 FROM base AS runtime
 ENV NODE_ENV=production
-# A separate, locked dependency set excludes Next.js, React, Vitest, Prisma CLI,
+# A separate, locked dependency set excludes Next.js, Vitest, Prisma CLI,
 # TypeScript and Testcontainers from the running worker image.
 COPY worker/runtime/package.json worker/runtime/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force

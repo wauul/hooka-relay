@@ -1,3 +1,5 @@
+import { boundedJson } from "@/lib/input-limits";
+import { issueAuthEmail } from "@/lib/auth-email";
 import { ipRateLimit } from "@/lib/ip-rate-limit";
 import { userDisplayName } from "@/lib/display-name";
 import { hash } from "bcryptjs";
@@ -16,13 +18,14 @@ export async function POST(req: Request) {
         inviteToken: z.string().max(128).optional(),
         password: z.string().min(12).max(72),
       })
-      .parse(await req.json());
+      .parse(await boundedJson(req));
     if (data.inviteToken) {
       const invite = await invitationDetails(data.inviteToken);
       if (invite.email !== data.email.toLowerCase().trim())
         throw new WorkspaceError(403, "Use the invited email address.");
     }
-    await db.user.create({
+    const email = data.email.toLowerCase().trim();
+    if (!(await db.user.findUnique({ where: { email } }))) await db.user.create({
       data: {
         email: data.email.toLowerCase().trim(),
         displayName: userDisplayName({
@@ -31,7 +34,8 @@ export async function POST(req: Request) {
         hashedPassword: await hash(data.password, 12),
       },
     });
-    return Response.json({ ok: true }, { status: 201 });
+    try { await issueAuthEmail(email, "VERIFY", data.inviteToken ? `/invites/accept?token=${encodeURIComponent(data.inviteToken)}` : undefined); } catch { console.warn("Signup verification email unavailable"); }
+    return Response.json({ ok: true, verificationRequired: true }, { status: 201 });
   } catch (e) {
     return apiError(e);
   }

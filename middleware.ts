@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
     ...(development ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
   const headers = new Headers(request.headers);
-  const privatePage = request.nextUrl.pathname.startsWith("/portal/") || request.nextUrl.pathname.startsWith("/invites/");
+  const privatePage = request.nextUrl.pathname.startsWith("/portal/") || request.nextUrl.pathname.startsWith("/invites/") || ["/verify-email", "/reset-password"].includes(request.nextUrl.pathname);
   headers.set("x-hooka-private-page", privatePage ? "1" : "0");
   headers.set("x-nonce", nonce);
   headers.set("Content-Security-Policy", csp);

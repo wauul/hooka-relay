@@ -10,13 +10,13 @@ export function requestIp(req: Request) {
       : undefined;
   return address && isIP(address) ? address : "unidentified";
 }
-export async function ipRateLimit(req: Request, scope: "events" | "auth" | "portal") {
+export async function ipRateLimit(req: Request, scope: "events" | "auth" | "portal" | "recovery") {
   const configured = Number(
     process.env[
-      scope === "events"
+      scope === "recovery" ? "RECOVERY_IP_LIMIT_PER_MINUTE" : scope === "events"
         ? "EVENTS_IP_LIMIT_PER_MINUTE"
         : scope === "portal" ? "PORTAL_IP_LIMIT_PER_MINUTE" : "AUTH_IP_LIMIT_PER_MINUTE"
-    ] || (scope === "events" ? 1000 : scope === "portal" ? 30 : 20),
+    ] || (scope === "recovery" ? 5 : scope === "events" ? 1000 : scope === "portal" ? 30 : 20),
   );
   if (!Number.isSafeInteger(configured) || configured < 1)
     throw new Error("Invalid IP rate limit");
