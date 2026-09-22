@@ -1,13 +1,15 @@
 "use client";
+import { T } from "@/components/preferences";
 import { useState } from "react";
 import { UserRound, Check } from "lucide-react";
 import { OAuthButtons } from "@/components/oauth-buttons";
 import { Shell } from "@/components/shell";
-import { api, ErrorBox, useData } from "@/components/ui";
+import { api, ErrorBox, useData, LoadingState } from "@/components/ui";
 export default function Page() {
   const { data, error, reload } = useData<{
     displayName: string;
     email: string;
+    connectedProviders: string[];
   }>("/api/profile");
   const [failure, setFailure] = useState("");
   const [saved, setSaved] = useState(false);
@@ -16,10 +18,8 @@ export default function Page() {
     <Shell>
       <div className="page-head">
         <div>
-          <div className="eyebrow">YOUR ACCOUNT</div>
-          <p className="muted">
-            Choose how your teammates see you across your workspaces.
-          </p>
+          <div className="eyebrow">YOUR ACCOUNT</div><h1><T text={"Your profile"} /></h1>
+          <p className="muted"><T text={"Choose how your teammates see you across your workspaces."} /></p>
         </div>
       </div>
       <section className="panel panel-body profile-panel">
@@ -27,6 +27,7 @@ export default function Page() {
           <UserRound size={26} />
         </div>
         <ErrorBox error={error || failure} />
+        {!data && !error && <LoadingState />}
         {data && (
           <form
             onSubmit={async (e) => {
@@ -50,7 +51,7 @@ export default function Page() {
             }}
           >
             <div className="field">
-              <label htmlFor="display-name">Display name</label>
+              <label htmlFor="display-name"><T text={"Display name"} /></label>
               <input
                 id="display-name"
                 name="displayName"
@@ -67,14 +68,12 @@ export default function Page() {
               </small>
             </div>
             <div className="field">
-              <div className="profile-email-label">Email address</div>
+              <div className="profile-email-label"><T text={"Email address"} /></div>
               <p className="profile-email">{data.email}</p>
-              <small className="muted">
-                Used for sign-in and workspace invitations.
-              </small>
+              <small className="muted"><T text={"Used for sign-in and workspace invitations."} /></small>
             </div>
             <button className="btn" disabled={busy}>
-              {busy ? "Saving..." : "Save changes"}
+              <T text={busy ? "Saving..." : "Save changes"} />
             </button>
             <span role="status" className="profile-saved">
               {saved && (
@@ -86,7 +85,7 @@ export default function Page() {
           </form>
         )}
       </section>
-      <section className="panel panel-body profile-panel" style={{ marginTop: 24 }}><h2>Connected sign-in methods</h2><p className="muted">Link your GitHub or Google account while signed in. Use your existing sign-in method first if a provider says your email is already registered.</p><OAuthButtons callbackUrl="/profile" linking /></section>
+      <section className="panel panel-body profile-panel" style={{ marginTop: 24 }}><h2><T text={"Connected sign-in methods"} /></h2><p className="muted">Link your GitHub or Google account while signed in. Use your existing sign-in method first if a provider says your email is already registered.</p><OAuthButtons callbackUrl="/profile" linking connected={data?.connectedProviders} /></section>
     </Shell>
   );
 }

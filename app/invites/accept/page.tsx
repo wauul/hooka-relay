@@ -1,3 +1,4 @@
+import { T } from "@/components/preferences";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -19,11 +20,9 @@ export default async function Page({
     return (
       <InviteLayout>
         <div className="eyebrow">INVITATION UNAVAILABLE</div>
-        <h1>This link can’t be used.</h1>
+        <h1><T text={"This link can’t be used."} /></h1>
         <p>{e.message}</p>
-        <Link className="btn" href="/dashboard">
-          Go to dashboard
-        </Link>
+        <Link className="btn" href="/dashboard"><T text={"Go to dashboard"} /></Link>
       </InviteLayout>
     );
   }

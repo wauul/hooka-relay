@@ -1,4 +1,5 @@
 "use client";
+import { T } from "@/components/preferences";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FlaskConical } from "lucide-react";
@@ -18,14 +19,14 @@ export function EndpointTest({ endpoint }: { endpoint: { id: string; status: str
   const available = endpoint.status === "ACTIVE" && endpoint.circuitState === "CLOSED";
   return <section className="panel panel-body" style={{ marginBottom: 24 }}>
     <div className="eyebrow">VERIFY YOUR FIX</div>
-    <h2 style={{ marginTop: 8 }}>Test this endpoint</h2>
+    <h2 style={{ marginTop: 8 }}><T text={"Test this endpoint"} /></h2>
     <p className="muted" style={{ maxWidth: 680, lineHeight: 1.7, margin: "12px 0 20px" }}>Send a synthetic <code>hooka.test</code> event only to this destination, using its current signing keys, headers and transform. This makes a real HTTP request. Normal throttling, retries and circuit protection apply.</p>
     <button className="btn secondary" disabled={busy || !available} onClick={async () => {
       setBusy(true); setError("");
       try { const result = await api<{ eventId: string }>(`/api/endpoints/${endpoint.id}/test`, {}); setEventId(result.eventId); }
       catch (e) { setError((e as Error).message); }
       finally { setBusy(false); }
-    }}><FlaskConical size={14} />{busy ? "Queueing test…" : "Send synthetic test"}</button>
+    }}><FlaskConical size={14} /><T text={busy ? "Queueing test…" : "Send synthetic test"} /></button>
     {!available && <p className="muted">Resume the endpoint or wait for its normal recovery probe before testing. This action never resets the circuit.</p>}
     <ErrorBox error={error} />
     {eventId && <TestResult key={eventId} endpointId={endpoint.id} eventId={eventId} />}
