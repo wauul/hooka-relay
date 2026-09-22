@@ -6,15 +6,19 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { SearchButton } from "./site-tools";
 import { Brand } from "./shell";
+import { OAuthButtons } from "./oauth-buttons";
 import { api, ErrorBox } from "./ui";
 export function AuthForm({
   signup = false,
   invitation,
+  authError,
 }: {
   signup?: boolean;
+  authError?: string;
   invitation?: { token: string; email: string; workspaceName: string };
 }) {
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState(authError === "OAuthAccountNotLinked" ? "An account already uses this email. Sign in with your existing method, then link the provider from Your profile." : authError ? "Sign-in could not be completed. Check that your provider email is verified and try again." : "");
   const [busy, setBusy] = useState(false);
   const [visible, setVisible] = useState(false);
   const router = useRouter();
@@ -55,19 +59,22 @@ export function AuthForm({
             const email = invitation?.email || String(f.get("email"));
             const password = String(f.get("password"));
             try {
-              if (signup)
+              if (signup) {
                 await api("/api/signup", {
                   email,
                   password,
                   inviteToken: invitation?.token,
                 });
+                setMessage("Check your inbox to confirm your email before signing in. You can resend the link below.");
+                return;
+              }
               const result = await signIn("credentials", {
                 email,
                 password,
                 redirect: false,
               });
               if (result?.error)
-                throw new Error("Email or password is incorrect.");
+                throw new Error(result.error === "EMAIL_UNVERIFIED" ? "Please confirm your email before signing in. Use Resend confirmation below if needed." : "Email or password is incorrect.");
               const callback = new URLSearchParams(window.location.search).get(
                 "callbackUrl",
               );
@@ -109,6 +116,9 @@ export function AuthForm({
                 : "Sign in to your webhook workspace."}
           </p>
           <ErrorBox error={error} />
+          {message && <p role="status" style={{ marginBottom: 20 }}>{message}</p>}
+          <OAuthButtons callbackUrl={invitation ? `/invites/accept?token=${encodeURIComponent(invitation.token)}` : "/dashboard"} />
+          <p className="muted" style={{ textAlign: "center", marginBottom: 20 }}>Or use your email and password</p>
           <div className="field">
             <label htmlFor="email">Email address</label>
             <input
@@ -162,6 +172,7 @@ export function AuthForm({
               <ArrowRight size={15} />
             )}
           </button>
+          <p style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 20, fontSize: 12 }}><Link className="auth-link" href="/forgot-password">Forgot password?</Link><Link className="auth-link" href="/resend-verification">Resend confirmation</Link></p>
           {!invitation && (
             <p
               className="muted"

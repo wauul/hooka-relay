@@ -1,3 +1,4 @@
+import { sendTransactionalEmail } from "./transactional-email";
 import { randomUUID } from "node:crypto";
 import type { Prisma, Endpoint } from "@prisma/client";
 import { db } from "./db";
@@ -17,8 +18,7 @@ export async function sendOperationalNotice(notice: { id: string; applicationId:
   if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM || !process.env.NEXTAUTH_URL) throw new Error("Email configuration missing");
   const link = new URL(`/applications/${notice.applicationId}/backlog`, process.env.NEXTAUTH_URL);
   link.searchParams.set("endpoint_id", notice.endpointId); link.searchParams.set("since", notice.since.toISOString());
-  const result = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": `endpoint-disabled-${notice.id}` }, body: JSON.stringify({ from: process.env.RESEND_FROM, to: [email], subject: "Hooka Relay: endpoint delivery temporarily disabled", text: `Endpoint ${notice.endpointId} reached the circuit-breaker threshold. Automatic recovery probes remain enabled. View the missed-event range and recovery tools:\n${link}` }), signal: AbortSignal.timeout(10000) });
-  if (!result.ok) throw new Error("Notification email failed");
+  await sendTransactionalEmail({ id: `endpoint-disabled-${notice.id}`, to: email, subject: "Hooka Relay: endpoint delivery temporarily disabled", title: "Your endpoint needs attention", body: `Endpoint ${notice.endpointId} reached the circuit-breaker threshold. Automatic recovery probes remain enabled. Review the missed-event range and recovery tools.`, action: "Review delivery activity", url: link.toString(), footer: "This operational alert is sent to the workspace owner because delivery needs attention. No marketing subscription is involved." });
 }
 export async function drainNotices() {
   const notices = await db.operationalNotice.findMany({ where: { sentAt: null, nextAttemptAt: { lte: new Date() }, attempts: { lt: 5 } }, take: 5 });
