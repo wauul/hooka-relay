@@ -9,6 +9,10 @@
   --muted: #939dab;
   --green: #adf7b6;
 }
+.api-explorer { margin: 48px 0; }
+.api-explorer .swagger-ui { color-scheme: light; background: #fff; color: #263238; padding: 20px; border-radius: 12px; overflow-wrap: anywhere; }
+.api-explorer .swagger-ui .wrapper { padding: 0; }
+.api-explorer .swagger-ui input, .api-explorer .swagger-ui textarea, .api-explorer .swagger-ui select { color: #263238; }
 * {
   box-sizing: border-box;
 }
