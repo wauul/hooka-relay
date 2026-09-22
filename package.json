@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "build:worker": "prisma generate && tsc -p tsconfig.worker.json",
     "lint": "eslint app components lib worker tests middleware.ts --max-warnings 0",
-    "support:ingest": "tsx scripts/ingest-support.ts"
+    "support:ingest": "tsx scripts/ingest-support.ts",
+    "db:migrate-endpoint-secrets": "tsx scripts/migrate-endpoint-secrets.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
@@ -53,7 +54,8 @@
     "prisma": "6.19.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "standardwebhooks": "1.1.1"
   },
   "engines": {
     "node": ">=20.9.0"

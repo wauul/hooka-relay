@@ -1,6 +1,7 @@
-import { decryptSecret } from "@/lib/secrets";
+import { revealSigningSecret } from "@/lib/signing-secrets";
+import { publicEndpoint } from "@/lib/endpoint-config";
 import { db } from "@/lib/db";
-import { ownEndpoint, apiError } from "@/lib/access";
+import { ownEndpoint, apiError, userId } from "@/lib/access";
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -33,7 +34,7 @@ export async function GET(
       }),
     ]);
     return Response.json({
-      endpoint: { ...ep, secret: ep.role === "MEMBER" ? undefined : decryptSecret(ep.secret, ep.applicationId) },
+      endpoint: { ...publicEndpoint(ep), secret: ep.role === "MEMBER" ? undefined : await revealSigningSecret(ep, await userId()) },
       attempts,
       successRate: total ? Math.round((success / total) * 100) : null,
       total,

@@ -25,6 +25,14 @@ export default function Page() {
           receiver.
         </p>
         <h2 id="signatures">2. Verify the signature</h2>
+        <p>New endpoints use Standard Webhooks. Use the displayed whsec_ secret with the standardwebhooks library, and deduplicate the authenticated webhook-id after verification. The ID stays the same across retries; timestamps are refreshed per attempt.</p>
+        <CodeBlock>{`import { Webhook } from "standardwebhooks";
+const payload = new Webhook(secret).verify(rawBody, {
+  "webhook-id": headers["webhook-id"],
+  "webhook-timestamp": headers["webhook-timestamp"],
+  "webhook-signature": headers["webhook-signature"],
+});`}</CodeBlock>
+        <p>Existing endpoints retain legacy signatures until you switch their signing format. Rotation signs with both keys for seven days; update your receiver before the displayed expiry. The legacy verification example follows.</p>
         <p>
           Every POST contains the event payload as its JSON body. Verify{" "}
           <code>X-Webhook-Signature</code> against the exact raw bytes using the

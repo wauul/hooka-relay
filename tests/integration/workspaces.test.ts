@@ -1,3 +1,5 @@
+import { POST as rotateSigning } from "../../app/api/endpoints/[id]/rotate-secret/route";
+import { PATCH as changeFormat } from "../../app/api/endpoints/[id]/signature-format/route";
 import { PATCH as changeRetry } from "../../app/api/endpoints/[id]/retry-policy/route";
 import { POST as createAppRoute } from "../../app/api/applications/route";
 import { GET as endpointList } from "../../app/api/applications/[id]/endpoints/route";
@@ -599,4 +601,21 @@ it("keeps standard retries by default and restricts policy changes to admins", a
   expect((await db.endpoint.findUniqueOrThrow({ where: { id: ep.id } })).retryPolicy).toBe("AGGRESSIVE");
   expect((await changeRetry(req({ retryPolicy: "UNKNOWN" }, "PATCH"), context(ep.id))).status).toBe(400);
   session(3); expect((await changeRetry(req({ retryPolicy: "RELAXED" }, "PATCH"), context(ep.id))).status).toBe(404);
+});
+
+it("restricts signing management to administrators and audits secret display", async () => {
+  const app = await createApplication({ data: { workspaceId, name: "Signing", currentApiKey: randomUUID() } });
+  const ep = await db.endpoint.create({ data: { applicationId: app.id, url: "https://example.com", secret: encryptSecret("legacy", app.id), eventTypes: ["*"] } });
+  for (const index of [2, 3]) {
+    session(index);
+    expect((await rotateSigning(req(), context(ep.id))).status).toBe(index === 2 ? 403 : 404);
+    expect((await changeFormat(req({ signatureFormat: "STANDARD" }, "PATCH"), context(ep.id))).status).toBe(index === 2 ? 403 : 404);
+  }
+  session(1);
+  expect((await changeFormat(req({ signatureFormat: "STANDARD" }, "PATCH"), context(ep.id))).status).toBe(200);
+  expect((await rotateSigning(req(), context(ep.id))).status).toBe(200);
+  expect((await rotateSigning(req(), context(ep.id))).status).toBe(409);
+  expect((await endpointDetails(req(undefined, "GET"), context(ep.id))).status).toBe(200);
+  expect(await db.auditLog.count({ where: { endpointId: ep.id, actorId: users[1].id, action: "signing_secret.revealed" } })).toBe(2);
+  await db.auditLog.deleteMany({ where: { endpointId: ep.id } });
 });

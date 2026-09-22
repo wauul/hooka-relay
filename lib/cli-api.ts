@@ -1,10 +1,15 @@
-import { encryptSecret } from "./secrets";
+import { hashApiKey } from "./secrets";
+import { newEndpointData } from "./endpoint-config";
+import { boundedJson } from "./input-limits";
+import { WorkspaceError } from "./workspaces";
+import { rotateSigningSecret } from "./signing-secrets";
+import { revealSigningSecret } from "./signing-secrets";
 import { applicationForKey } from "./api-keys";
 import { z } from "zod";
 import { db } from "./db";
-import { newSecret, resolveEndpoint } from "./security";
 
-const endpointFields = { id: true, url: true, eventTypes: true, circuitState: true, status: true, createdAt: true } as const;
+
+const endpointFields = { id: true, url: true, eventTypes: true, circuitState: true, status: true, signatureFormat: true, createdAt: true } as const;
 class ApiFailure extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -44,10 +49,21 @@ export async function cliApi(req: Request, path: string[]) {
       const body = await req.text();
       if (Buffer.byteLength(body) > 16384) throw new ApiFailure(413, "Endpoint request is too large");
       const input = z.object({ url: z.string().url().max(2000), eventTypes: z.array(z.string().min(1).max(120).regex(/^(\*|[A-Za-z0-9_.:-]+)$/)).min(1).max(50).default(["*"]) }).parse(JSON.parse(body));
-      await resolveEndpoint(input.url);
-      const secret = newSecret();
-      const endpoint = await db.endpoint.create({ data: { applicationId: app.id, ...input, secret: encryptSecret(secret, app.id) }, select: endpointFields });
-      return json({ endpoint: { ...endpoint, secret } }, 201);
+      const data = await newEndpointData(app.id, input.url, input.eventTypes);
+      const endpoint = await db.endpoint.create({ data });
+      const secret = await revealSigningSecret(endpoint, "api-key:" + hashApiKey(key));
+      return json({ endpoint: { id: endpoint.id, url: endpoint.url, eventTypes: endpoint.eventTypes, signatureFormat: endpoint.signatureFormat, secret } }, 201);
+    }
+    if (path[0] === "endpoints" && path[1] && path.length === 3 && ["rotate-secret", "signature-format"].includes(path[2])) {
+      const ep = await db.endpoint.findFirst({ where: { id: path[1], applicationId: app.id } });
+      if (!ep) throw new ApiFailure(404, "Endpoint not found");
+      const actor = "api-key:" + hashApiKey(key);
+      if (req.method === "POST" && path[2] === "rotate-secret") return json(await db.$transaction(tx => rotateSigningSecret(tx, ep.id, actor)));
+      if (req.method === "PATCH" && path[2] === "signature-format") {
+        const { signatureFormat } = z.object({ signatureFormat: z.enum(["LEGACY", "STANDARD"]) }).parse(await boundedJson(req, 1024));
+        await db.$transaction([db.endpoint.update({ where: { id: ep.id }, data: { signatureFormat } }), db.auditLog.create({ data: { applicationId: app.id, endpointId: ep.id, actorId: actor, action: "signature_format." + signatureFormat.toLowerCase(), secretVersion: ep.secretVersion } })]);
+        return json({ signatureFormat });
+      }
     }
     if (route === "attempts" && req.method === "GET") {
       const endpointId = url.searchParams.get("endpoint") || undefined;
@@ -92,6 +108,7 @@ export async function cliApi(req: Request, path: string[]) {
     }
     throw new ApiFailure(404, "API route not found");
   } catch (error) {
+    if (error instanceof WorkspaceError) return json({ error: error.message }, error.status);
     if (error instanceof ApiFailure) return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "Invalid request parameters" }, 400);
     if (error instanceof Error && /public HTTPS|Private|URL/.test(error.message)) return json({ error: "Endpoint must use a public HTTPS URL on port 443" }, 400);

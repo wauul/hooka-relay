@@ -6,8 +6,8 @@ import { channel, closeQueue } from "../lib/queue/client";
 import { retryPlan } from "../lib/retry-policy";
 import { DELAYS, QUEUE } from "../lib/queue/topology";
 import { beforeAttempt, afterAttempt } from "../lib/circuitBreaker";
-import { decryptSecret, encryptionKey } from "../lib/secrets";
-import { signature } from "../lib/security";
+import { encryptionKey } from "../lib/secrets";
+import { webhookHeaders } from "../lib/webhook-signing";
 import { deliver } from "../lib/deliver";
 import { flushDelivery } from "../lib/events";
 import { diagnose } from "../lib/diagnosis";
@@ -85,13 +85,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
         data: { circuitState: gate.state.circuitState },
       });
     const raw = JSON.stringify(delivery.event.payload);
-    const headers = {
-      "Content-Type": "application/json",
-      "X-Webhook-Signature": signature(raw, decryptSecret(endpoint.secret, endpoint.applicationId)),
-      "X-Idempotency-Key": delivery.event.idempotencyKey,
-      "X-Webhook-Event": delivery.event.type,
-      "X-Webhook-Endpoint": endpoint.id,
-    };
+    const headers = webhookHeaders(raw, delivery.event, endpoint);
     const result = await deliver(endpoint.url, raw, headers);
     const success =
       result.code !== null && result.code >= 200 && result.code < 300;
@@ -161,6 +155,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
   }
 }
 async function drain() {
+  await db.endpoint.updateMany({ where: { previousSecretExpiresAt: { lte: new Date() } }, data: { previousSecret: null, previousSecretVersion: null, previousSecretExpiresAt: null } });
   await db.application.updateMany({ where: { previousApiKeyExpiresAt: { lte: new Date() } }, data: { previousApiKey: null, previousApiKeyExpiresAt: null } });
   await db.$executeRaw`DELETE FROM "IpRateBucket" WHERE "expiresAt" < NOW()`;
     await db.eventAdmission.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 60000) } } });

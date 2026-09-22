@@ -1,4 +1,5 @@
 "use client";
+import { EndpointSigning } from "@/components/endpoint-signing";
 import { Select } from "@/components/select";
 import { useState } from "react";
 import { useConfirm } from "@/components/site-tools";
@@ -49,6 +50,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       <ErrorBox error={error || failure} />
       {ep && <section className="panel panel-body"><h2>Endpoint status: {ep.status}</h2><p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : "Active: matching new events create deliveries."} Existing deliveries continue with their original retry behavior.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? "Resume" : "Pause"}</button><button className="btn quiet" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}>Delete endpoint</button></>}</section>}
       {ep && ep.status === "ACTIVE" && <form className="panel panel-body" onSubmit={async e => { e.preventDefault(); const eventId = String(new FormData(e.currentTarget).get("eventId")); try { await api(`/api/events/${encodeURIComponent(eventId)}/replay`, { endpointId: ep.id }); await reload(); } catch(e) { setFailure((e as Error).message); } }}><label>Replay a stored event to this endpoint<input name="eventId" placeholder="Event ID (including events received while paused)" required /></label><button className="btn secondary">Replay event</button></form>}
+      {ep && <EndpointSigning endpoint={ep} reload={reload} />}
       {!data && !error && <LoadingState />}
       {data && (
         <>

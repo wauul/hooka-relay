@@ -2,7 +2,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 vi.mock("../../lib/security", async importOriginal => {
   const real = await importOriginal<typeof import("../../lib/security")>();
-  return { ...real, validateOutboundUrl: vi.fn(async (url: string) => { if (url.includes("169.254")) throw new Error("Private address"); return { url: new URL(url) }; }) };
+  return { ...real, resolveEndpoint: vi.fn(async (url: string) => { if (url.includes("169.254")) throw new Error("Private address"); return { url: new URL(url) }; }) };
 });
 import { db } from "../../lib/db";
 import { createWorkspace } from "../../lib/workspaces";

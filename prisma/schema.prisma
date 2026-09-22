@@ -57,6 +57,11 @@ model Endpoint {
   @@index([applicationId, portalOwnerHash])
   // Versioned AES-256-GCM ciphertext, bound to applicationId.
   secret String
+  secretVersion Int @default(0)
+  signatureFormat SignatureFormat @default(LEGACY)
+  previousSecret String?
+  previousSecretVersion Int?
+  previousSecretExpiresAt DateTime?
   eventTypes String[]
   status EndpointStatus @default(ACTIVE)
   retryPolicy RetryPolicy @default(STANDARD)
@@ -229,4 +234,20 @@ model SupportDecision {
   completed Boolean @default(false)
   createdAt DateTime @default(now())
   @@index([createdAt])
+}
+
+enum SignatureFormat {
+  LEGACY
+  STANDARD
+}
+model AuditLog {
+  id String @id @default(cuid())
+  applicationId String
+  endpointId String
+  actorId String
+  action String
+  secretVersion Int
+  createdAt DateTime @default(now())
+  @@index([applicationId, createdAt])
+  @@index([endpointId, createdAt])
 }
