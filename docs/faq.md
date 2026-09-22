@@ -43,3 +43,11 @@ Each browser gets a separate private visitor credential. Visitors can manage onl
 ## Does the public status page measure platform uptime?
 
 No. It aggregates observed delivery attempts over the last 24 hours, excluding circuit-open skips. Receiver failures and deliberately failing test receivers count. A detected incident needs two consecutive completed five-minute windows, each with at least five attempts and success below 90%. Missing or low-volume windows break the sequence. No tenant identifiers, URLs or payloads are exposed.
+
+## What does Auto-Heal do?
+
+Auto-Heal correlates recent attempts, shows when the observed failure pattern began, and gives an advisory Groq diagnosis. Observed latency/status/redirect/body-size changes are evidence, not proof of a cause. It never modifies receiver settings automatically. “Send synthetic test” sends a real signed hooka.test event only to that endpoint using its current keys, headers and transform through the existing worker. It respects pause, circuit protection, throttle, schemas and retries. Five tests per endpoint per minute plus application/IP limits apply. A 409 means paused or circuit-protected; a 429 requires waiting for Retry-After. The UI follows results for 30 seconds, then use the delivery log. An opted-in hooka.test schema can reject the fixed test payload; use the application test-event form with a schema-compatible payload in that case.
+
+## Where can operators inspect traces and metrics?
+
+The README links the Grafana operator dashboard, which requires Grafana sign-in. Optional OTLP instrumentation correlates ingestion, outbox enqueue and delivery attempts even after restarts. X-Trace-Id on ingestion responses identifies the trace; the default 10% sampling means not every trace is exported. Delivery latency, outcomes, retries and queue depth are unsampled metrics exported every minute. No event bodies, URLs, credentials or email are exported to Grafana.

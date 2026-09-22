@@ -1,4 +1,5 @@
 import { outboundCustomHeaders } from "@/lib/endpoint-options";
+import { failurePattern } from "@/lib/failure-pattern";
 import { revealSigningSecret } from "@/lib/signing-secrets";
 import { publicEndpoint } from "@/lib/endpoint-config";
 import { db } from "@/lib/db";
@@ -37,6 +38,7 @@ export async function GET(
     return Response.json({
       endpoint: { ...publicEndpoint(ep), customHeaders: ep.role === "MEMBER" ? undefined : outboundCustomHeaders(ep), secret: ep.role === "MEMBER" ? undefined : await revealSigningSecret(ep, await userId()) },
       attempts,
+      pattern: failurePattern(attempts),
       successRate: total ? Math.round((success / total) * 100) : null,
       total,
     });
