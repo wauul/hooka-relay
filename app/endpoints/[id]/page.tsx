@@ -44,7 +44,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       <div className="page-head">
         <div>
           <div className="eyebrow">ENDPOINT OBSERVABILITY</div>
-          <h1><T text={"Delivery overview"} /></h1>
+          <h1><T text={"Delivery overview"} /></h1>{ep && <p style={{ marginBottom: 14 }}><Badge value={ep.status} /></p>}
           <div className="muted mono" style={{ wordBreak: "break-all" }}>
             {ep?.url || "Loading endpoint…"}
           </div>

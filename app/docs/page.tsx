@@ -17,7 +17,8 @@ export default function Page() {
           Hooka Relay stores it durably and delivers matching events
           asynchronously.
         </p>
-        <h2 id="send">1. Send an event</h2>
+        <nav className="docs-contents" aria-label="Documentation sections"><a href="#send">Send an event</a><a href="#signatures">Verify signatures</a><a href="#retries">Retries</a><a href="#api-reference">API reference</a><a href="#faq">FAQ</a></nav>
+          <h2 id="send">1. Send an event</h2>
         <CodeBlock>{`curl -X POST "$RELAY_URL/api/v1/events" \\\n  -H "Authorization: Bearer $API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"order.shipped","idempotencyKey":"order-1042-shipped",\n       "payload":{"orderId":"ord_1042"}}'`}</CodeBlock>
         <p>
           A successful request returns <code>202 Accepted</code> with the stored

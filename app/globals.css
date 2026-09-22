@@ -1510,3 +1510,8 @@ html[data-theme="light"] body { background:radial-gradient(ellipse at 75% 0%,#a9
 html[data-theme="light"] :is(.breadcrumbs a[aria-current=page],.code-header,.code-label,.app-card,.faq-item summary) { color:var(--text); }
 html[data-theme="light"] .skeleton { border-color:var(--line); background:linear-gradient(90deg,#edf3ef,#d7e6dc,#edf3ef); background-size:200% 100%; }
 html[data-theme="light"] .invite-page { background:radial-gradient(ellipse at 50% 10%,#a9dabb22,transparent 65%); }
+
+.api-explorer .swagger-ui .expand-operation svg, .api-explorer .swagger-ui .expand-methods svg { fill:var(--text); }
+.api-explorer .swagger-ui :is(.opblock-description-wrapper p,.opblock-external-docs-wrapper p,.opblock-title_normal,.parameter__in,.model-hint,.prop-type,.prop-format,.response-col_links) { color:var(--muted); }
+.api-explorer .swagger-ui :is(.highlight-code,.microlight) { background:var(--code); color:var(--text); }
+.docs-contents { display:flex; flex-wrap:wrap; gap:10px; margin:28px 0 40px; }.docs-contents a { border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:10px 14px; font-size:12px; min-height:44px; }
