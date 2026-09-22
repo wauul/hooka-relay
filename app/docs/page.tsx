@@ -93,11 +93,13 @@ const payload = new Webhook(secret).verify(rawBody, {
         </p>
         <h2 id="diagnosis">Failure diagnosis</h2>
         <p>
-          After three consecutive failures, Groq analyzes recent status codes
-          and truncated response bodies. These responses are sent to Groq; avoid
+          After three consecutive failures, Hooka Relay compares up to 20 HTTP attempts
+          for changes in status, latency, redirects and captured response size.
+          Groq receives those timestamped facts and up to eight short response excerpts. These responses are sent to Groq; avoid
           sensitive information in receiver error bodies. Diagnosis is advisory
           and never blocks future delivery if unavailable.
         </p>
+        <p>Use “Send synthetic test” on an endpoint to verify a fix. It sends a real, signed <code>hooka.test</code> event only to that destination through the normal outbox and worker. Pause, circuit protection, throttling, schemas and retries still apply. Tests are limited to five per endpoint per minute plus the application budget. The dashboard follows the result for 30 seconds; delivery logs remain available afterward. Auto-Heal suggests and tests; it never edits receiver configuration automatically.</p>
         <h2 id="api-overview">API reference</h2>
         <CodeBlock>{`POST /api/v1/events                     API-key authentication\nGET/POST /api/applications/:id/endpoints Session authentication\nGET /api/endpoints/:id/attempts          Session authentication\nPOST /api/events/:id/replay              Session authentication\nGET/POST /api/fake-receiver/:mode        Public demo receiver`}</CodeBlock>
         <p>

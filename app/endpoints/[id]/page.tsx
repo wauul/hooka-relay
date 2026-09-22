@@ -1,5 +1,6 @@
 "use client";
 import { EndpointOptions } from "@/components/endpoint-options";
+import { EndpointTest } from "@/components/endpoint-test";
 import { EndpointSigning } from "@/components/endpoint-signing";
 import { Select } from "@/components/select";
 import { useState } from "react";
@@ -96,6 +97,13 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </div>
           </div>
+          {data.pattern?.observed > 0 && <section className="panel panel-body" style={{ marginBottom: 24 }}>
+            <div className="eyebrow">RECENT DELIVERY EVIDENCE</div>
+            <h2 style={{ marginTop: 8 }}>{data.pattern.active ? "Failure pattern" : "Latest delivery"}</h2>
+            <p style={{ lineHeight: 1.7 }}>{data.pattern.summary}</p>
+            {data.pattern.changes.length > 0 && <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>{data.pattern.changes.map((change: string) => <li key={change} style={{ marginBottom: 8 }}>{change}</li>)}</ul>}
+            <p className="muted">Based on {data.pattern.observed} recent HTTP attempts. Times are UTC; circuit-open skips are excluded. Observed changes do not establish the root cause.</p>
+          </section>}
           {ep.diagnosis && (
             <section className="panel">
               <div className="panel-head">
@@ -108,7 +116,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                       color: "var(--green)",
                     }}
                   />
-                  AI failure diagnosis
+                  {data.pattern?.active ? "AI failure diagnosis" : "Previous AI diagnosis"}
                 </h2>
                 <span className="badge amber">
                   {ep.diagnosis.confidence} confidence
@@ -124,6 +132,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </section>
           )}
+          <EndpointTest endpoint={ep} />
           <section className="panel">
             <div className="panel-head">
               <h2>

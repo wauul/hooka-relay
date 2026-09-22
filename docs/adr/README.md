@@ -8,3 +8,4 @@
 - [Sandbox and endpoint configuration](2026-09-22-endpoint-config.md)
 - [SDK packages and API contract](2026-09-22-sdks.md)
 - [Durable trace context and bounded telemetry](2026-09-22-observability.md)
+- [Pattern diagnosis and synthetic verification](2026-09-22-auto-heal.md)

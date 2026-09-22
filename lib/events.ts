@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "./db";
 import { publish } from "./queue/client";
 import { traced, traceparent } from "./observability";
+import { WorkspaceError } from "./workspaces";
 export const eventInput = z.object({
   type: z
     .string()
@@ -31,6 +32,7 @@ export async function flushDelivery(id: string) {
 export async function ingest(
   applicationId: string,
   input: z.infer<typeof eventInput>,
+  target?: { endpointId: string },
 ) {
   return traced("event.ingest", {}, async span => {
   // Application-scoped uniqueness handles simultaneous producer retries. A
@@ -61,14 +63,14 @@ export async function ingest(
         where: {
           applicationId,
           status: "ACTIVE",
-          kind: "BUSINESS",
-          OR: [
+          ...(target ? { id: target.endpointId, circuitState: "CLOSED" as const } : { kind: "BUSINESS" as const, OR: [
             { eventTypes: { has: "*" } },
             { eventTypes: { has: input.type } },
-          ],
+          ] }),
         },
         select: { id: true },
       });
+      if (target && endpoints.length !== 1) throw new WorkspaceError(409, "Endpoint is unavailable for a synthetic test.");
       await tx.delivery.createMany({
         data: endpoints.map((e) => ({ eventId: event.id, endpointId: e.id })),
       });
