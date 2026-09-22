@@ -6,3 +6,4 @@
 - [Producer idempotency and receiver identity](2026-09-22-idempotency.md)
 - [Pull backlog and durable recovery](2026-09-22-recovery.md)
 - [Sandbox and endpoint configuration](2026-09-22-endpoint-config.md)
+- [SDK packages and API contract](2026-09-22-sdks.md)

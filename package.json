@@ -18,7 +18,9 @@
     "build:worker": "prisma generate && tsc -p tsconfig.worker.json",
     "lint": "eslint app components lib worker tests middleware.ts --max-warnings 0",
     "support:ingest": "tsx scripts/ingest-support.ts",
-    "db:migrate-endpoint-secrets": "tsx scripts/migrate-endpoint-secrets.ts"
+    "db:migrate-endpoint-secrets": "tsx scripts/migrate-endpoint-secrets.ts",
+    "sdk:generate": "node scripts/openapi.mjs && node scripts/generate-sdk-types.mjs",
+    "sdk:test": "tsc -p packages/node/tsconfig.json && node --test packages/node/tests/*.test.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
@@ -39,7 +41,8 @@
     "zod": "^3.25.76",
     "ajv": "8.20.0",
     "@xenova/transformers": "2.17.2",
-    "quickjs-emscripten": "0.32.0"
+    "quickjs-emscripten": "0.32.0",
+    "swagger-ui-react": "5.33.0"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.1.0",

@@ -9,5 +9,8 @@ test-results/
 *.log
 coverage/
 dist/
+__pycache__/
+*.egg-info/
+packages/python/build/
 
 .vercel

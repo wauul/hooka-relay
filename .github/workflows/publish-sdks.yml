@@ -1,0 +1,82 @@
+name: Publish SDKs
+on:
+  workflow_dispatch:
+    inputs:
+      registry:
+        type: choice
+        options: [both, npm, pypi]
+        default: both
+        required: true
+      bootstrap:
+        description: Use temporary registry tokens for the first release
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: publish-sdks
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Require successful CI on this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "${{ github.ref }}" = refs/heads/master
+          gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&status=success" --jq '.workflow_runs | length > 0' | grep -qx true
+  npm:
+    needs: verify
+    if: inputs.registry != 'pypi'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/node
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@11.11.0
+      - run: npm ci && npm run build && npm test
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ inputs.bootstrap && secrets.NPM_TOKEN || '' }}
+        run: npm publish --access public --provenance
+  pypi:
+    needs: verify
+    if: inputs.registry != 'npm'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m pip install build
+          python -m build packages/python
+          python -m pip install packages/python/dist/*.whl
+          python -m unittest discover -s packages/python/tests -v
+      - name: Publish bootstrap release
+        if: inputs.bootstrap
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/python/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish with trusted publishing
+        if: ${{ !inputs.bootstrap }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/python/dist/
