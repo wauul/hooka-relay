@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Sun, Moon, Languages } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { Select } from "./select";
 import { translate } from "@/lib/ui-translations";
 type Language = "en" | "fr";
@@ -15,5 +15,5 @@ export function useTranslation() { const { language } = useContext(Preferences);
 export function T({ text }: { text: string }) { const t = useTranslation(); return <>{t(text)}</>; }
 export function PreferencesMenu() {
   const { language, theme, setLanguage, setTheme } = useContext(Preferences);
-  return <div className="preferences" role="group" aria-label={language === "fr" ? "Préférences d’affichage" : "Display preferences"}><button type="button" className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={language === "fr" ? (theme === "dark" ? "Activer le thème clair" : "Activer le thème sombre") : (theme === "dark" ? "Switch to light theme" : "Switch to dark theme")} title={theme === "dark" ? "Light / Clair" : "Dark / Sombre"}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button><Languages size={16} aria-hidden="true" /><Select label={language === "fr" ? "Langue" : "Language"} value={language} onChange={value => setLanguage(value as Language)} options={[{ value: "en", label: "English" }, { value: "fr", label: "Français" }]} /></div>;
+  return <div className="preferences" role="group" aria-label={language === "fr" ? "Préférences d’affichage" : "Display preferences"}><button type="button" className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={language === "fr" ? (theme === "dark" ? "Activer le thème clair" : "Activer le thème sombre") : (theme === "dark" ? "Switch to light theme" : "Switch to dark theme")} title={theme === "dark" ? "Light / Clair" : "Dark / Sombre"}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button><Select label={language === "fr" ? "Langue" : "Language"} value={language} onChange={value => setLanguage(value as Language)} options={[{ value: "en", label: "English" }, { value: "fr", label: "Français" }]} /></div>;
 }
