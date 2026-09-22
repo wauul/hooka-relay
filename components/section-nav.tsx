@@ -9,12 +9,13 @@ export function useSection(names: readonly string[]) {
   useEffect(() => {
     const read = () => { const value = window.location.hash.slice(1); setSection(allowed.split(",").includes(value) ? value : allowed.split(",")[0]); };
     read(); window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
+    window.addEventListener("popstate", read);
+    return () => { window.removeEventListener("hashchange", read); window.removeEventListener("popstate", read); };
   }, [allowed]);
   return section;
 }
 export function SectionNav({ active, items }: { active: string; items: { id: keyof typeof icons; label: string }[] }) {
-  return <nav className="section-nav" aria-label="Page sections">{items.map(({ id, label }) => { const Icon = icons[id]; return <a key={id} href={`#${id}`} aria-current={active === id ? "page" : undefined}><Icon size={16} aria-hidden="true" /><T text={label} /></a>; })}</nav>;
+  return <nav className="section-nav" aria-label="Page sections">{items.map(({ id, label }) => { const Icon = icons[id]; return <a key={id} href={`#${id}`} aria-current={active === id ? "page" : undefined} onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return; event.preventDefault(); if (window.location.hash !== `#${id}`) window.history.pushState(null, "", `#${id}`); window.dispatchEvent(new Event("hashchange")); }}><Icon size={16} aria-hidden="true" /><T text={label} /></a>; })}</nav>;
 }
 // Keep panels mounted: switching sections must not discard a newly revealed key or draft form.
 export function Section({ active, name, children }: { active: string; name: string; children: React.ReactNode }) {
