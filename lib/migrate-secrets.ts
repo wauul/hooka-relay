@@ -1,3 +1,4 @@
+import { decryptEndpointSecret } from "./endpoint-secrets";
 import type { PrismaClient } from "@prisma/client";
 import { decryptSecret, encryptSecret, encryptionKey, hashApiKey, isHashedKey } from "./secrets";
 
@@ -20,7 +21,7 @@ export async function migrateSecrets(client: PrismaClient) {
     }
     for (const endpoint of await tx.endpoint.findMany()) {
       if (endpoint.secret.startsWith("enc:")) {
-        decryptSecret(endpoint.secret, endpoint.applicationId); // Wrong key aborts all changes.
+        decryptEndpointSecret(endpoint.secret, endpoint); // Wrong key aborts all changes, including v2 rows.
         continue;
       }
       const encrypted = encryptSecret(endpoint.secret, endpoint.applicationId);

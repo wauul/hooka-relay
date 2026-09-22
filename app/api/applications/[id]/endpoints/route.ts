@@ -1,9 +1,9 @@
-import { encryptSecret } from "@/lib/secrets";
+import { newEndpointData, publicEndpoint } from "@/lib/endpoint-config";
 import { workspaceTransaction } from "@/lib/workspaces";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ownApplication, apiError, sameOrigin, userId } from "@/lib/access";
-import { newSecret, resolveEndpoint } from "@/lib/security";
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -11,7 +11,7 @@ export async function GET(
   try {
     await ownApplication((await params).id);
     return Response.json(
-      (await db.endpoint.findMany({ where: { applicationId: (await params).id } })).map(({ secret: _secret, ...ep }) => ep),
+      (await db.endpoint.findMany({ where: { applicationId: (await params).id } })).map(publicEndpoint),
     );
   } catch (e) {
     return apiError(e);
@@ -39,15 +39,10 @@ export async function POST(
       ? `${process.env.NEXTAUTH_URL}/api/fake-receiver/${input.mode}`
       : input.url;
     if (!url) throw new Error("URL required");
-    await resolveEndpoint(url);
+    const data = await newEndpointData(app.id, url, input.eventTypes);
     return Response.json(
       await workspaceTransaction(app.workspaceId, await userId(), "manage", tx => tx.endpoint.create({
-        data: {
-          applicationId: app.id,
-          url,
-          eventTypes: input.eventTypes,
-          secret: encryptSecret(newSecret(), app.id),
-        },
+        data,
         select: { id: true, applicationId: true, url: true, eventTypes: true, status: true },
       })),
       { status: 201 },

@@ -3,7 +3,9 @@ import { db } from "./db";
 import { sameOrigin, apiError } from "./access";
 import { boundedJson } from "./input-limits";
 import { ipRateLimit } from "./ip-rate-limit";
-import { newSecret, validateOutboundUrl } from "./security";
+import { newSecret } from "./security";
+import { newEndpointData } from "./endpoint-config";
+import { revealSigningSecret } from "./signing-secrets";
 import { decryptSecret, encryptSecret, hashApiKey } from "./secrets";
 import { workspaceTransaction } from "./workspaces";
 
@@ -40,20 +42,20 @@ export async function portalRequest(req: Request, token: string) {
     const owner = hashApiKey("portal:" + app.id + ":" + guest);
     const owned = { applicationId: app.id, portalOwnerHash: owner };
     if (req.method === "GET") {
-      const endpoints = await db.endpoint.findMany({ where: owned, orderBy: { createdAt: "desc" }, select: { id: true, url: true, eventTypes: true, status: true, circuitState: true, secret: true } });
+      const endpoints = await db.endpoint.findMany({ where: owned, orderBy: { createdAt: "desc" } });
       const attempts = await db.deliveryAttempt.findMany({ where: { endpoint: owned }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, endpointId: true, status: true, httpStatusCode: true, attemptNumber: true, createdAt: true, event: { select: { type: true } } } });
-      return json({ application: app.name, endpoints: endpoints.map(e => ({ ...e, secret: decryptSecret(e.secret, app.id) })), attempts }, 200, validCookie ? undefined : `${cookieName}=${guest}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure ? "; Secure" : ""}`);
+      return json({ application: app.name, endpoints: await Promise.all(endpoints.map(async e => ({ id: e.id, url: e.url, eventTypes: e.eventTypes, status: e.status, circuitState: e.circuitState, signatureFormat: e.signatureFormat, createdAt: e.createdAt, secret: await revealSigningSecret(e, "portal:" + owner) }))), attempts }, 200, validCookie ? undefined : `${cookieName}=${guest}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure ? "; Secure" : ""}`);
     }
     const body = await boundedJson(req, 8192);
     if (req.method === "POST") {
       const input = z.object({ url: z.string().url().max(2000), eventTypes: z.array(z.string().min(1).max(120).regex(/^(\*|[A-Za-z0-9_.:-]+)$/)).min(1).max(50) }).parse(body);
-      await validateOutboundUrl(input.url);
+      const data = await newEndpointData(app.id, input.url, input.eventTypes);
       const endpoint = await db.$transaction(async tx => {
         await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${app.id} FOR UPDATE`;
         const count = await tx.endpoint.count({ where: { applicationId: app.id, portalOwnerHash: { not: null } } });
         const ownCount = await tx.endpoint.count({ where: owned });
         if (ownCount >= 10 || count >= 50) throw new Error("PORTAL_QUOTA");
-        return tx.endpoint.create({ data: { ...owned, ...input, secret: encryptSecret(newSecret(), app.id) }, select: { id: true } });
+        return tx.endpoint.create({ data: { ...owned, ...data }, select: { id: true } });
       });
       return json(endpoint, 201);
     }

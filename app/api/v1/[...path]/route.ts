@@ -7,3 +7,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
 export async function POST(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   return cliApi(req, (await params).path);
 }
+
+export const PATCH = POST;

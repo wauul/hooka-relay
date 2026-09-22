@@ -47,7 +47,7 @@ it("lists only the key's endpoints and never discloses existing secrets", async 
 });
 it("registers endpoints with a one-time secret and validates input", async () => {
   const res = await call("endpoints", "POST", { url: "https://example.com/cli", eventTypes: ["order.shipped"] });
-  expect(res.status).toBe(201); expect((await res.json()).endpoint.secret).toBe("generated-endpoint-secret");
+  expect(res.status).toBe(201); expect((await res.json()).endpoint.secret).toBe("whsec_" + Buffer.from("generated-endpoint-secret").toString("base64"));
   expect((await call("endpoints", "POST", { url: "http://localhost", eventTypes: ["*"] })).status).toBe(400);
   expect((await call("endpoints", "POST", { url: "https://example.com", eventTypes: [] })).status).toBe(400);
 });

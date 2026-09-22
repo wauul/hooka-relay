@@ -73,30 +73,28 @@ curl -X POST http://localhost:3000/api/v1/events \
 
 ## Receiving webhooks
 
-Requests contain the event payload as JSON along with these headers:
-
-| Header | Purpose |
-| --- | --- |
-| `X-Webhook-Signature` | `t=UNIX_SECONDS,v1=HEX`: HMAC-SHA256 of `timestamp + "." + raw body` |
-| `X-Idempotency-Key` | Producer-supplied key or generated UUID |
-| `X-Webhook-Event` | Event type |
-| `X-Webhook-Endpoint` | Endpoint ID |
-
-Verify the signature against the endpoint secret before parsing or handling the payload. Store the idempotency key with the operation it triggers and return a 2xx response for a duplicate.
+New endpoints use [Standard Webhooks](https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md). The signed content is `webhook-id + "." + webhook-timestamp + "." + exact raw body`, with a base64 HMAC-SHA256 signature. `webhook-id` is the stored Event ID, stable across retries and replays. Verify first, then atomically deduplicate this authenticated ID; `X-Idempotency-Key` is producer metadata, not a trusted receiver deduplication key.
 
 ```js
-import { createHmac, timingSafeEqual } from 'node:crypto';
-
-export function verifyWebhook(rawBody, signature, secret) {
-  const parts = /^t=(\d{1,12}),v1=([a-f0-9]{64})$/.exec(signature || '');
-  if (!parts || Math.abs(Date.now() / 1000 - Number(parts[1])) > 300) return false;
-  const expected = createHmac('sha256', secret)
-    .update(parts[1] + '.').update(rawBody).digest();
-  return timingSafeEqual(Buffer.from(parts[2], 'hex'), expected);
-}
+import { Webhook } from 'standardwebhooks';
+const verifier = new Webhook(process.env.WEBHOOK_SECRET); // whsec_... from dashboard
+const payload = verifier.verify(rawBody, {
+  'webhook-id': request.headers['webhook-id'],
+  'webhook-timestamp': request.headers['webhook-timestamp'],
+  'webhook-signature': request.headers['webhook-signature'],
+});
+// Atomically record webhook-id with your business operation; duplicates return 2xx.
 ```
 
-The receiver rejects timestamps more than five minutes in either direction; keep receiver clocks synchronized. Every retry receives a fresh signature. This changes the previous `sha256=...` wire format: update receivers before deploying the updated worker. Never accept the old body-only format as a fallback.
+The reference verifier enforces a five-minute timestamp tolerance. Keep receiver clocks synchronized; each attempt gets a fresh timestamp. `X-Webhook-Event`, `X-Webhook-Endpoint`, and `X-Idempotency-Key` remain informational headers.
+
+Existing endpoints keep `LEGACY`: `X-Webhook-Signature: t=UNIX_SECONDS,v1=HEX`, signing `timestamp + "." + raw body` with the existing secret. To migrate, prepare your receiver for Standard Webhooks, switch the endpoint's signing format in the dashboard (or `PATCH /api/v1/endpoints/:id/signature-format` with `{ "signatureFormat": "STANDARD" }`), and use the displayed `whsec_...` representation. This encodes the same key bytes, not a new secret. Legacy mode cannot authenticate the producer idempotency header; use a trusted identifier inside the signed payload until migrated. Never fall back to the older body-only format.
+
+### Signing-secret rotation
+
+ADMIN/OWNER can `POST /api/endpoints/:id/rotate-secret`; application API clients use `/api/v1/endpoints/:id/rotate-secret`. Default grace is seven days (`SIGNING_SECRET_GRACE_HOURS=168`). Standard deliveries include both signatures in `webhook-signature`, so either old or new key verifies. Legacy deliveries retain the old key in `X-Webhook-Signature` during grace and add `X-Webhook-Signature-Current` for the new key. After expiry only the current key signs. A second rotation during grace returns 409 to avoid invalidating an integrated receiver early. The worker clears expired previous secrets. Rotations, format changes, and secret display are recorded without secret values in `AuditLog`.
+
+Encryption migration and operational rollout: [SECURITY.md](SECURITY.md#endpoint-bound-signing-secrets). Architecture decisions: [ADR index](docs/adr/README.md).
 
 ## Delivery policy
 
