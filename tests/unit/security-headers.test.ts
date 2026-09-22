@@ -1,11 +1,11 @@
 import { expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "../../middleware";
+import { proxy } from "../../proxy";
 it("adds independent CSP nonces and hardening headers in production", () => {
   vi.stubEnv("NODE_ENV", "production");
   try {
-    const a = middleware(new NextRequest("https://example.com/login"));
-    const b = middleware(new NextRequest("https://example.com/login"));
+    const a = proxy(new NextRequest("https://example.com/login"));
+    const b = proxy(new NextRequest("https://example.com/login"));
     expect(a.headers.get("Content-Security-Policy")).not.toBe(
       b.headers.get("Content-Security-Policy"),
     );
@@ -25,7 +25,7 @@ it("adds independent CSP nonces and hardening headers in production", () => {
 });
 
 it("keeps capability links out of referrers and marks them for analytics exclusion", () => {
-  const r = middleware(new NextRequest("https://example.com/portal/private-token", { headers: { "x-hooka-private-page": "0" } }));
+  const r = proxy(new NextRequest("https://example.com/portal/private-token", { headers: { "x-hooka-private-page": "0" } }));
   expect(r.headers.get("Referrer-Policy")).toBe("no-referrer");
   expect(r.headers.get("x-middleware-request-x-hooka-private-page")).toBe("1");
 });

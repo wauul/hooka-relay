@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build:worker": "prisma generate && tsc -p tsconfig.worker.json",
-    "lint": "eslint app components lib worker tests middleware.ts --max-warnings 0",
+    "lint": "eslint app components lib worker tests proxy.ts --max-warnings 0",
     "support:ingest": "tsx scripts/ingest-support.ts",
     "db:migrate-endpoint-secrets": "tsx scripts/migrate-endpoint-secrets.ts",
     "sdk:generate": "node scripts/openapi.mjs && node scripts/generate-sdk-types.mjs",
@@ -69,7 +69,7 @@
     "vitest": "^5.0.1"
   },
   "engines": {
-    "node": "^22.12.0 || >=24.0.0"
+    "node": "^22.12.0"
   },
   "packageManager": "pnpm@10.30.3",
   "overrides": {

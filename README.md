@@ -35,7 +35,7 @@ cp .env.example .env
 Set the required connection details in `.env`:
 
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=verify-full"
 RABBITMQ_URL="amqps://USER:PASSWORD@HOST/VHOST"
 NEXTAUTH_SECRET="replace-with-a-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
@@ -194,7 +194,7 @@ Setup: run `npm run db:migrate` using the schema-owner connection (enables pgvec
 
 Environment: existing `GROQ_API_KEY`; optional `SUPPORT_GROQ_MODEL` (default `openai/gpt-oss-20b`, because the requested `llama-3.1-8b-instant` is no longer in Groq's catalog), `SUPPORT_ADMIN_USER_IDS`, `SUPPORT_LIMIT_PER_MINUTE`, `SUPPORT_LIMIT_PER_DAY`, `SUPPORT_GLOBAL_LIMIT_PER_DAY`, and `HF_HOME` for a local model-cache directory. Keep the Groq account on its free plan; no paid fallback is configured.
 
-The web application runs Next.js 16.3.5. Development and production builds explicitly retain webpack; the existing edge middleware remains in place. ESLint runs separately through its flat configuration and CI.
+The web application runs Next.js 16.3.5. Development and production builds explicitly retain webpack; the request proxy runs on the Node.js runtime. ESLint runs separately through its flat configuration and CI.
 
 
 ## Recovery and endpoint lifecycle
