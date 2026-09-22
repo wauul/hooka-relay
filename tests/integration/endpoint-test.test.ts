@@ -11,6 +11,7 @@ import { POST } from "../../app/api/endpoints/[id]/test/route";
 let uid: string, ws: string, appId: string, endpointId: string, secondId: string;
 const call = (id = endpointId, origin?: string, body: unknown = {}) => POST(new Request("http://localhost/api/test", { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json", ...(origin ? { Origin: origin } : {}) } }), { params: Promise.resolve({ id }) });
 beforeEach(async () => {
+  vi.clearAllMocks();
   uid = randomUUID(); await db.user.create({ data: { id: uid, email: uid + "@example.com", hashedPassword: "unused" } });
   ws = (await db.workspace.create({ data: { name: "Tests", members: { create: { userId: uid, role: "OWNER" } } } })).id;
   appId = (await createApplication({ data: { workspaceId: ws, name: "Synthetic", currentApiKey: randomUUID() } })).id;
@@ -51,7 +52,7 @@ it("enforces the shared five-tests/minute budget with Retry-After", async () => 
   const result = await call(); expect(result.status).toBe(429); expect(result.headers.get("retry-after")).toBe("60"); expect(mocks.publish).not.toHaveBeenCalled();
 });
 it("retains application admission limits and opt-in schema validation", async () => {
-  await db.eventSchema.create({ data: { applicationId: appId, eventType: "hooka.test", schema: { type: "object", required: ["custom"] } } });
+  await db.eventSchema.create({ data: { applicationId: appId, eventType: "hooka.test", schema: { type: "object", properties: { custom: { type: "string" } }, required: ["custom"] } } });
   const invalid = await call(); expect(invalid.status).toBe(400); expect((await invalid.json()).failures).toBeDefined();
   vi.stubEnv("EVENTS_RATE_LIMIT_PER_MINUTE", "1"); const limited = await call(); expect(limited.status).toBe(429); expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
   expect(await db.event.count({ where: { applicationId: appId } })).toBe(0);
