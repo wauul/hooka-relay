@@ -1,11 +1,16 @@
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
+  '@scarf/scarf': false
+  '@tree-sitter-grammars/tree-sitter-yaml': false
+  core-js-pure: false
   cpu-features: false
   esbuild: true
   prisma: true
   protobufjs: true
   ssh2: false
+  tree-sitter-json: false
+  tree-sitter: false
   unrs-resolver: false
 onlyBuiltDependencies:
   - '@prisma/client'
