@@ -1,0 +1,13 @@
+import Link from "next/link";
+import { Brand } from "@/components/shell";
+export default function PrivacyPage() {
+  return <main id="main-content" style={{ maxWidth: 760, margin: "0 auto", padding: "48px 24px", lineHeight: 1.8 }}><Brand /><h1 style={{ marginTop: 40 }}>Privacy & data use</h1><p className="muted">Updated 22 September 2026</p>
+    <h2>Account and workspace data</h2><p>Hooka Relay stores your email address, display name and workspace memberships. Email/password accounts use a password hash. If you choose GitHub or Google sign-in, we use your provider identity and verified email to sign you in. We store the provider account identifier, not its access or refresh token. Linking an existing account requires signing in first.</p>
+    <h2>Webhook delivery</h2><p>The service stores application and endpoint configuration, event payloads and delivery logs to deliver webhooks, retry failures and support replay. Endpoints receive the events routed to them. API keys are hashed; endpoint signing secrets and configured custom headers are encrypted at rest. Workspace members can see data according to their roles.</p>
+    <h2>Service providers</h2><p>Vercel hosts the web application, Railway runs the worker, and Postgres and RabbitMQ provide storage and delivery scheduling. Resend sends account verification, recovery, invitations and operational alerts. Grafana receives filtered operational traces and metrics; payloads, credentials and receiver URLs are excluded from that telemetry.</p>
+    <h2>AI features</h2><p>Support questions and a bounded conversation history may be sent to Groq to answer product questions grounded in documentation. Automatic failure diagnosis sends recent attempt metadata and short receiver-response excerpts to Groq. Do not place passwords or secrets in support questions or receiver error messages. AI advice can be incomplete.</p>
+    <h2>Cookies and preferences</h2><p>Authentication uses cookies. The application may store interface preferences in your browser. Vercel Analytics and Speed Insights measure usage and performance; capability-link pages such as invite, portal and recovery pages exclude these integrations.</p>
+    <h2>Access, retention and contact</h2><p>Workspace owners can delete their workspace and its associated application data through the app. Operational records otherwise remain available for delivery history and recovery; provider backups may have their own retention periods. For account access, deletion or privacy questions, contact <a className="auth-link" href="mailto:waelfezari@gmail.com">waelfezari@gmail.com</a>. This service does not sell account or webhook data.</p>
+    <p><Link className="btn secondary" href="/docs">Read the documentation</Link></p>
+  </main>;
+}
