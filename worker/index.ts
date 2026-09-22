@@ -3,6 +3,9 @@ import { transformPayload } from "../lib/payload-transform";
 import { operationalEvent, drainNotices } from "../lib/operational-events";
 import { drainRecovery } from "../lib/recovery";
 import "dotenv/config";
+import { startObservability, stopObservability } from "../lib/observability-runtime";
+import { traced, deliveryMetric, count, queueDepth } from "../lib/observability";
+startObservability("worker");
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { db } from "../lib/db";
@@ -30,6 +33,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
   )
     return;
   if (delivery.dueAt.getTime() > Date.now() + 1000) return;
+  return traced("delivery.attempt", { "hooka.event.id": delivery.eventId, "hooka.delivery.id": delivery.id, "hooka.endpoint.id": delivery.endpointId, "hooka.attempt": job.attemptNumber }, async span => {
   const token = randomUUID();
   // Atomic endpoint lease serializes failures and enforces a single recovery probe.
   const locked = await db.endpoint.updateMany({
@@ -51,6 +55,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
     });
     const availability = endpointAvailability(endpoint);
     if (!availability.allowed) {
+      span.setAttribute("hooka.outcome", endpoint.status === "PAUSED" ? "paused" : "throttled");
       await db.delivery.update({ where: { id: delivery.id }, data: { dueAt: availability.dueAt, publishedAt: new Date(), delayQueue: null } });
       return; // User pause/throttle does not log an attempt or spend retry budget.
     }
@@ -61,6 +66,8 @@ async function processJob(job: { id: string; attemptNumber: number }) {
         : endpoint,
     );
     if (!gate.allowed) {
+      span.setAttribute("hooka.outcome", "circuit_open");
+      count("hooka.circuit.skips");
       await db.$transaction([
         db.deliveryAttempt.create({
           data: {
@@ -88,11 +95,13 @@ async function processJob(job: { id: string; attemptNumber: number }) {
       ]);
       return; // Skips do not spend the endpoint HTTP attempt budget.
     }
-    if (gate.state.circuitState !== endpoint.circuitState)
+    if (gate.state.circuitState !== endpoint.circuitState) {
+      count("hooka.circuit.transitions", { from: endpoint.circuitState, to: gate.state.circuitState, endpoint_id: endpoint.id });
       endpoint = await db.endpoint.update({
         where: { id: endpoint.id },
         data: { circuitState: gate.state.circuitState },
       });
+    }
     let raw: string;
     let transformError = false;
     try { raw = await transformPayload(endpoint.transform, delivery.event.payload); }
@@ -103,6 +112,8 @@ async function processJob(job: { id: string; attemptNumber: number }) {
     const result = transformError ? { code: null, body: "", headers: {}, error: "transform_failed", duration: 0 } : await deliver(endpoint.url, raw, headers);
     const success =
       result.code !== null && result.code >= 200 && result.code < 300;
+    deliveryMetric(result.duration, success ? "success" : "failure");
+    span.setAttribute("http.response.status_code", result.code || 0);
     const retry = retryPlan(endpoint.retryPolicy, delivery.attemptNumber);
     const dead = !success && retry.exhausted;
     const next = afterAttempt(gate.state, success);
@@ -151,6 +162,10 @@ async function processJob(job: { id: string; attemptNumber: number }) {
       if (!delivery.event.operational && endpoint.circuitState !== "CLOSED" && next.circuitState === "CLOSED") await operationalEvent(tx, endpoint, "endpoint.re-enabled", {});
       if (!delivery.event.operational && dead) await operationalEvent(tx, endpoint, "message.failed", { eventId: delivery.eventId, deliveryId: delivery.id });
     });
+    span.setAttributes({ "hooka.outcome": success ? "delivered" : dead ? "dead_lettered" : "retry", "hooka.circuit": next.circuitState, "hooka.delay_ms": success || dead ? 0 : delay.ms });
+    if (!success && !dead) count("hooka.delivery.retries", { delay: delay.name });
+    if (success || dead) count("hooka.delivery.terminal", { outcome: success ? "delivered" : "dead_lettered" });
+    if (gate.state.circuitState !== next.circuitState) count("hooka.circuit.transitions", { from: gate.state.circuitState, to: next.circuitState, endpoint_id: endpoint.id });
     console.log(
       JSON.stringify({
         deliveryId: delivery.id,
@@ -170,6 +185,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
       data: { leaseToken: null, leaseUntil: null },
     });
   }
+  }, delivery.event.traceparent);
 }
 async function drain() {
   await db.endpoint.updateMany({ where: { previousSecretExpiresAt: { lte: new Date() } }, data: { previousSecret: null, previousSecretVersion: null, previousSecretExpiresAt: null } });
@@ -251,6 +267,12 @@ async function main() {
             draining = false;
           });
       }, 5000);
+      let inspecting = false;
+      const telemetryTimer = setInterval(() => {
+        if (inspecting || !process.env.OTEL_EXPORTER_OTLP_ENDPOINT) return;
+        inspecting = true;
+        ch.checkQueue(QUEUE).then(q => queueDepth(q.messageCount)).catch(() => {}).finally(() => { inspecting = false; });
+      }, 60000);
       let maintaining = false;
       const maintenance = setInterval(() => {
         if (maintaining) return;
@@ -263,6 +285,7 @@ async function main() {
       await closed;
       clearInterval(timer);
       clearInterval(maintenance);
+      clearInterval(telemetryTimer);
       ready = false;
     } catch {
       ready = false;
@@ -274,6 +297,7 @@ async function main() {
 process.on("SIGTERM", async () => {
   stopping = true;
   ready = false;
+  await stopObservability();
   await closeQueue();
   server.close();
   await db.$disconnect();

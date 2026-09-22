@@ -89,6 +89,7 @@ model Endpoint {
 }
 model Event {
   id String @id @default(cuid())
+  traceparent String?
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   idempotencyKey String
