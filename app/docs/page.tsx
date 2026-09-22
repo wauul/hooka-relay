@@ -98,7 +98,7 @@ const payload = new Webhook(secret).verify(rawBody, {
           sensitive information in receiver error bodies. Diagnosis is advisory
           and never blocks future delivery if unavailable.
         </p>
-        <h2 id="api-reference">API reference</h2>
+        <h2 id="api-overview">API reference</h2>
         <CodeBlock>{`POST /api/v1/events                     API-key authentication\nGET/POST /api/applications/:id/endpoints Session authentication\nGET /api/endpoints/:id/attempts          Session authentication\nPOST /api/events/:id/replay              Session authentication\nGET/POST /api/fake-receiver/:mode        Public demo receiver`}</CodeBlock>
         <p>
           Endpoint registration accepts{" "}
@@ -139,3 +139,4 @@ const payload = new Webhook(secret).verify(rawBody, {
     </Shell>
   );
 }
+
