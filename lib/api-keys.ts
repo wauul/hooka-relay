@@ -1,5 +1,5 @@
 import { hashApiKey } from "./secrets";
-import { workspaceTransaction } from "./workspaces";
+import { workspaceTransaction, WorkspaceError } from "./workspaces";
 import { db } from "./db";
 import { newSecret } from "./security";
 export function keyGraceHours() {
@@ -24,16 +24,22 @@ export function keyIsValid(
       app.previousApiKeyExpiresAt > now)
   );
 }
-export function applicationForKey(key: string) {
+export async function applicationForKey(key: string, permission: "INGEST" | "READ" | "MANAGE" = "INGEST") {
   if (key.length > 256) return Promise.resolve(null);
-  return db.application.findFirst({
+  const legacy = await db.application.findFirst({
     where: {
       OR: [
         { currentApiKey: hashApiKey(key) },
         { previousApiKey: hashApiKey(key), previousApiKeyExpiresAt: { gt: new Date() } },
       ],
     },
-  });
+  }); 
+  if (legacy) return legacy; // Existing unscoped keys retain all capabilities.
+  const scoped = await db.applicationKey.findFirst({ where: { hash: hashApiKey(key), OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, include: { application: true } });
+  if (!scoped) return null;
+  if (permission === "MANAGE" || (permission === "READ" ? scoped.scope !== "READ_ONLY" : scoped.scope !== "INGEST_ONLY")) throw new WorkspaceError(403, "API key scope does not permit this action");
+  await db.applicationKey.update({ where: { id: scoped.id }, data: { lastUsedAt: new Date() } });
+  return scoped.application;
 }
 export async function rotateKey(id: string, userId: string) {
   const application = await db.application.findUniqueOrThrow({ where: { id } });

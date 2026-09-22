@@ -1,3 +1,4 @@
+import { eventBacklog } from "@/lib/event-backlog";
 import { boundedJson } from "@/lib/input-limits";
 import { ownApplication, apiError, sameOrigin } from "@/lib/access";
 import { eventInput, ingest } from "@/lib/events";
@@ -16,4 +17,8 @@ export async function POST(
   } catch (e) {
     return apiError(e);
   }
+}
+
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try { const app = await ownApplication((await params).id); return Response.json(await eventBacklog(app.id, new URL(req.url)), { headers: { "Cache-Control": "no-store" } }); } catch (e) { return apiError(e); }
 }

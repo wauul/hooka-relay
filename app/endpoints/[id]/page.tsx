@@ -1,4 +1,5 @@
 "use client";
+import { EndpointOptions } from "@/components/endpoint-options";
 import { EndpointSigning } from "@/components/endpoint-signing";
 import { Select } from "@/components/select";
 import { useState } from "react";
@@ -48,9 +49,9 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <Refresh onClick={reload} />
       </div>
       <ErrorBox error={error || failure} />
-      {ep && <section className="panel panel-body"><h2>Endpoint status: {ep.status}</h2><p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : "Active: matching new events create deliveries."} Existing deliveries continue with their original retry behavior.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? "Resume" : "Pause"}</button><button className="btn quiet" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}>Delete endpoint</button></>}</section>}
+      {ep && <section className="panel panel-body"><h2>Endpoint status: {ep.status}</h2>{ep.status === "DISABLED" && <p role="status"><Link href={`/applications/${ep.applicationId}/backlog?endpoint_id=${ep.id}`}>View missed events and recovery tools</Link></p>}<p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : ep.status === "DISABLED" ? "Delivery disabled by the circuit breaker; automatic recovery probes remain enabled." : "Active: matching new events create deliveries."} Pausing also holds queued attempts until resumed; a request already in flight may finish.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? "Resume" : "Pause"}</button><button className="btn quiet" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}>Delete endpoint</button></>}</section>}
       {ep && ep.status === "ACTIVE" && <form className="panel panel-body" onSubmit={async e => { e.preventDefault(); const eventId = String(new FormData(e.currentTarget).get("eventId")); try { await api(`/api/events/${encodeURIComponent(eventId)}/replay`, { endpointId: ep.id }); await reload(); } catch(e) { setFailure((e as Error).message); } }}><label>Replay a stored event to this endpoint<input name="eventId" placeholder="Event ID (including events received while paused)" required /></label><button className="btn secondary">Replay event</button></form>}
-      {ep && <EndpointSigning endpoint={ep} reload={reload} />}
+      {ep && <><EndpointSigning endpoint={ep} reload={reload} /><EndpointOptions endpoint={ep} reload={reload} /></>}
       {!data && !error && <LoadingState />}
       {data && (
         <>
@@ -195,7 +196,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             )}
           </section>
           <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
-            <h2>Retry policy</h2><p className="muted">Standard: 5 attempts · Aggressive: 7 attempts · Relaxed: 4 attempts. Circuit protection still applies.</p>
+            <h2>Retry policy</h2><p className="muted">Default schedules: Standard: 5 attempts · Aggressive: 7 attempts · Relaxed: 4 attempts. Circuit protection still applies.</p>
             {ep.role === "MEMBER" ? <Badge value={ep.retryPolicy} /> : <Select label="Retry policy" value={ep.retryPolicy} options={[{ value: "STANDARD", label: "Standard", description: "30s, 2m, 5m, 15m" }, { value: "AGGRESSIVE", label: "Aggressive", description: "30s, 30s, 30s, 2m, 2m, 5m" }, { value: "RELAXED", label: "Relaxed", description: "5m, 15m, 30m" }]} onChange={async retryPolicy => { try { await api(`/api/endpoints/${ep.id}/retry-policy`, { retryPolicy }, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } }} />}
             <p className="muted">Changes apply to subsequent failures. Already scheduled delays keep their due times.</p>
           </section>

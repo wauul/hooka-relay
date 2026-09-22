@@ -1,3 +1,4 @@
+import { effectiveEndpointStatus } from "./endpoint-options";
 import { z } from "zod";
 import { db } from "./db";
 import { sameOrigin, apiError } from "./access";
@@ -44,7 +45,7 @@ export async function portalRequest(req: Request, token: string) {
     if (req.method === "GET") {
       const endpoints = await db.endpoint.findMany({ where: owned, orderBy: { createdAt: "desc" } });
       const attempts = await db.deliveryAttempt.findMany({ where: { endpoint: owned }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, endpointId: true, status: true, httpStatusCode: true, attemptNumber: true, createdAt: true, event: { select: { type: true } } } });
-      return json({ application: app.name, endpoints: await Promise.all(endpoints.map(async e => ({ id: e.id, url: e.url, eventTypes: e.eventTypes, status: e.status, circuitState: e.circuitState, signatureFormat: e.signatureFormat, createdAt: e.createdAt, secret: await revealSigningSecret(e, "portal:" + owner) }))), attempts }, 200, validCookie ? undefined : `${cookieName}=${guest}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure ? "; Secure" : ""}`);
+      return json({ application: app.name, endpoints: await Promise.all(endpoints.map(async e => ({ id: e.id, url: e.url, eventTypes: e.eventTypes, status: effectiveEndpointStatus(e), userStatus: e.status, circuitState: e.circuitState, signatureFormat: e.signatureFormat, createdAt: e.createdAt, secret: await revealSigningSecret(e, "portal:" + owner) }))), attempts }, 200, validCookie ? undefined : `${cookieName}=${guest}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure ? "; Secure" : ""}`);
     }
     const body = await boundedJson(req, 8192);
     if (req.method === "POST") {

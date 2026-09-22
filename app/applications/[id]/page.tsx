@@ -1,5 +1,6 @@
 "use client";
 import { use } from "react";
+import { ApplicationLifecycle } from "@/components/application-lifecycle";
 import { EventSchemas } from "@/components/event-schemas";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
@@ -115,6 +116,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             {data.portalPath ? <div className="secret-row"><code>{window.location.origin + data.portalPath}</code><CopyButton value={window.location.origin + data.portalPath} /></div> : <button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/applications/${resolvedParams.id}/portal`, {}); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>Enable customer portal</button>}
           </section>}
           <EventSchemas applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} />
+          <ApplicationLifecycle id={resolvedParams.id} canManage={data.role !== "MEMBER"} />
           <div className="split">
             <section className="panel">
               <div className="panel-head">
@@ -155,7 +157,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                           </td>
                           <td>
                             <Badge value={ep.circuitState} />{" "}
-                            <Badge value={ep.status} />
+                            <span className="muted">{ep.environment} · </span><Badge value={ep.status} />
                           </td>
                         </tr>
                       ))}
