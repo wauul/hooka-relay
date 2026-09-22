@@ -730,7 +730,9 @@ a:not(.btn):hover {
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: none;
 }
+.navigation-content::-webkit-scrollbar { display: none; }
 .mobile-brand-row {
   display: flex;
   align-items: center;

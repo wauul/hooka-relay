@@ -1,7 +1,6 @@
 "use client";
 import { T } from "@/components/preferences";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Select } from "./select";
 import { useData } from "./ui";
 export type WorkspaceMembership = {
@@ -46,7 +45,6 @@ export function WorkspaceSwitcher() {
           window.location.assign("/dashboard");
         }}
       />
-      <Link href="/workspaces">Manage workspaces &amp; team</Link>
     </div>
   );
 }

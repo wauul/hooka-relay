@@ -3,7 +3,6 @@ import { T } from "@/components/preferences";
 import { PreferencesMenu } from "./preferences";
 import { Users, Settings } from "lucide-react";
 import { SupportChat } from "./support-chat";
-import { ProfileLink } from "./profile-link";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -14,10 +13,8 @@ import { Menu, X } from "lucide-react";
 import {
   Layers3,
   BookOpen,
-  ArrowUpRight,
   LogOut,
   Webhook,
-  ChevronDown,
   ArrowRight,
 } from "lucide-react";
 export function Brand() {
@@ -82,33 +79,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {signedIn && <><Link className={`nav-link ${path === "/workspaces" ? "active" : ""}`} href="/workspaces"><Users size={17} /><T text={"Workspace & Team"} /></Link>
             <Link className={`nav-link ${path === "/profile" ? "active" : ""}`} href="/profile"><Settings size={17} /><T text={"Settings"} /></Link></>}
           </nav>
-          <div className="sidebar-bottom">
-            {signedIn && <ProfileLink />}
-            <div className="plan">
-              <strong>
-                <span className="dot" /> Built for reliability
-              </strong>
-              At-least-once delivery.
-              <br />
-              Visibility at every step.
-              <Link
-                href="/docs"
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  marginTop: 13,
-                  color: "#b9d9c0",
-                }}
-              >
-                Explore the API <ArrowUpRight size={13} />
-              </Link>
-            </div>
-            {signedIn ? <button
-              className="nav-link"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-            >
-              <LogOut size={16} /><T text={"Sign out"} /></button> : <Link className="btn" href="/login"><ArrowRight size={16} /><T text="Sign in" /></Link>}
-          </div>
+          {!signedIn && <div className="sidebar-bottom">
+            <Link className="btn" href="/login"><ArrowRight size={16} /><T text="Sign in" /></Link>
+          </div>}
         </div>
       </aside>
       <div>
