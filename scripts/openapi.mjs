@@ -29,6 +29,10 @@ const schemas = {
   Attempts: object({ attempts: array(ref("Attempt")), nextCursor: nullable(string), hasMore: { type: "boolean" } }),
   Delivery: object({ id: string, eventId: string, endpointId: string, generation: integer, attemptNumber: integer, status: string, dueAt: date, endpoint: { type: "object", description: "Endpoint selection with stored ACTIVE/PAUSED status and circuitState." }, attempts: integer, lastAttempt: { type: "object", nullable: true } }),
   EventDetails: object({ event: ref("EventResponse"), generation: integer, deliveries: array(ref("Delivery")) }),
+  WebhookSourceCreate: object({ name: { ...string, maxLength: 100 }, provider: { type: "string", enum: ["STRIPE", "GITHUB", "SLACK", "SHOPIFY", "TWILIO", "CUSTOM"] } }),
+  WebhookSourceUpdate: object({ name: string, providerSecret: string, destinationUrl: { ...string, format: "uri" }, manualConfig: { type: "object", description: "CUSTOM only: signatureHeader, algorithm (sha256/sha1), encoding (hex/base64), optional signaturePrefix, signedPayload (body/timestamp-body), timestampHeader and timestampFormat." }, status: { type: "string", enum: ["ACTIVE", "PAUSED"] } }, []),
+  WebhookSource: object({ id: string, applicationId: string, name: string, provider: string, status: string, destinationUrl: nullable(string), endpointId: nullable(string), lastEventReceivedAt: nullable(date), lastVerifiedAt: nullable(date) }),
+  InboundAck: object({ id: string }),
 };
 const paths = {};
 function add(path, method, summary, response, { body, code = 200, description = "", parameters = [] } = {}) {
@@ -59,6 +63,20 @@ add("/api/v1/applications/{id}/event-types", "get", "List event type versions", 
 add("/api/v1/applications/{id}/event-types", "post", "Publish event type version and active schema", ref("EventTypeVersion"), { body: ref("EventTypeInput"), code: 201 });
 add("/api/v1/applications/{id}/recovery", "get", "List latest 20 recovery jobs", array(ref("RecoveryJob")));
 add("/api/v1/applications/{id}/recovery", "post", "Queue bulk recovery of latest failed deliveries", ref("RecoveryJob"), { body: ref("RecoveryInput"), code: 202, description: "Existing unscoped key required. One pending job and one admission/minute per application. Worker drains five eligible failures/job/pass, staggering deliveries by one second." });
+add("/api/applications/{id}/sources", "get", "List inbound webhook sources", array(ref("WebhookSource")), { description: "Dashboard session and workspace membership required. Signing secrets are never returned." });
+add("/api/applications/{id}/sources", "post", "Create a webhook source and unique ingestion URL", object({ id: string, ingestionUrl: string }), { body: ref("WebhookSourceCreate"), code: 201, description: "Dashboard ADMIN/OWNER session required. The source starts in SETUP_IN_PROGRESS." });
+add("/api/sources/{id}", "get", "Inspect source and recent delivery attempts", ref("WebhookSource"), { description: "Dashboard session required. Includes the most recent 30 existing DeliveryAttempt records." });
+add("/api/sources/{id}", "patch", "Configure or pause a source", ref("WebhookSource"), { body: ref("WebhookSourceUpdate"), description: "Dashboard ADMIN/OWNER session required. Destination uses the existing public HTTPS SSRF validator; the provider secret is encrypted." });
+add("/api/sources/{id}/simulate", "post", "Queue an explicitly simulated test event", object({ eventId: string, simulated: { type: "boolean" } }), { body: object({}, []), code: 202, description: "Dashboard ADMIN/OWNER session required. Simulation tests forwarding through the existing delivery pipeline, not provider signature verification." });
+add("/api/inbound/{ingestionToken}", "post", "Receive a signed provider webhook", ref("InboundAck"), { body: { type: "object" }, code: 202, description: "Public URL, no API key. Provider-specific signature is mandatory. Supports Stripe, GitHub, Slack, Shopify, Twilio and configured custom HMAC. Maximum 256 KiB; JSON depth 32; existing IP and application event limits apply. Verified events enter the existing Event → Delivery → DeliveryAttempt pipeline. Twilio form bodies are supported. Slack URL verification returns a challenge after signature validation." });
+for (const path of ["/api/applications/{id}/sources", "/api/sources/{id}", "/api/sources/{id}/simulate", "/api/inbound/{ingestionToken}"]) {
+  for (const operation of Object.values(paths[path])) operation.tags = ["Webhook sources"];
+}
+paths["/api/inbound/{ingestionToken}"].post.security = [];
+paths["/api/inbound/{ingestionToken}"].post.requestBody.content["application/x-www-form-urlencoded"] = { schema: { type: "object", additionalProperties: string } };
+for (const path of ["/api/applications/{id}/sources", "/api/sources/{id}", "/api/sources/{id}/simulate"]) {
+  for (const operation of Object.values(paths[path])) operation.security = [];
+}
 const spec = {
   openapi: "3.0.3", info: { title: "Hooka Relay API", version: "1.0.0", description: "Public integration API. Bearer and X-API-Key are alternatives. Read-only keys permit GET; ingest-only keys permit POST /api/v1/events. Existing unscoped keys retain all integration operations. Dashboard session APIs use separate workspace role and same-origin checks." },
   servers: [{ url: "/", description: "This Hooka Relay deployment" }],

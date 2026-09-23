@@ -37,13 +37,13 @@ function LanguageCode({ label, code, language, onLanguageChange }: { label: stri
 }
 
 export default function Page() {
-  const section = useSection(["send", "signatures", "retries", "api-reference", "tooling", "faq"]);
+  const section = useSection(["send", "signatures", "retries", "sources", "api-reference", "tooling", "faq"]);
   const [language, setLanguage] = useState<Language>("node");
   return <Shell><article className="docs">
     <div className="docs-intro"><div className="eyebrow">DEVELOPER DOCUMENTATION</div><Link href="/status">View service status</Link></div>
     <h1>Your first webhook, delivered.</h1>
     <p className="docs-lead">Create an application, connect an HTTPS endpoint, then send an event. Hooka Relay stores it durably and delivers it in the background.</p>
-    <SectionNav active={section} items={[{ id: "send", label: "Getting started" }, { id: "signatures", label: "Security" }, { id: "retries", label: "Delivery" }, { id: "api-reference", label: "API reference" }, { id: "tooling", label: "CLI & SDKs" }, { id: "faq", label: "FAQ" }]} />
+    <SectionNav active={section} items={[{ id: "send", label: "Getting started" }, { id: "signatures", label: "Security" }, { id: "retries", label: "Delivery" }, { id: "sources", label: "Inbound sources" }, { id: "api-reference", label: "API reference" }, { id: "tooling", label: "CLI & SDKs" }, { id: "faq", label: "FAQ" }]} />
 
     <Section active={section} name="send">
       <div className="docs-section-head"><span className="docs-icon"><Webhook size={20} /></span><div><div className="eyebrow">GETTING STARTED</div><h2 id="send">Send your first event</h2><p>Copy the Application API key from your application page and keep it on your server.</p></div></div>
@@ -72,9 +72,18 @@ export default function Page() {
       <div className="docs-note-grid"><div className="docs-note"><Radio size={19} /><h3>Try a demo receiver</h3><p>When adding an endpoint, choose <code>succeed</code>, <code>fail</code>, <code>hang</code>, or <code>flaky</code> to see how delivery responds.</p></div><div className="docs-note"><RefreshCw size={19} /><h3>Diagnose and recover</h3><p>Inspect endpoint attempts and advisory failure diagnosis. After a fix, send a synthetic test or replay an exhausted event.</p></div></div>
     </Section>
 
+    <Section active={section} name="sources">
+      <div className="docs-section-head"><span className="docs-icon"><Webhook size={20} /></span><div><div className="eyebrow">INBOUND WEBHOOKS</div><h2>Connect an external provider</h2><p>Open an application&apos;s Webhook Sources tab to start the Setup Wizard.</p></div></div>
+      <div className="docs-steps"><div><span>01</span><strong>Choose a source</strong><p>Select Stripe, GitHub, Slack, Shopify, Twilio, WooCommerce, or Custom / Manual.</p></div><div><span>02</span><strong>Verify the sender</strong><p>Enter the provider&apos;s signing secret and configure its webhook URL.</p></div><div><span>03</span><strong>Forward reliably</strong><p>Verified events enter the existing delivery queue for your destination.</p></div></div>
+      <p>Hooka Relay requires a valid provider signature before accepting an inbound event. The destination receives a Hooka Relay signed JSON payload with <code>provider</code>, <code>sourceId</code>, <code>providerEventId</code>, and <code>data</code>. Retries, circuit protection, idempotency, and delivery logs use the same engine as normal outbound events.</p>
+      <div className="docs-callout"><ShieldCheck size={19} /><p>Stripe, GitHub, Slack, Shopify, Twilio, and WooCommerce have implemented verification. Custom supports configurable HMAC-SHA256 or HMAC-SHA1. PayPal is unavailable because its webhooks need registered webhook ID and certificate or verification API handling; it is never forwarded unverified.</p></div>
+      <p>A source URL is a private token. Its provider secret is encrypted. Failed signature checks appear in the source dashboard with a generic public rejection. Inbound bodies are limited to 256 KB and JSON depth 32, with the existing event quotas.</p>
+      <p>For a provider test, trigger a real signed event in its dashboard. Twilio and Custom offer an explicitly labeled simulation that tests the forwarding path, without claiming to verify the provider.</p>
+    </Section>
+
     <Section active={section} name="api-reference">
       <div className="docs-section-head"><span className="docs-icon"><BookOpen size={20} /></span><div><div className="eyebrow">API REFERENCE</div><h2>Explore the HTTP API</h2><p>Use your Application API key for ingestion; dashboard routes use your signed-in session.</p></div></div>
-      <div className="docs-route-list"><div><code>POST /api/v1/events</code><span>Accept a new event</span></div><div><code>GET /api/v1/applications/:id/events</code><span>Read an event backlog</span></div><div><code>GET /api/endpoints/:id/attempts</code><span>Inspect delivery attempts</span></div><div><code>POST /api/events/:id/replay</code><span>Replay an event</span></div></div>
+      <div className="docs-route-list"><div><code>POST /api/v1/events</code><span>Accept a new event</span></div><div><code>POST /api/inbound/:ingestionToken</code><span>Accept a signed provider webhook</span></div><div><code>GET /api/v1/applications/:id/events</code><span>Read an event backlog</span></div><div><code>GET /api/endpoints/:id/attempts</code><span>Inspect delivery attempts</span></div><div><code>POST /api/events/:id/replay</code><span>Replay an event</span></div></div>
       <div className="docs-callout"><KeyRound size={19} /><p>Use the interactive explorer with a test application key. “Try it out” sends real requests to this deployment. Authorization stays in this page&apos;s memory and clears on reload.</p></div>
       <p>Endpoint registration accepts public HTTPS URLs. Private addresses, redirects, and embedded credentials are rejected.</p>
       {section === "api-reference" && <ApiExplorer />}

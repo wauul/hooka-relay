@@ -1,8 +1,8 @@
 "use client";
 import { T } from "./preferences";
 import { useEffect, useState } from "react";
-import { Activity, Radio, List, KeyRound, Settings, Users, Mail, BookOpen, Code2, RefreshCw, Terminal } from "lucide-react";
-const icons = { overview: Activity, endpoints: Radio, events: List, security: KeyRound, settings: Settings, members: Users, invitations: Mail, send: BookOpen, signatures: KeyRound, retries: RefreshCw, "api-reference": Code2, tooling: Terminal, faq: BookOpen };
+import { Activity, Radio, List, KeyRound, Settings, Users, Mail, BookOpen, Code2, RefreshCw, Terminal, Webhook } from "lucide-react";
+const icons = { overview: Activity, endpoints: Radio, events: List, security: KeyRound, settings: Settings, members: Users, invitations: Mail, sources: Webhook, send: BookOpen, signatures: KeyRound, retries: RefreshCw, "api-reference": Code2, tooling: Terminal, faq: BookOpen };
 export function useSection(names: readonly string[]) {
   const [section, setSection] = useState(names[0]);
   const allowed = names.join(",");

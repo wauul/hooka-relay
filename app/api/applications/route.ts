@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     const uid = await userId();
     const workspaceId = new URL(req.url).searchParams.get("workspaceId") || req.headers.get("x-workspace-id") || await defaultWorkspace(uid);
     await membership(workspaceId, uid);
-    return Response.json(await db.application.findMany({ where: { workspaceId }, select: { id: true, name: true, workspaceId: true, createdAt: true, _count: { select: { endpoints: true, events: true } } }, orderBy: { createdAt: "desc" } }));
+    return Response.json(await db.application.findMany({ where: { workspaceId }, select: { id: true, name: true, workspaceId: true, createdAt: true, _count: { select: { endpoints: { where: { kind: { not: "INBOUND" } } }, events: true } } }, orderBy: { createdAt: "desc" } }));
   } catch (e) { return apiError(e); }
 }
 export async function POST(req: Request) {

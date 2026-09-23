@@ -9,7 +9,7 @@ export async function GET(_req: Request, { params }: Context) {
   try {
     const app = await ownApplication((await params).id);
     const { currentApiKey: _current, previousApiKey: _previous, portalTokenHash: _portalHash, portalTokenEncrypted, ...safe } = app;
-    const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id }, orderBy: { createdAt: "desc" } });
+    const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id, kind: { not: "INBOUND" } }, orderBy: { createdAt: "desc" } });
     return Response.json({ ...safe, portalPath: app.role !== "MEMBER" && portalTokenEncrypted ? `/portal/${decryptSecret(portalTokenEncrypted, app.id)}` : undefined, keyGraceHours: keyGraceHours(), endpoints: endpoints.map(publicEndpoint) });
   } catch (e) { return apiError(e); }
 }

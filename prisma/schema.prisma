@@ -55,6 +55,7 @@ model Application {
   admissions EventAdmission[]
   endpoints Endpoint[]
   events Event[]
+  webhookSources WebhookSource[]
 }
 model Endpoint {
   id String @id @default(cuid())
@@ -89,12 +90,50 @@ model Endpoint {
   createdAt DateTime @default(now())
   attempts DeliveryAttempt[]
   deliveries Delivery[]
+  webhookSource WebhookSource?
+}
+enum WebhookProvider {
+  STRIPE
+  GITHUB
+  SLACK
+  SHOPIFY
+  TWILIO
+  WOOCOMMERCE
+  CUSTOM
+}
+enum WebhookSourceStatus {
+  SETUP_IN_PROGRESS
+  ACTIVE
+  PAUSED
+}
+model WebhookSource {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  endpointId String? @unique
+  endpoint Endpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+  name String
+  provider WebhookProvider
+  ingestionToken String @unique
+  encryptedProviderSecret String?
+  manualConfig Json?
+  destinationUrl String?
+  status WebhookSourceStatus @default(SETUP_IN_PROGRESS)
+  lastEventReceivedAt DateTime?
+  lastVerifiedAt DateTime?
+  lastVerificationFailure String?
+  lastVerificationFailureAt DateTime?
+  createdAt DateTime @default(now())
+  events Event[]
+  @@index([applicationId, createdAt])
 }
 model Event {
   id String @id @default(cuid())
   traceparent String?
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  webhookSourceId String?
+  webhookSource WebhookSource? @relation(fields: [webhookSourceId], references: [id], onDelete: SetNull)
   idempotencyKey String
   type String
   payload Json
@@ -104,6 +143,7 @@ model Event {
   deliveries Delivery[]
   @@unique([applicationId, idempotencyKey])
   @@index([applicationId, createdAt, id])
+  @@index([webhookSourceId, createdAt])
 }
 model Delivery {
   id String @id @default(cuid())
@@ -272,6 +312,7 @@ model AuditLog {
 enum EndpointKind {
   BUSINESS
   OPERATIONAL
+  INBOUND
 }
 enum ApplicationKeyScope {
   READ_ONLY

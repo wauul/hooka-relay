@@ -11,7 +11,7 @@ export async function GET(
   try {
     await ownApplication((await params).id);
     return Response.json(
-      (await db.endpoint.findMany({ where: { applicationId: (await params).id } })).map(publicEndpoint),
+      (await db.endpoint.findMany({ where: { applicationId: (await params).id, kind: { not: "INBOUND" } } })).map(publicEndpoint),
     );
   } catch (e) {
     return apiError(e);

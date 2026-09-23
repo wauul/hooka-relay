@@ -5,6 +5,7 @@ import { ScopedKeys } from "@/components/application-lifecycle";
 import { use } from "react";
 import { ApplicationLifecycle } from "@/components/application-lifecycle";
 import { EventSchemas } from "@/components/event-schemas";
+import { WebhookSources } from "@/components/webhook-sources";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
@@ -21,7 +22,7 @@ import { Shell } from "@/components/shell";
 import { api, useData, Badge, CopyButton, ErrorBox } from "@/components/ui";
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const section = useSection(["overview", "endpoints", "events", "security", "settings"]);
+  const section = useSection(["overview", "endpoints", "sources", "events", "security", "settings"]);
   const { data, error, reload } = useData<any>(
     `/api/applications/${resolvedParams.id}`,
     true,
@@ -53,7 +54,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       {!data && !error && <LoadingState />}
       {data && (
         <>
-          <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "endpoints", label: "Endpoints" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "API Keys & Security" }, { id: "settings", label: "Settings" }]} />
+          <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "endpoints", label: "Endpoints" }, { id: "sources", label: "Webhook Sources" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "API Keys & Security" }, { id: "settings", label: "Settings" }]} />
           <Section active={section} name="overview"><div className="stats"><div className="stat"><div className="stat-label"><T text={"Endpoints"} /></div><div className="stat-value">{data.endpoints.length}</div><p className="muted"><T text={"Connected delivery destinations"} /></p></div><div className="stat"><div className="stat-label"><T text={"Active endpoints"} /></div><div className="stat-value">{data.endpoints.filter((endpoint: any) => endpoint.status === "ACTIVE").length}</div><p className="muted"><T text={"Ready for matching events"} /></p></div></div><section className="panel panel-body"><h2><T text={"Start delivering"} /></h2><p className="muted">Connect a destination, send a test event, then follow its delivery attempts.</p><div className="action-row"><a className="btn secondary" href="#endpoints"><Radio size={16} /><T text={"View endpoints"} /></a><a className="btn" href="#events"><Send size={16} /><T text={"Send a test event"} /></a></div></section></Section>
           <Section active={section} name="security">
           <section className="panel">
@@ -177,6 +178,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               )}
             </section>
           </Section>
+          <Section active={section} name="sources"><WebhookSources applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} /></Section>
           <Section active={section} name="events">
             <section className="panel">
               <div className="panel-head">

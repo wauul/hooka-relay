@@ -24,6 +24,7 @@ export async function ownEndpoint(id: string, action: Action = "view") {
     where: { id, application: { workspace: { members: { some: { userId: uid } } } } },
   });
   if (!endpoint) throw new Error("NOT_FOUND");
+  if (endpoint.kind === "INBOUND" && action !== "view") throw new Error("FORBIDDEN");
   const app = await db.application.findUniqueOrThrow({ where: { id: endpoint.applicationId } });
   const member = await membership(app.workspaceId, uid, action);
   return { ...endpoint, role: member.role };

@@ -144,6 +144,24 @@ New settings: `ENDPOINT_SECRET_ENCRYPTION_KEY` (required, identical on web/worke
 
 The production security migration was completed on 2026-09-21. Other existing installations must follow the offline credential migration and receiver signature update in [SECURITY.md](SECURITY.md) before upgrading. Request bodies over 256 KiB return 413; JSON depth over 32 returns 400. IP throttling runs before authentication and returns 429 with `Retry-After: 60` and `{ "error": "Too many requests. Try again shortly.", "retryAfter": 60 }`. The existing per-application admission limit is separate.
 
+## Inbound webhook Setup Wizard
+
+Open an application's **Webhook Sources** tab to add a source. The wizard creates a unique `/api/inbound/<token>` URL, guides provider setup, encrypts the provider signing secret, validates your destination as public HTTPS, and waits for a real signed event or an explicitly marked forwarding simulation. Verified events use the existing `Event → Delivery → DeliveryAttempt` outbox and worker. The dedicated inbound `Endpoint` is excluded from ordinary outbound endpoint lists but has the same retry, circuit, idempotency, and attempt history behavior. No second delivery engine is used.
+
+| Provider | Verification | Setup reference |
+| --- | --- | --- |
+| Stripe | `Stripe-Signature`, HMAC-SHA256 over timestamp and raw body, five-minute tolerance | [Stripe webhooks](https://docs.stripe.com/webhooks) |
+| GitHub | `X-Hub-Signature-256`, raw-body HMAC-SHA256 | [GitHub validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries) |
+| Slack | `X-Slack-Signature`, `v0:timestamp:body` HMAC-SHA256, five-minute tolerance | [Slack verification](https://docs.slack.dev/authentication/verifying-requests-from-slack/) |
+| Shopify | `X-Shopify-Hmac-Sha256`, base64 raw-body HMAC-SHA256 | [Shopify verification](https://shopify.dev/docs/apps/build/webhooks/verify-deliveries) |
+| Twilio | `X-Twilio-Signature`, URL + sorted form parameters HMAC-SHA1; JSON `bodySHA256` also checked | [Twilio security](https://www.twilio.com/docs/usage/webhooks/webhooks-security) |
+| WooCommerce | `X-WC-Webhook-Signature`, base64 raw-body HMAC-SHA256 | [WooCommerce webhooks](https://developer.woocommerce.com/docs/apis/rest-api/v2/webhooks) |
+| Custom / Manual | Configurable HMAC-SHA256/SHA1, hex/base64, optional timestamp format | Provider's own signing documentation |
+
+PayPal is **not** selectable or forwarded unverified. PayPal webhook verification requires its registered webhook ID and either RSA certificate verification or an authenticated server-to-server call to its `verify-webhook-signature` API; its simulator does not support that API. See [PayPal's webhook guide](https://developer.paypal.com/api/rest/webhooks/rest/). Other providers are omitted until their schemes have verified adapters. Twilio and Custom offer a simulation of Hooka Relay forwarding; it does **not** prove the provider signature configuration. Actual live provider verification requires a signed webhook from the provider.
+
+Source signing secrets use the existing AES-256-GCM credential key (`ENDPOINT_SECRET_ENCRYPTION_KEY`). Apply `202609230001_webhook_sources` with the schema-owner connection before deploying web/worker code. A source in setup can receive signed test events after its secret and destination are saved; paused sources return 503. Failed signature reasons are only shown in the authenticated source dashboard, while public responses stay generic. The destination receives a Hooka Relay signed JSON wrapper: `{ provider, sourceId, providerEventId, data }`.
+
 ## Customer portal
 
 Workspace admins can enable a private customer link from an application page. Visitors need no account: they can register public HTTPS endpoints, inspect their signing secrets and recent delivery results, pause/resume, and delete their own endpoints. Each visitor receives a separate HttpOnly browser credential; possessing the shared application link alone does not grant access to other visitors' or dashboard-created endpoints. Clearing cookies or changing browsers loses that visitor access; the workspace admin can still manage the endpoints.

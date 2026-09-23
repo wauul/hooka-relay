@@ -48,14 +48,14 @@ export async function cliApi(req: Request, path: string[]) {
     }
     if (path[0] === "endpoints" && path[1] && path.length === 3 && req.method === "PATCH" && ["pause", "resume", "configuration"].includes(path[2])) {
       const endpoint = await db.endpoint.findFirst({ where: { id: path[1], applicationId: app.id } });
-      if (!endpoint) throw new ApiFailure(404, "Endpoint not found");
+      if (!endpoint || endpoint.kind === "INBOUND") throw new ApiFailure(404, "Endpoint not found");
       const data = path[2] === "configuration" ? endpointOptionData(endpoint, endpointOptions.parse(await boundedJson(req, 16384))) : { status: path[2] === "pause" ? "PAUSED" as const : "ACTIVE" as const };
       const updated = await db.endpoint.update({ where: { id: endpoint.id }, data });
       return json({ id: updated.id, status: effectiveEndpointStatus(updated), environment: updated.environment });
     }
     if (req.method === "GET" && route === "me") return json({ application: app });
     if (route === "endpoints" && req.method === "GET") {
-      const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id }, select: endpointFields, orderBy: { createdAt: "asc" } });
+      const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id, kind: { not: "INBOUND" } }, select: endpointFields, orderBy: { createdAt: "asc" } });
       const counts = await db.deliveryAttempt.groupBy({
         by: ["endpointId", "status"],
         where: { endpoint: { applicationId: app.id }, createdAt: { gte: new Date(Date.now() - 86400000) }, status: { not: "SKIPPED_CIRCUIT_OPEN" } },
@@ -80,7 +80,7 @@ export async function cliApi(req: Request, path: string[]) {
     }
     if (path[0] === "endpoints" && path[1] && path.length === 3 && ["rotate-secret", "signature-format"].includes(path[2])) {
       const ep = await db.endpoint.findFirst({ where: { id: path[1], applicationId: app.id } });
-      if (!ep) throw new ApiFailure(404, "Endpoint not found");
+      if (!ep || ep.kind === "INBOUND") throw new ApiFailure(404, "Endpoint not found");
       const actor = "api-key:" + hashApiKey(key);
       if (req.method === "POST" && path[2] === "rotate-secret") return json(await db.$transaction(tx => rotateSigningSecret(tx, ep.id, actor)));
       if (req.method === "PATCH" && path[2] === "signature-format") {
