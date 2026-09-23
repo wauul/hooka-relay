@@ -1525,7 +1525,53 @@ html[data-theme="light"] .invite-page { background:radial-gradient(ellipse at 50
 .api-explorer .swagger-ui .expand-operation svg, .api-explorer .swagger-ui .expand-methods svg { fill:var(--text); }
 .api-explorer .swagger-ui :is(.opblock-description-wrapper p,.opblock-external-docs-wrapper p,.opblock-title_normal,.parameter__in,.model-hint,.prop-type,.prop-format,.response-col_links) { color:var(--muted); }
 .api-explorer .swagger-ui :is(.highlight-code,.microlight) { background:var(--code); color:var(--text); }
-.docs-contents { display:flex; flex-wrap:wrap; gap:10px; margin:28px 0 40px; }.docs-contents a { border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:10px 14px; font-size:12px; min-height:44px; }
+.docs-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.docs-intro a,.docs-link-row a { color:var(--green); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
+.docs-lead { max-width:680px; font-size:16px; margin-bottom:34px; }
+.docs .section-nav { margin-bottom:36px; }
+.docs-section-head { display:flex; align-items:flex-start; gap:18px; margin:8px 0 26px; }
+.docs-section-head .eyebrow { margin:2px 0 8px; }
+.docs .docs-section-head h2 { margin:0 0 8px; font-size:25px; }
+.docs-section-head p { margin:0; max-width:640px; }
+.docs-icon { display:grid; place-items:center; width:44px; height:44px; border:1px solid var(--line); border-radius:12px; background:var(--accent-soft); color:var(--green); flex:none; }
+.docs-steps,.docs-flow,.docs-note-grid,.docs-state-grid,.docs-policy-grid { display:grid; gap:12px; margin:24px 0; }
+.docs-steps,.docs-flow,.docs-state-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.docs-note-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.docs-policy-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.docs-steps>div,.docs-flow>div,.docs-note,.docs-state-grid>div,.docs-policy { min-width:0; padding:20px; border:1px solid var(--line); border-radius:13px; background:var(--surface); }
+.docs-steps span,.docs-flow span { display:grid; place-items:center; width:29px; height:29px; margin-bottom:18px; border-radius:9px; background:var(--accent-soft); color:var(--green); font-size:12px; font-weight:700; }
+.docs-steps strong,.docs-flow strong,.docs-state-grid strong,.docs-policy strong { display:block; font-size:14px; color:var(--text); }
+.docs-steps p,.docs-flow p,.docs-note p,.docs-state-grid p,.docs-policy p { margin:9px 0 0; font-size:12px; line-height:1.65; }
+.docs-example { margin:28px 0; border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+.docs-example-head { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 14px 10px 20px; background:var(--surface); }
+.docs-example-head strong { font-size:13px; }
+.docs-language { display:flex; gap:3px; padding:3px; border:1px solid var(--line); border-radius:9px; }
+.docs-language button { min-height:34px; padding:5px 11px; border:0; border-radius:6px; background:transparent; color:var(--muted); font-size:12px; cursor:pointer; }
+.docs-language button[aria-pressed="true"] { background:var(--accent-soft); color:var(--green); font-weight:700; }
+.docs-example .code-block { margin:0; border:0; border-radius:0; }
+.docs-callout { display:flex; align-items:flex-start; gap:12px; margin:24px 0; padding:17px 19px; border:1px solid var(--line); border-left:3px solid var(--green); border-radius:10px; background:var(--accent-soft); }
+.docs-callout svg { flex:none; color:var(--green); margin-top:3px; }
+.docs-callout p { margin:0; font-size:13px; line-height:1.7; }
+.docs-note svg,.docs-state-grid svg { color:var(--green); margin-bottom:12px; }
+.docs-note h3 { font-size:14px; margin:0; }
+.docs-timeline { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:28px 0 12px; }
+.docs-timeline>div { min-width:0; position:relative; padding:16px 10px; border:1px solid var(--line); border-radius:11px; background:var(--surface); text-align:center; }
+.docs-timeline>div+div:before { content:"→"; position:absolute; left:-13px; top:25px; z-index:1; color:var(--green); font-weight:700; }
+.docs-timeline strong { display:grid; place-items:center; width:28px; height:28px; margin:0 auto 11px; border-radius:50%; background:var(--accent-soft); color:var(--green); font-size:12px; }
+.docs-timeline span,.docs-timeline small { display:block; }
+.docs-timeline span { font-size:12px; font-weight:700; }
+.docs-timeline small { margin-top:5px; color:var(--muted); font-size:11px; }
+.docs-caption { font-size:12px; }
+.docs-policy span { color:var(--green); font-size:10px; font-weight:700; letter-spacing:.08em; }
+.docs-policy strong { margin-top:10px; }
+.docs-subhead { margin:34px 0 14px; font-size:17px; }
+.docs-route-list { margin:25px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.docs-route-list>div { display:flex; justify-content:space-between; gap:16px; padding:16px 18px; background:var(--surface); }
+.docs-route-list>div+div { border-top:1px solid var(--line); }
+.docs-route-list code { color:var(--green); font-size:12px; }
+.docs-route-list span { color:var(--muted); font-size:12px; text-align:right; }
+.docs-link-row { display:flex; flex-wrap:wrap; gap:20px; margin:18px 0 32px; }
+@media(max-width:700px) { .docs-steps,.docs-flow,.docs-note-grid,.docs-state-grid,.docs-policy-grid { grid-template-columns:1fr; }.docs-timeline { grid-template-columns:repeat(2,minmax(0,1fr)); }.docs-timeline>div+div:before { display:none; }.docs-example-head { flex-wrap:wrap; }.docs-route-list>div { flex-direction:column; gap:5px; }.docs-route-list span { text-align:left; } }
 
 /* Public landing: same charcoal/mint tokens as the workspace. */
 .landing { max-width:1200px; padding:0 32px; margin:0 auto; }.landing-header { display:flex; align-items:center; gap:32px; padding:28px 0; border-bottom:1px solid var(--line); }.landing-header > nav { display:flex; gap:24px; align-items:center; margin-left:auto; font-size:13px; color:var(--muted); }.landing-header-actions { display:flex; gap:20px; align-items:center; }.landing-header .preferences .relay-select { width:112px; }

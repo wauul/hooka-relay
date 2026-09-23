@@ -1,158 +1,98 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
+import { BookOpen, CheckCircle2, Clock3, KeyRound, Radio, RefreshCw, ShieldCheck, Terminal, Webhook } from "lucide-react";
 import { Section, SectionNav, useSection } from "@/components/section-nav";
 import { CodeBlock } from "@/components/ui";
 import { Shell } from "@/components/shell";
 import { faq } from "@/lib/site";
 import { OutboundLink } from "@/components/site-tools";
 import { ApiExplorer } from "@/components/api-explorer";
-export default function Page() {
-  const section = useSection(["send", "signatures", "retries", "api-reference", "faq"]);
-  return (
-    <Shell>
-      <article className="docs">
-        <div className="eyebrow">DEVELOPER DOCUMENTATION</div><Link href="/status">View service status</Link>
-        <h1 style={{ fontSize: 34, letterSpacing: -1 }}>
-          Your first webhook, delivered.
-        </h1>
-        <p>
-          Create an application, register an HTTPS endpoint, then send an event.
-          Hooka Relay stores it durably and delivers matching events
-          asynchronously.
-        </p>
-        <SectionNav active={section} items={[{ id: "send", label: "Getting started" }, { id: "signatures", label: "Security" }, { id: "retries", label: "Delivery" }, { id: "api-reference", label: "API reference" }, { id: "faq", label: "FAQ" }]} />
-        <Section active={section} name="send">
-          <h2 id="send">1. Send an event</h2>
-        <CodeBlock>{`curl -X POST "$RELAY_URL/api/v1/events" \\\n  -H "Authorization: Bearer $API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"type":"order.shipped","idempotencyKey":"order-1042-shipped",\n       "payload":{"orderId":"ord_1042"}}'`}</CodeBlock>
-        <p>
-          A successful request returns <code>202 Accepted</code> with the stored
-          event. The payload limit is 256 KB. Events match endpoints subscribed
-          to their exact type or <code>*</code>. Delivery never blocks on a
-          receiver.
-        </p>
-        </Section>
-        <Section active={section} name="signatures">
-        <h2 id="signatures">2. Verify the signature</h2>
-        <p>New endpoints use Standard Webhooks. Use the displayed whsec_ secret with the standardwebhooks library, and deduplicate the authenticated webhook-id after verification. The ID stays the same across retries; timestamps are refreshed per attempt.</p>
-        <CodeBlock>{`import { Webhook } from "standardwebhooks";
-const payload = new Webhook(secret).verify(rawBody, {
-  "webhook-id": headers["webhook-id"],
-  "webhook-timestamp": headers["webhook-timestamp"],
-  "webhook-signature": headers["webhook-signature"],
-});`}</CodeBlock>
-        <p>Existing endpoints retain legacy signatures until you switch their signing format. Rotation signs with both keys for seven days; update your receiver before the displayed expiry. The legacy verification example follows.</p>
-        <p>
-          Every POST contains the event payload as its JSON body. Verify{" "}
-          <code>X-Webhook-Signature</code> against the exact raw bytes using the
-          endpoint’s signing secret. The header signs the timestamp, a period, and the raw body. Reject timestamps outside five minutes and keep your receiver clock synchronized.
-        </p>
-        <CodeBlock>{`import { createHmac, timingSafeEqual } from 'node:crypto';\n\nexport function verifyWebhook(rawBody, signature, secret) {\n  const parts = /^t=(\\d{1,12}),v1=([a-f0-9]{64})$/.exec(signature || '');\n  if (!parts || Math.abs(Date.now() / 1000 - Number(parts[1])) > 300) return false;\n  const expected = createHmac('sha256', secret)\n    .update(parts[1] + '.').update(rawBody).digest();\n  return timingSafeEqual(Buffer.from(parts[2], 'hex'), expected);\n}`}</CodeBlock>
-        <p>
-          Reject invalid signatures before processing. Do not parse and
-          reserialize JSON before verification, because whitespace or field
-          order can change the signed bytes.
-        </p>
-        <h2 id="idempotency">3. Make receivers idempotent</h2>
-        <p>
-          Supply an <code>idempotencyKey</code> to prevent duplicate producer
-          submissions within an application. Omit it to generate a UUID. A
-          repeated key returns the original event, even when the new payload
-          differs.
-        </p>
-        <p>
-          At-least-once delivery means a receiver can see an event more than
-          once—for example, if it processes a request but the acknowledgement is
-          lost. For Standard Webhooks, atomically store the verified <code>webhook-id</code> with your
-          business changes. Return 2xx for an already processed event. Replays
-          preserve the original key.
-        </p>
-        </Section>
-        <Section active={section} name="retries">
-        <h2 id="retries">Retries & circuit breaking</h2>
-        <p>
-          Standard policy allows five HTTP attempts: immediately, then after
-          30 seconds, 2 minutes, 5 minutes, and 15 minutes. Each request has a
-          10-second deadline. A final failure becomes DEAD_LETTERED. Admins can choose aggressive (seven attempts) or relaxed (four attempts) per endpoint. The relaxed policy uses the existing 30-minute delay queue.
-        </p>
-        <ul>
-          <li>
-            <strong>CLOSED:</strong> Normal delivery. Five consecutive endpoint
-            failures open the circuit.
-          </li>
-          <li>
-            <strong>OPEN:</strong> Requests are skipped and logged without
-            spending the HTTP retry budget.
-          </li>
-          <li>
-            <strong>HALF_OPEN:</strong> After ten minutes, one recovery probe
-            runs. Success closes the circuit; failure restarts the cooldown.
-          </li>
-        </ul>
-        <p>
-          Delayed messages use standard RabbitMQ TTL and dead-letter exchanges,
-          compatible with CloudAMQP’s shared free plan. A database outbox
-          recovers interrupted publishing and overdue deliveries.
-        </p>
-        <h2 id="receivers">Demo receivers</h2>
-        <p>
-          Use “Add endpoint” to register <code>succeed</code>, <code>fail</code>
-          , <code>hang</code>, or <code>flaky</code>. Flaky fails twice for each
-          endpoint/event key, then succeeds. Hang waits longer than the worker
-          deadline; the hosting platform eventually terminates it.
-        </p>
-        <h2 id="diagnosis">Failure diagnosis</h2>
-        <p>
-          After three consecutive failures, Hooka Relay compares up to 20 HTTP attempts
-          for changes in status, latency, redirects and captured response size.
-          Groq receives those timestamped facts and up to eight short response excerpts. These responses are sent to Groq; avoid
-          sensitive information in receiver error bodies. Diagnosis is advisory
-          and never blocks future delivery if unavailable.
-        </p>
-        <p>Use “Send synthetic test” on an endpoint to verify a fix. It sends a real, signed <code>hooka.test</code> event only to that destination through the normal outbox and worker. Pause, circuit protection, throttling, schemas and retries still apply. Tests are limited to five per endpoint per minute plus the application budget. The dashboard follows the result for 30 seconds; delivery logs remain available afterward. Auto-Heal suggests and tests; it never edits receiver configuration automatically.</p>
-        </Section>
-        <Section active={section} name="api-reference">
-        <h2 id="api-overview">API reference</h2>
-        <CodeBlock>{`POST /api/v1/events                     API-key authentication\nGET/POST /api/applications/:id/endpoints Session authentication\nGET /api/endpoints/:id/attempts          Session authentication\nPOST /api/events/:id/replay              Session authentication\nGET/POST /api/fake-receiver/:mode        Public demo receiver`}</CodeBlock>
-        <p>
-          Endpoint registration accepts{" "}
-          <code>
-            {'{"url":"https://example.com/webhook","eventTypes":["*"]}'}
-          </code>
-          . Dashboard routes enforce application ownership. Private IP ranges,
-          redirects, embedded credentials, and non-HTTPS destinations are
-          blocked.
-        </p>
-        <h2 id="cli">Command-line companion</h2>
-        <p>Send, tail and replay events without leaving your terminal.</p>
-        <CodeBlock>
-          {"npm install -g hooka-relay-cli\nhooka login\nhooka tail"}
-        </CodeBlock>
-        <OutboundLink
-          className="btn secondary"
-          href="https://www.npmjs.com/package/hooka-relay-cli"
-          target="_blank"
-        >
-          Explore the CLI ↗
-        </OutboundLink>
-        {section === "api-reference" && <ApiExplorer />}
-        </Section>
-        <Section active={section} name="faq">
-        <section className="faq-section" aria-labelledby="faq">
-          <div className="eyebrow">GOOD QUESTIONS. CLEAR ANSWERS.</div>
-          <h2 id="faq">Frequently asked questions</h2>
-          {faq.map((item, i) => (
-            <details className="faq-item" id={`faq-${i}`} key={item.question}>
-              <summary>
-                {item.question}
-                <span aria-hidden="true">+</span>
-              </summary>
-              <p>{item.answer}</p>
-            </details>
-          ))}
-        </section>
-        </Section>
-      </article>
-    </Shell>
-  );
+
+type Language = "node" | "python";
+
+const examples = {
+  send: {
+    node: ['import { HookaRelay } from "hooka-relay-node";', 'const relay = new HookaRelay(process.env.HOOKA_API_KEY);', '', 'const event = await relay.sendEvent({', '  type: "order.shipped",', '  payload: { orderId: "ord_1042" },', '  idempotencyKey: "order-1042-shipped",', '});', 'console.log(event.id);'].join("\n"),
+    python: ['import os', 'from hooka_relay import HookaRelay', '', 'relay = HookaRelay(os.environ["HOOKA_API_KEY"])', 'event = relay.send_event({', '    "type": "order.shipped",', '    "payload": {"orderId": "ord_1042"},', '    "idempotencyKey": "order-1042-shipped",', '})', 'print(event["id"])'].join("\n"),
+  },
+  verify: {
+    node: ['import { verifyWebhook } from "hooka-relay-node";', '', '// rawBody is the exact request body, before JSON parsing.', 'const payload = verifyWebhook(rawBody, {', '  "webhook-id": request.headers["webhook-id"],', '  "webhook-timestamp": request.headers["webhook-timestamp"],', '  "webhook-signature": request.headers["webhook-signature"],', '}, process.env.HOOKA_SIGNING_SECRET);', '', '// Persist the verified webhook-id with your business change.', 'console.log(payload);'].join("\n"),
+    python: ['import os', 'from hooka_relay import verify_webhook', '', '# raw_body is the exact request body, before JSON parsing.', 'payload = verify_webhook(raw_body, {', '    "webhook-id": headers["webhook-id"],', '    "webhook-timestamp": headers["webhook-timestamp"],', '    "webhook-signature": headers["webhook-signature"],', '}, os.environ["HOOKA_SIGNING_SECRET"])', '', '# Persist the verified webhook-id with your business change.', 'print(payload)'].join("\n"),
+  },
+  install: {
+    node: 'npm install hooka-relay-node',
+    python: 'pip install hooka-relay-python',
+  },
+};
+
+function LanguageCode({ label, code, language, onLanguageChange }: { label: string; code: Record<Language, string>; language: Language; onLanguageChange: (language: Language) => void }) {
+  return <div className="docs-example">
+    <div className="docs-example-head"><strong>{label}</strong><div className="docs-language" role="group" aria-label={`${label} language`}>
+      <button type="button" aria-pressed={language === "node"} onClick={() => onLanguageChange("node")}>Node.js</button>
+      <button type="button" aria-pressed={language === "python"} onClick={() => onLanguageChange("python")}>Python</button>
+    </div></div>
+    <CodeBlock>{code[language]}</CodeBlock>
+  </div>;
 }
 
+export default function Page() {
+  const section = useSection(["send", "signatures", "retries", "api-reference", "tooling", "faq"]);
+  const [language, setLanguage] = useState<Language>("node");
+  return <Shell><article className="docs">
+    <div className="docs-intro"><div className="eyebrow">DEVELOPER DOCUMENTATION</div><Link href="/status">View service status</Link></div>
+    <h1>Your first webhook, delivered.</h1>
+    <p className="docs-lead">Create an application, connect an HTTPS endpoint, then send an event. Hooka Relay stores it durably and delivers it in the background.</p>
+    <SectionNav active={section} items={[{ id: "send", label: "Getting started" }, { id: "signatures", label: "Security" }, { id: "retries", label: "Delivery" }, { id: "api-reference", label: "API reference" }, { id: "tooling", label: "CLI & SDKs" }, { id: "faq", label: "FAQ" }]} />
+
+    <Section active={section} name="send">
+      <div className="docs-section-head"><span className="docs-icon"><Webhook size={20} /></span><div><div className="eyebrow">GETTING STARTED</div><h2 id="send">Send your first event</h2><p>Copy the Application API key from your application page and keep it on your server.</p></div></div>
+      <div className="docs-steps"><div><span>01</span><strong>Create an application</strong><p>It holds your key, endpoints, and event history.</p></div><div><span>02</span><strong>Add an HTTPS endpoint</strong><p>Subscribe it to <code>order.shipped</code> or <code>*</code>.</p></div><div><span>03</span><strong>Send an event</strong><p>The API accepts it with <code>202 Accepted</code>; delivery runs asynchronously.</p></div></div>
+      <LanguageCode label="Send an event" code={examples.send} language={language} onLanguageChange={setLanguage} />
+      <div className="docs-callout"><CheckCircle2 size={19} /><p>Use the same <code>idempotencyKey</code> when retrying an uncertain send. A repeated key returns the original event, even if the new payload differs.</p></div>
+      <p>Payloads can be up to 256 KB. An endpoint receives an event when it subscribes to the event&apos;s exact type or <code>*</code>.</p>
+    </Section>
+
+    <Section active={section} name="signatures">
+      <div className="docs-section-head"><span className="docs-icon"><ShieldCheck size={20} /></span><div><div className="eyebrow">SECURITY</div><h2 id="signatures">Trust the webhook before processing it</h2><p>Every new endpoint uses Standard Webhooks and has its own <code>whsec_</code> signing secret.</p></div></div>
+      <div className="docs-flow" aria-label="Webhook verification steps"><div><span>1</span><strong>Receive raw bytes</strong><p>Keep the body exactly as sent. Parsing and serializing it again changes the signed bytes.</p></div><div><span>2</span><strong>Verify the signature</strong><p>Use the SDK and the endpoint secret to check the ID, timestamp, and body.</p></div><div><span>3</span><strong>Record the event ID</strong><p>Save the verified <code>webhook-id</code> with your business change so a retry has no second effect.</p></div></div>
+      <LanguageCode label="Verify a delivery" code={examples.verify} language={language} onLanguageChange={setLanguage} />
+      <div className="docs-note-grid"><div className="docs-note"><KeyRound size={19} /><h3>Which key goes where?</h3><p>Your Application API key sends events. An endpoint&apos;s signing secret verifies deliveries. Keep both on the server.</p></div><div className="docs-note"><Clock3 size={19} /><h3>Rotation and time</h3><p>During rotation, either signing key verifies for seven days by default. Verification rejects timestamps outside five minutes.</p></div></div>
+      <div className="docs-callout"><ShieldCheck size={19} /><p>Existing <code>LEGACY</code> endpoints keep their old signature format until you switch them. Update the receiver first; then change its signing format in endpoint settings.</p></div>
+    </Section>
+
+    <Section active={section} name="retries">
+      <div className="docs-section-head"><span className="docs-icon"><RefreshCw size={20} /></span><div><div className="eyebrow">DELIVERY</div><h2 id="retries">When a receiver does not respond</h2><p>Return any 2xx response after accepting a verified event. A timeout or non-2xx response schedules another attempt.</p></div></div>
+      <div className="docs-timeline" aria-label="Standard retry schedule"><div><strong>1</strong><span>Now</span><small>First attempt</small></div><div><strong>2</strong><span>+30 seconds</span><small>First retry</small></div><div><strong>3</strong><span>+2 minutes</span><small>Second retry</small></div><div><strong>4</strong><span>+5 minutes</span><small>Third retry</small></div><div><strong>5</strong><span>+15 minutes</span><small>Final attempt</small></div></div>
+      <p className="docs-caption">Standard policy has five total HTTP attempts. Each request has a 10-second deadline. After the final failure, the delivery becomes <code>DEAD_LETTERED</code>.</p>
+      <div className="docs-policy-grid"><div className="docs-policy"><span>STANDARD · DEFAULT</span><strong>5 attempts</strong><p>30s · 2m · 5m · 15m</p></div><div className="docs-policy"><span>AGGRESSIVE</span><strong>7 attempts</strong><p>30s · 30s · 30s · 2m · 2m · 5m</p></div><div className="docs-policy"><span>RELAXED</span><strong>4 attempts</strong><p>5m · 15m · 30m</p></div></div>
+      <h3 className="docs-subhead">What the circuit breaker does</h3>
+      <div className="docs-state-grid"><div><Radio size={18} /><strong>Closed</strong><p>Normal delivery. Five consecutive endpoint failures open the circuit.</p></div><div><Clock3 size={18} /><strong>Open</strong><p>Requests are skipped without using an HTTP attempt. The endpoint cools down for ten minutes.</p></div><div><CheckCircle2 size={18} /><strong>Half-open</strong><p>One probe tests recovery. Success closes the circuit; failure restarts the cooldown.</p></div></div>
+      <div className="docs-callout"><RefreshCw size={19} /><p>For example, if your server is down after accepting an event, a retry can arrive later. Keep handlers idempotent. Delivery order is not guaranteed across retries or replays.</p></div>
+      <div className="docs-note-grid"><div className="docs-note"><Radio size={19} /><h3>Try a demo receiver</h3><p>When adding an endpoint, choose <code>succeed</code>, <code>fail</code>, <code>hang</code>, or <code>flaky</code> to see how delivery responds.</p></div><div className="docs-note"><RefreshCw size={19} /><h3>Diagnose and recover</h3><p>Inspect endpoint attempts and advisory failure diagnosis. After a fix, send a synthetic test or replay an exhausted event.</p></div></div>
+    </Section>
+
+    <Section active={section} name="api-reference">
+      <div className="docs-section-head"><span className="docs-icon"><BookOpen size={20} /></span><div><div className="eyebrow">API REFERENCE</div><h2>Explore the HTTP API</h2><p>Use your Application API key for ingestion; dashboard routes use your signed-in session.</p></div></div>
+      <div className="docs-route-list"><div><code>POST /api/v1/events</code><span>Accept a new event</span></div><div><code>GET /api/v1/applications/:id/events</code><span>Read an event backlog</span></div><div><code>GET /api/endpoints/:id/attempts</code><span>Inspect delivery attempts</span></div><div><code>POST /api/events/:id/replay</code><span>Replay an event</span></div></div>
+      <div className="docs-callout"><KeyRound size={19} /><p>Use the interactive explorer with a test application key. “Try it out” sends real requests to this deployment. Authorization stays in this page&apos;s memory and clears on reload.</p></div>
+      <p>Endpoint registration accepts public HTTPS URLs. Private addresses, redirects, and embedded credentials are rejected.</p>
+      {section === "api-reference" && <ApiExplorer />}
+    </Section>
+
+    <Section active={section} name="tooling">
+      <div className="docs-section-head"><span className="docs-icon"><Terminal size={20} /></span><div><div className="eyebrow">CLI & SDKs</div><h2>Build with the tools you prefer</h2><p>Use a server SDK in your application, or work from the terminal with the CLI.</p></div></div>
+      <h3 className="docs-subhead">Node.js and Python SDKs</h3>
+      <p>The SDKs send events and verify Standard Webhooks. They make one request per send, with no automatic retries; reuse an explicit idempotency key if a network result is uncertain.</p>
+      <LanguageCode label="Install the SDK" code={examples.install} language={language} onLanguageChange={setLanguage} />
+      <div className="docs-link-row"><OutboundLink href="https://www.npmjs.com/package/hooka-relay-node" target="_blank">Node.js package ↗</OutboundLink><OutboundLink href="https://pypi.org/project/hooka-relay-python/" target="_blank">Python package ↗</OutboundLink></div>
+      <h3 className="docs-subhead">Command-line companion</h3>
+      <p>Install <code>hooka-relay-cli</code>, then authenticate with an Application API key. The CLI can send, tail, inspect endpoints, and replay deliveries.</p>
+      <CodeBlock>{'npm install -g hooka-relay-cli\nhooka login\nhooka send --type order.shipped --payload-file payload.json\nhooka tail\nhooka replay EVENT_ID'}</CodeBlock>
+      <div className="docs-callout"><Terminal size={19} /><p><code>hooka login</code> saves your key locally. Run <code>hooka logout</code> to remove it. An ingest-only key can send with <code>--no-wait</code>; inspection and replay require broader key access.</p></div>
+      <div className="docs-link-row"><OutboundLink href="https://www.npmjs.com/package/hooka-relay-cli" target="_blank">CLI package ↗</OutboundLink><OutboundLink href="https://github.com/wauul/hooka-cli" target="_blank">CLI command reference ↗</OutboundLink></div>
+    </Section>
+
+    <Section active={section} name="faq"><section className="faq-section" aria-labelledby="faq"><div className="eyebrow">GOOD QUESTIONS. CLEAR ANSWERS.</div><h2 id="faq">Frequently asked questions</h2>{faq.map((item, i) => <details className="faq-item" id={`faq-${i}`} key={item.question}><summary>{item.question}<span aria-hidden="true">+</span></summary><p>{item.answer}</p></details>)}</section></Section>
+  </article></Shell>;
+}
