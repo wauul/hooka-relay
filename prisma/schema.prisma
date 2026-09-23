@@ -67,7 +67,7 @@ model Endpoint {
   // Versioned AES-256-GCM ciphertext, bound to applicationId.
   secret String
   secretVersion Int @default(0)
-  signatureFormat SignatureFormat @default(LEGACY)
+    signatureFormat SignatureFormat @default(STANDARD)
   previousSecret String?
   previousSecretVersion Int?
   previousSecretExpiresAt DateTime?
@@ -99,7 +99,20 @@ enum WebhookProvider {
   SHOPIFY
   TWILIO
   WOOCOMMERCE
-  CUSTOM
+  LINEAR
+  SQUARE
+  INTERCOM
+  MAILGUN
+  ZOOM
+  FACEBOOK
+  INSTAGRAM
+  WHATSAPP
+  TIKTOK
+    LINKEDIN
+    ZENDESK
+    TYPEFORM
+    PADDLE
+    CUSTOM
 }
 enum WebhookSourceStatus {
   SETUP_IN_PROGRESS
@@ -118,6 +131,8 @@ model WebhookSource {
   encryptedProviderSecret String?
   manualConfig Json?
   destinationUrl String?
+  setupStep Int @default(2)
+  verificationTokenHash String?
   status WebhookSourceStatus @default(SETUP_IN_PROGRESS)
   lastEventReceivedAt DateTime?
   lastVerifiedAt DateTime?
@@ -294,7 +309,6 @@ model SupportDecision {
 }
 
 enum SignatureFormat {
-  LEGACY
   STANDARD
 }
 model AuditLog {

@@ -1,5 +1,4 @@
 import { POST as rotateSigning } from "../../app/api/endpoints/[id]/rotate-secret/route";
-import { PATCH as changeFormat } from "../../app/api/endpoints/[id]/signature-format/route";
 import { PATCH as changeRetry } from "../../app/api/endpoints/[id]/retry-policy/route";
 import { POST as createAppRoute } from "../../app/api/applications/route";
 import { GET as endpointList } from "../../app/api/applications/[id]/endpoints/route";
@@ -609,10 +608,8 @@ it("restricts signing management to administrators and audits secret display", a
   for (const index of [2, 3]) {
     session(index);
     expect((await rotateSigning(req(), context(ep.id))).status).toBe(index === 2 ? 403 : 404);
-    expect((await changeFormat(req({ signatureFormat: "STANDARD" }, "PATCH"), context(ep.id))).status).toBe(index === 2 ? 403 : 404);
   }
   session(1);
-  expect((await changeFormat(req({ signatureFormat: "STANDARD" }, "PATCH"), context(ep.id))).status).toBe(200);
   expect((await rotateSigning(req(), context(ep.id))).status).toBe(200);
   expect((await rotateSigning(req(), context(ep.id))).status).toBe(409);
   expect((await endpointDetails(req(undefined, "GET"), context(ep.id))).status).toBe(200);

@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
-export const providerNames = ["STRIPE", "GITHUB", "SLACK", "SHOPIFY", "TWILIO", "WOOCOMMERCE", "CUSTOM"] as const;
+export const providerNames = ["STRIPE", "GITHUB", "SLACK", "SHOPIFY", "TWILIO", "WOOCOMMERCE", "LINEAR", "SQUARE", "INTERCOM", "MAILGUN", "ZOOM", "FACEBOOK", "INSTAGRAM", "WHATSAPP", "TIKTOK", "LINKEDIN", "ZENDESK", "TYPEFORM", "PADDLE", "CUSTOM"] as const;
 export type ProviderName = typeof providerNames[number];
 export const manualVerifierSchema = z.object({
   signatureHeader: z.string().regex(/^[A-Za-z0-9-]{1,64}$/),
@@ -42,6 +42,17 @@ function jsonField(payload: unknown, key: string) {
 }
 function hmac(algorithm: "sha256" | "sha1", secret: string, body: string | Buffer, encoding: "hex" | "base64") {
   return createHmac(algorithm, secret).update(body).digest(encoding);
+}
+function metaAdapter(name: "FACEBOOK" | "INSTAGRAM" | "WHATSAPP", displayName: string): WebhookProviderAdapter {
+  return {
+    name, displayName, icon: displayName[0], docsUrl: "https://developers.facebook.com/docs/graph-api/webhooks/getting-started",
+    setupInstructions: ["In Meta for Developers, open your app's Webhooks product.", "Enter this ingestion URL as the Callback URL and choose a Verify Token.", "Enter the same Verify Token and your Meta App Secret in Hooka Relay.", "Verify the callback, subscribe to the relevant fields, and send a test event."], testEventSupport: true,
+    verifySignature: ({ rawBody, headers, secret }) => {
+      const supplied = headers.get("x-hub-signature-256");
+      return !!supplied && equal(supplied, `sha256=${hmac("sha256", secret, rawBody, "hex")}`);
+    },
+    eventId: () => null, eventType: payload => `${name.toLowerCase()}.${jsonField(payload, "object") || "event"}`,
+  };
 }
 export function verifyManual(request: VerificationRequest) {
   const config = request.manualConfig;
@@ -128,6 +139,114 @@ export const providers: Record<ProviderName, WebhookProviderAdapter> = {
       return !!supplied && equal(supplied, hmac("sha256", secret, rawBody, "base64"));
     },
     eventId: () => null, eventType: (_payload, headers) => `woocommerce.${headers.get("x-wc-webhook-topic") || "event"}`,
+  },
+  LINEAR: {
+    name: "LINEAR", displayName: "Linear", icon: "L", docsUrl: "https://linear.app/developers/webhooks",
+    setupInstructions: ["Open Linear Settings → API → Webhooks and create a webhook.", "Paste this ingestion URL and select the event types or team.", "Copy the webhook signing secret from its detail page and enter it here.", "Trigger an issue or project update to test."], testEventSupport: false,
+    verifySignature: ({ rawBody, headers, secret, now }) => {
+      const supplied = headers.get("linear-signature");
+      if (!supplied || !equal(supplied, hmac("sha256", secret, rawBody, "hex"))) return false;
+      try {
+        const value = JSON.parse(rawBody.toString("utf8")) as { webhookTimestamp?: unknown };
+        return typeof value.webhookTimestamp === "number" && Math.abs((now ?? Date.now()) - value.webhookTimestamp) <= 60_000;
+      } catch { return false; }
+    },
+    eventId: () => null, eventType: (payload, headers) => `linear.${headers.get("linear-event") || jsonField(payload, "type") || "event"}`,
+  },
+  SQUARE: {
+    name: "SQUARE", displayName: "Square", icon: "S", docsUrl: "https://developer.squareup.com/docs/webhooks/step3validate",
+    setupInstructions: ["Open Square Developer Console → Webhooks and create a subscription.", "Paste this exact notification URL and select the events.", "Copy the subscription signature key into Hooka Relay.", "Send a test notification from Square."], testEventSupport: true,
+    verifySignature: ({ rawBody, headers, secret, url }) => {
+      const supplied = headers.get("x-square-hmacsha256-signature");
+      return !!supplied && equal(supplied, hmac("sha256", secret, url + rawBody.toString("utf8"), "base64"));
+    },
+    eventId: payload => jsonField(payload, "event_id"), eventType: payload => `square.${jsonField(payload, "type") || "event"}`,
+  },
+  INTERCOM: {
+    name: "INTERCOM", displayName: "Intercom", icon: "I", docsUrl: "https://developers.intercom.com/docs/references/2.7/rest-api/webhooks/webhook-models",
+    setupInstructions: ["Open your Intercom app's Webhooks settings.", "Use this ingestion URL and select the topics you need.", "Copy the app client secret from Basic Info and enter it here.", "Trigger one of the subscribed events."], testEventSupport: false,
+    verifySignature: ({ rawBody, headers, secret }) => {
+      const supplied = headers.get("x-hub-signature");
+      return !!supplied && equal(supplied, `sha1=${hmac("sha1", secret, rawBody, "hex")}`);
+    },
+    eventId: payload => jsonField(payload, "id"), eventType: payload => `intercom.${jsonField(payload, "topic") || "event"}`,
+  },
+  MAILGUN: {
+    name: "MAILGUN", displayName: "Mailgun", icon: "M", docsUrl: "https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/securing-webhooks",
+    setupInstructions: ["Open Mailgun → Sending → Webhooks for your domain.", "Add this ingestion URL for the event types you want.", "Copy the domain's Webhook Signing Key into Hooka Relay.", "Send a test webhook from Mailgun."], testEventSupport: true,
+    verifySignature: ({ rawBody, secret, now }) => {
+      try {
+        const payload = JSON.parse(rawBody.toString("utf8")) as { signature?: { timestamp?: string; token?: string; signature?: string } };
+        const signed = payload.signature;
+        if (!signed?.token || !timestamp(signed.timestamp ?? null, now) || !signed.signature) return false;
+        return equal(signed.signature, hmac("sha256", secret, signed.timestamp + signed.token, "hex"));
+      } catch { return false; }
+    },
+    eventId: payload => payload && typeof payload === "object" ? jsonField((payload as Record<string, unknown>)["event-data"], "id") : null,
+    eventType: payload => payload && typeof payload === "object" ? `mailgun.${jsonField((payload as Record<string, unknown>)["event-data"], "event") || "event"}` : "mailgun.event",
+  },
+  ZOOM: {
+    name: "ZOOM", displayName: "Zoom", icon: "Z", docsUrl: "https://developers.zoom.us/docs/api/webhooks/",
+    setupInstructions: ["Open your Zoom app's Event Subscriptions and enter this Event Notification Endpoint URL.", "Copy its Secret Token into Hooka Relay first, then run Zoom's URL validation.", "Select events and save the subscription.", "Trigger an event in your Zoom development account."], testEventSupport: false,
+    verifySignature: ({ rawBody, headers, secret, now }) => {
+      const time = headers.get("x-zm-request-timestamp"), supplied = headers.get("x-zm-signature");
+      return timestamp(time, now) && !!supplied && equal(supplied, `v0=${hmac("sha256", secret, `v0:${time}:${rawBody.toString("utf8")}`, "hex")}`);
+    },
+    eventId: () => null, eventType: payload => `zoom.${jsonField(payload, "event") || "event"}`,
+  },
+  FACEBOOK: metaAdapter("FACEBOOK", "Facebook"),
+  INSTAGRAM: metaAdapter("INSTAGRAM", "Instagram"),
+  WHATSAPP: metaAdapter("WHATSAPP", "WhatsApp"),
+  TIKTOK: {
+    name: "TIKTOK", displayName: "TikTok", icon: "T", docsUrl: "https://developers.tiktok.com/docs/en/webhooks-verification",
+    setupInstructions: ["Configure a webhook callback in your TikTok developer app.", "Paste this ingestion URL and select supported events.", "Copy your TikTok client secret into Hooka Relay.", "Trigger an event in your developer app."], testEventSupport: false,
+    verifySignature: ({ rawBody, headers, secret, now }) => {
+      const parts = (headers.get("tiktok-signature") || "").split(",").map(part => part.trim());
+      const time = parts.find(part => part.startsWith("t="))?.slice(2) || null;
+      const supplied = parts.find(part => part.startsWith("s="))?.slice(2);
+      return timestamp(time, now) && !!supplied && equal(supplied, hmac("sha256", secret, `${time}.${rawBody.toString("utf8")}`, "hex"));
+    },
+    eventId: () => null, eventType: payload => `tiktok.${jsonField(payload, "event") || "event"}`,
+  },
+  LINKEDIN: {
+    name: "LINKEDIN", displayName: "LinkedIn", icon: "L", docsUrl: "https://learn.microsoft.com/en-us/linkedin/shared/api-guide/webhook-validation",
+    setupInstructions: ["Use a LinkedIn developer application approved for webhooks.", "Register this ingestion URL in its Webhooks settings or the relevant subscription API.", "Enter the application's Client Secret here before LinkedIn validates the URL.", "Trigger a supported event and check the delivery log."], testEventSupport: false,
+    verifySignature: ({ rawBody, headers, secret }) => {
+      const supplied = headers.get("x-li-signature");
+      return !!supplied && equal(supplied, hmac("sha256", secret, Buffer.concat([Buffer.from("hmacsha256="), rawBody]), "hex"));
+    },
+    eventId: payload => jsonField(payload, "id"), eventType: payload => `linkedin.${jsonField(payload, "type") || "event"}`,
+  },
+  ZENDESK: {
+    name: "ZENDESK", displayName: "Zendesk", icon: "Z", docsUrl: "https://developer.zendesk.com/documentation/webhooks/verifying/",
+    setupInstructions: ["Create a webhook in Zendesk Admin Center and paste this ingestion URL.", "Enable signing, then copy the webhook signing secret into Hooka Relay.", "Subscribe to the events you need and trigger a test delivery."], testEventSupport: true,
+    verifySignature: ({ rawBody, headers, secret }) => {
+      const signature = headers.get("x-zendesk-webhook-signature");
+      const time = headers.get("x-zendesk-webhook-signature-timestamp");
+      return !!signature && !!time && equal(signature, hmac("sha256", secret, Buffer.concat([Buffer.from(time), rawBody]), "base64"));
+    },
+    eventId: payload => jsonField(payload, "id"), eventType: payload => `zendesk.${jsonField(payload, "type") || "event"}`,
+  },
+  TYPEFORM: {
+    name: "TYPEFORM", displayName: "Typeform", icon: "T", docsUrl: "https://www.typeform.com/developers/webhooks/secure-your-webhooks/",
+    setupInstructions: ["Create a webhook for your Typeform form and paste this ingestion URL.", "Set a webhook secret in Typeform and enter the same value in Hooka Relay.", "Submit a test response to confirm delivery."], testEventSupport: false,
+    verifySignature: ({ rawBody, headers, secret }) => {
+      const signature = headers.get("typeform-signature");
+      return !!signature && equal(signature, `sha256=${hmac("sha256", secret, rawBody, "base64")}`);
+    },
+    eventId: payload => jsonField(payload, "event_id"), eventType: payload => `typeform.${jsonField(payload, "event_type") || "event"}`,
+  },
+  PADDLE: {
+    name: "PADDLE", displayName: "Paddle", icon: "P", docsUrl: "https://developer.paddle.com/webhooks/about/signature-verification/",
+    setupInstructions: ["Create a URL notification destination in Paddle and paste this ingestion URL.", "Copy that destination's secret key into Hooka Relay.", "Subscribe to the event types you need and send a simulated webhook from Paddle."], testEventSupport: true,
+    verifySignature: ({ rawBody, headers, secret, now }) => {
+      const parts = (headers.get("paddle-signature") || "").split(";").map(part => part.trim());
+      const time = parts.find(part => part.startsWith("ts="))?.slice(3) || null;
+      if (!timestamp(time, now)) return false;
+      const expected = hmac("sha256", secret, Buffer.concat([Buffer.from(`${time}:`), rawBody]), "hex");
+      return parts.some(part => part.startsWith("h1=") && equal(part.slice(3), expected));
+    },
+    eventId: payload => jsonField(payload, "event_id"), eventType: payload => `paddle.${jsonField(payload, "event_type") || "event"}`,
   },
   CUSTOM: {
     name: "CUSTOM", displayName: "Custom / Manual", icon: "+", docsUrl: "https://hooka-relay.vercel.app/docs#signatures",

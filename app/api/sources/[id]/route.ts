@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ownApplication, apiError, sameOrigin, userId } from "@/lib/access";
 import { workspaceTransaction } from "@/lib/workspaces";
@@ -6,14 +8,17 @@ import { boundedJson } from "@/lib/input-limits";
 import { encryptSecret } from "@/lib/secrets";
 import { newEndpointData } from "@/lib/endpoint-config";
 import { validateOutboundUrl } from "@/lib/security";
-import { manualVerifierSchema, providers } from "@/lib/webhook-providers";
+import { manualVerifierSchema, providerNames, providers } from "@/lib/webhook-providers";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
+  provider: z.enum(providerNames).optional(),
   providerSecret: z.string().min(1).max(4096).optional(),
+  verificationToken: z.string().min(8).max(256).optional(),
   destinationUrl: z.string().url().max(2000).optional(),
   manualConfig: manualVerifierSchema.optional(),
   status: z.enum(["ACTIVE", "PAUSED"]).optional(),
+  setupStep: z.number().int().min(1).max(5).optional(),
 }).strict();
 type Context = { params: Promise<{ id: string }> };
 async function ownSource(id: string, action: "view" | "manage" = "view") {
@@ -26,8 +31,8 @@ export async function GET(req: Request, { params }: Context) {
   try {
     const { source, app } = await ownSource((await params).id);
     const attempts = source.endpointId ? await db.deliveryAttempt.findMany({ where: { endpointId: source.endpointId }, orderBy: { createdAt: "desc" }, take: 30, include: { event: { select: { id: true, type: true } } } }) : [];
-    const { encryptedProviderSecret, ...safe } = source;
-    return Response.json({ ...safe, canManage: app.role !== "MEMBER", ingestionUrl: app.role === "MEMBER" ? undefined : `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, provider: providers[source.provider], attempts }, { headers: { "Cache-Control": "no-store" } });
+    const { encryptedProviderSecret, verificationTokenHash, ...safe } = source;
+    return Response.json({ ...safe, canManage: app.role !== "MEMBER", ingestionUrl: app.role === "MEMBER" ? undefined : `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, hasVerificationToken: !!verificationTokenHash, provider: providers[source.provider], attempts }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }
 export async function PATCH(req: Request, { params }: Context) {
@@ -35,12 +40,14 @@ export async function PATCH(req: Request, { params }: Context) {
     sameOrigin(req);
     const { source, app } = await ownSource((await params).id, "manage");
     const input = updateSchema.parse(await boundedJson(req, 8192));
-    if (input.manualConfig && source.provider !== "CUSTOM") throw new Error("Manual verification only applies to custom sources");
+    if (input.manualConfig && (input.provider || source.provider) !== "CUSTOM") throw new Error("Manual verification only applies to custom sources");
+    if (input.verificationToken && !["FACEBOOK", "INSTAGRAM", "WHATSAPP"].includes(input.provider || source.provider)) throw new Error("Verify token only applies to Meta sources");
     if (input.destinationUrl) await validateOutboundUrl(input.destinationUrl);
     const config = input.manualConfig ? manualVerifierSchema.parse(input.manualConfig) : undefined;
     const endpointData = input.destinationUrl ? await newEndpointData(app.id, input.destinationUrl, ["*"]) : null;
     const result = await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
       const current = await tx.webhookSource.findUniqueOrThrow({ where: { id: source.id } });
+      if (input.provider && input.provider !== current.provider && (current.status !== "SETUP_IN_PROGRESS" || current.lastVerifiedAt)) throw new Error("Provider cannot be changed after verification");
       let endpointId = current.endpointId;
       if (input.status === "ACTIVE") {
         if (!(input.providerSecret || current.encryptedProviderSecret) || !(input.destinationUrl || current.destinationUrl) || (current.provider === "CUSTOM" && !(config || current.manualConfig))) throw new Error("Complete signing and destination setup first");
@@ -57,10 +64,13 @@ export async function PATCH(req: Request, { params }: Context) {
       if (endpointId && input.status) await tx.endpoint.update({ where: { id: endpointId }, data: { status: input.status === "PAUSED" ? "PAUSED" : "ACTIVE" } });
       return tx.webhookSource.update({ where: { id: source.id }, data: {
         ...(input.name ? { name: input.name } : {}),
+        ...(input.provider && input.provider !== current.provider ? { provider: input.provider, encryptedProviderSecret: null, manualConfig: Prisma.DbNull, lastVerificationFailure: null } : {}),
         ...(input.providerSecret ? { encryptedProviderSecret: encryptSecret(input.providerSecret, app.id) } : {}),
+        ...(input.verificationToken ? { verificationTokenHash: createHash("sha256").update(input.verificationToken).digest("hex") } : {}),
         ...(input.destinationUrl ? { destinationUrl: input.destinationUrl, endpointId } : {}),
         ...(config ? { manualConfig: config } : {}),
         ...(input.status ? { status: input.status } : {}),
+        ...(input.status === "ACTIVE" ? { setupStep: 6 } : input.setupStep ? { setupStep: input.setupStep } : {}),
       } });
     });
     return Response.json({ id: result.id, status: result.status, endpointId: result.endpointId, destinationUrl: result.destinationUrl, hasProviderSecret: !!result.encryptedProviderSecret }, { headers: { "Cache-Control": "no-store" } });

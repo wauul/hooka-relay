@@ -62,6 +62,27 @@ describe("verified provider signatures", () => {
     expect(providers.WOOCOMMERCE.verifySignature(request(body, { "x-wc-webhook-signature": signature }, secret))).toBe(true);
     expect(providers.WOOCOMMERCE.verifySignature(request(body + " ", { "x-wc-webhook-signature": signature }, secret))).toBe(false);
   });
+  it("verifies Zendesk timestamp plus raw body", () => {
+    const body = '{"type":"ticket.updated"}', secret = "zendesk-key", time = "2026-09-24T12:00:00Z";
+    const signature = createHmac("sha256", secret).update(time + body).digest("base64");
+    const headers = { "x-zendesk-webhook-signature": signature, "x-zendesk-webhook-signature-timestamp": time };
+    expect(providers.ZENDESK.verifySignature(request(body, headers, secret))).toBe(true);
+    expect(providers.ZENDESK.verifySignature(request(body + " ", headers, secret))).toBe(false);
+  });
+  it("verifies Typeform base64 raw body signature", () => {
+    const body = '{"event_type":"form_response"}', secret = "typeform-key";
+    const signature = `sha256=${createHmac("sha256", secret).update(body).digest("base64")}`;
+    expect(providers.TYPEFORM.verifySignature(request(body, { "typeform-signature": signature }, secret))).toBe(true);
+    expect(providers.TYPEFORM.verifySignature(request(body + " ", { "typeform-signature": signature }, secret))).toBe(false);
+  });
+  it("verifies Paddle timestamp, raw body and replay window", () => {
+    const body = '{"event_type":"transaction.completed"}', secret = "paddle-key", time = 1700000000;
+    const digest = createHmac("sha256", secret).update(`${time}:${body}`).digest("hex");
+    const headers = { "paddle-signature": `ts=${time};h1=bad;h1=${digest}` };
+    expect(providers.PADDLE.verifySignature(request(body, headers, secret, undefined, time * 1000))).toBe(true);
+    expect(providers.PADDLE.verifySignature(request(body, headers, secret, undefined, (time + 301) * 1000))).toBe(false);
+    expect(providers.PADDLE.verifySignature(request(body + " ", headers, secret, undefined, time * 1000))).toBe(false);
+  });
   it("supports manual hex/body and base64/timestamp formats", () => {
     const body = '{"ok":true}', secret = "custom-key";
     const hex = createHmac("sha256", secret).update(body).digest("hex");

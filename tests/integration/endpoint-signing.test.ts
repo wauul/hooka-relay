@@ -33,7 +33,7 @@ it("migrates legacy ciphertext without changing IDs, keys or formats; is atomic 
     expect(await migrateEndpointSecrets(client)).toEqual({ migrated: 2 });
     expect(await migrateEndpointSecrets(client)).toEqual({ migrated: 0 });
     const migrated = await client.endpoint.findUniqueOrThrow({ where: { id: first.id } });
-    expect(migrated).toMatchObject({ id: first.id, applicationId: "app", signatureFormat: "LEGACY", secretVersion: 1 });
+    expect(migrated).toMatchObject({ id: first.id, applicationId: "app", signatureFormat: "STANDARD", secretVersion: 1 });
     expect(decryptEndpointSecret(migrated.secret, migrated)).toBe("original");
     expect(() => decryptEndpointSecret(migrated.secret, { ...migrated, id: second.id })).toThrow();
     const rotations = await Promise.allSettled([client.$transaction(tx => rotateSigningSecret(tx, first.id, "owner")), client.$transaction(tx => rotateSigningSecret(tx, first.id, "owner"))]);

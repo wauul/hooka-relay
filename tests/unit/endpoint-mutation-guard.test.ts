@@ -30,7 +30,7 @@ it("requires review of every new endpoint write path", () => {
   expect(writers.sort()).toEqual([
     "app/api/applications/[id]/endpoints/route.ts", "app/api/endpoints/[id]/pause/route.ts",
     "app/api/endpoints/[id]/resume/route.ts", "app/api/endpoints/[id]/retry-policy/route.ts",
-    "app/api/endpoints/[id]/signature-format/route.ts", "app/api/endpoints/[id]/configuration/route.ts", "app/api/sources/[id]/route.ts", "lib/cli-api.ts", "lib/diagnosis.ts",
+    "app/api/endpoints/[id]/configuration/route.ts", "app/api/sources/[id]/route.ts", "lib/cli-api.ts", "lib/diagnosis.ts",
     "lib/migrate-endpoint-secrets.ts", "lib/migrate-secrets.ts", "lib/portal.ts", "lib/signing-secrets.ts", "worker/index.ts",
   ].sort());
 });

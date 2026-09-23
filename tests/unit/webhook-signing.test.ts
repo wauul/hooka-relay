@@ -3,12 +3,11 @@ import { Webhook } from "standardwebhooks";
 import { encryptSecret } from "../../lib/secrets";
 import { decryptEndpointSecret, encryptEndpointSecret } from "../../lib/endpoint-secrets";
 import { displaySigningSecret, webhookHeaders, type SigningEndpoint } from "../../lib/webhook-signing";
-import { verifySignature } from "../../lib/security";
 const context = { id: "endpoint1", applicationId: "app1", secretVersion: 1 };
 const now = new Date("2026-09-22T12:00:00Z"), raw = '{"hello":"world"}';
 const event = { id: "event1", idempotencyKey: "producer.key", type: "test" };
-function endpoint(format: "LEGACY" | "STANDARD" = "STANDARD"): SigningEndpoint {
-  return { ...context, secret: encryptEndpointSecret("current", context), signatureFormat: format,
+function endpoint(): SigningEndpoint {
+  return { ...context, secret: encryptEndpointSecret("current", context), signatureFormat: "STANDARD",
     previousSecret: encryptEndpointSecret("previous", { ...context, secretVersion: 0 }), previousSecretVersion: 0,
     previousSecretExpiresAt: new Date(now.getTime() + 1000) };
 }
@@ -45,12 +44,4 @@ it("stops signing with the previous key exactly at expiry", () => {
   const headers = webhookHeaders(raw, event, ep, expiry);
   expect(new Webhook(displaySigningSecret("current", "STANDARD")).verify(raw, headers)).toEqual(JSON.parse(raw));
   expect(() => new Webhook(displaySigningSecret("previous", "STANDARD")).verify(raw, headers)).toThrow();
-});
-it("preserves legacy single-header receivers during rotation and signs with the new key after expiry", () => {
-  const ep = endpoint("LEGACY"), headers = webhookHeaders(raw, event, ep, now);
-  expect(verifySignature(raw, headers["X-Webhook-Signature"], "previous", now.getTime())).toBe(true);
-  expect(verifySignature(raw, headers["X-Webhook-Signature-Current"], "current", now.getTime())).toBe(true);
-  const after = webhookHeaders(raw, event, ep, ep.previousSecretExpiresAt!);
-  expect(verifySignature(raw, after["X-Webhook-Signature"], "current", ep.previousSecretExpiresAt!.getTime())).toBe(true);
-  expect(after).not.toHaveProperty("X-Webhook-Signature-Current");
 });

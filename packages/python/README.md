@@ -23,7 +23,7 @@ Use an ingest-only or existing unscoped application key. Optional `base_url` and
 
 ## Verify and queue, then drain
 
-`verify_webhook(raw_body, headers, secret)` uses the Standard Webhooks reference library. It raises on invalid signatures, a changed ID/body, or timestamps outside five minutes. Pass raw bytes and the displayed `whsec_` secret. During rotation either old or new key verifies the dual signatures. Existing LEGACY endpoints must explicitly migrate after their receiver supports Standard Webhooks.
+`verify_webhook(raw_body, headers, secret)` uses the Standard Webhooks reference library. It raises on invalid signatures, a changed ID/body, or timestamps outside five minutes. Pass raw bytes and the displayed `whsec_` secret. During rotation either old or new key verifies the dual signatures.
 
 Minimal queue-and-drain receiver using the standard library (put a production HTTP server/reverse proxy in front of a real deployment). A bounded queue rejects overload with 503; accepted work is processed outside the request.
 

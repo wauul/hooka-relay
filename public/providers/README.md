@@ -1,0 +1,1 @@
+Most brand SVGs in this folder are from [Simple Icons](https://simpleicons.org/) (CC0 1.0). The Slack, Twilio, and LinkedIn SVGs are from [Devicon](https://github.com/devicons/devicon) (MIT). They remain trademarks of their respective owners. Hooka Relay is not affiliated with these providers.

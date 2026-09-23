@@ -1586,6 +1586,17 @@ html[data-theme="light"] .invite-page { background:radial-gradient(ellipse at 50
 .provider-choice:hover,.provider-choice:focus-visible { border-color:var(--green); }.provider-choice.manual { border-style:dashed; }
 .provider-choice strong { font-size:14px; }.provider-choice small { color:var(--muted); }
 .provider-mark { display:grid; place-items:center; width:35px; height:35px; border-radius:9px; background:var(--accent-soft); color:var(--green); font-weight:800; }
+.provider-glyph { display:block; width:21px; height:21px; background:currentColor; mask-position:center; mask-repeat:no-repeat; mask-size:contain; }
+.wizard-repo-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.wizard-events { border:1px solid var(--line); border-radius:9px; padding:14px; display:flex; flex-wrap:wrap; gap:10px 20px; }
+.wizard-events legend { color:var(--muted); font-size:12px; }.wizard-events label { display:flex; align-items:center; gap:7px; font-size:12px; }.wizard-events input { min-height:0; width:auto; }
+.resource-table { min-width:670px; table-layout:fixed; white-space:normal; }.resource-table th { background:var(--surface); color:var(--muted); padding:14px 22px; }.resource-table td { padding:14px 22px; border-color:var(--line); vertical-align:middle; }
+.resource-table tbody tr { transition:background .15s ease; }.resource-table tbody tr:hover { background:var(--surface); }
+.resource-table th:first-child { width:42%; }.resource-table th:last-child { width:22%; }
+.resource-main { display:flex; align-items:center; gap:13px; min-width:0; color:var(--text); }.resource-main:hover strong,.resource-main:focus-visible strong { color:var(--green); }.resource-main .provider-mark,.resource-symbol { flex:none; width:40px; height:40px; border:1px solid var(--line); border-radius:11px; background:var(--accent-soft); display:grid; place-items:center; color:var(--green); }
+.resource-text { min-width:0; display:grid; gap:5px; }.resource-text strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; }.resource-text small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:11px; }.resource-arrow { margin-left:auto; color:var(--muted); opacity:0; }.resource-main:hover .resource-arrow,.resource-main:focus-visible .resource-arrow { opacity:1; }
+.resource-status { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }.resource-environment { display:inline-block; padding:6px 9px; border-radius:7px; background:var(--surface); border:1px solid var(--line); font-size:11px; text-transform:capitalize; }.resource-destination { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:11px Consolas,monospace; color:var(--muted); }.resource-date { color:var(--muted); font-size:11px; }
+@media(max-width:700px) { .wizard-repo-fields { grid-template-columns:1fr; }.resource-table { min-width:620px; } }
 .wizard-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:26px; }
 .wizard-instructions { display:grid; gap:14px; margin:28px 0; padding-left:23px; line-height:1.6; }
 .wizard-instructions li::marker { color:var(--green); font-weight:700; }

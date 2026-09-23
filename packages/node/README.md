@@ -21,7 +21,7 @@ Use an ingest-only or existing unscoped application key. `baseUrl`, `timeoutMs` 
 
 ## Verify and queue, then drain
 
-`verifyWebhook(rawBody, headers, secret)` delegates to the Standard Webhooks reference library. It throws on an invalid signature, changed ID/body, or timestamp outside five minutes. Use the displayed `whsec_` secret and raw bytes. During rotation either key verifies the space-separated signatures. Existing LEGACY endpoints must explicitly switch format after the receiver supports Standard Webhooks.
+`verifyWebhook(rawBody, headers, secret)` delegates to the Standard Webhooks reference library. It throws on an invalid signature, changed ID/body, or timestamp outside five minutes. Use the displayed `whsec_` secret and raw bytes. During rotation either key verifies the space-separated signatures.
 
 Minimal receiver using only Node's HTTP module. Acknowledge after queue admission; slow processing runs separately. Return 503 when the bounded queue is full so Hooka Relay can retry.
 

@@ -78,16 +78,11 @@ export async function cliApi(req: Request, path: string[]) {
       const secret = await revealSigningSecret(endpoint, "api-key:" + hashApiKey(key));
       return json({ endpoint: { id: endpoint.id, url: endpoint.url, eventTypes: endpoint.eventTypes, signatureFormat: endpoint.signatureFormat, environment: endpoint.environment, status: effectiveEndpointStatus(endpoint), secret } }, 201);
     }
-    if (path[0] === "endpoints" && path[1] && path.length === 3 && ["rotate-secret", "signature-format"].includes(path[2])) {
+    if (path[0] === "endpoints" && path[1] && path.length === 3 && path[2] === "rotate-secret") {
       const ep = await db.endpoint.findFirst({ where: { id: path[1], applicationId: app.id } });
       if (!ep || ep.kind === "INBOUND") throw new ApiFailure(404, "Endpoint not found");
       const actor = "api-key:" + hashApiKey(key);
       if (req.method === "POST" && path[2] === "rotate-secret") return json(await db.$transaction(tx => rotateSigningSecret(tx, ep.id, actor)));
-      if (req.method === "PATCH" && path[2] === "signature-format") {
-        const { signatureFormat } = z.object({ signatureFormat: z.enum(["LEGACY", "STANDARD"]) }).parse(await boundedJson(req, 1024));
-        await db.$transaction([db.endpoint.update({ where: { id: ep.id }, data: { signatureFormat } }), db.auditLog.create({ data: { applicationId: app.id, endpointId: ep.id, actorId: actor, action: "signature_format." + signatureFormat.toLowerCase(), secretVersion: ep.secretVersion } })]);
-        return json({ signatureFormat });
-      }
     }
     if (route === "attempts" && req.method === "GET") {
       const endpointId = url.searchParams.get("endpoint") || undefined;

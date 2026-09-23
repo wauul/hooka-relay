@@ -88,11 +88,11 @@ const payload = verifier.verify(rawBody, {
 
 The reference verifier enforces a five-minute timestamp tolerance. Keep receiver clocks synchronized; each attempt gets a fresh timestamp. `X-Webhook-Event`, `X-Webhook-Endpoint`, and `X-Idempotency-Key` remain informational headers.
 
-Existing endpoints keep `LEGACY`: `X-Webhook-Signature: t=UNIX_SECONDS,v1=HEX`, signing `timestamp + "." + raw body` with the existing secret. To migrate, prepare your receiver for Standard Webhooks, switch the endpoint's signing format in the dashboard (or `PATCH /api/v1/endpoints/:id/signature-format` with `{ "signatureFormat": "STANDARD" }`), and use the displayed `whsec_...` representation. This encodes the same key bytes, not a new secret. Legacy mode cannot authenticate the producer idempotency header; use a trusted identifier inside the signed payload until migrated. Never fall back to the older body-only format.
+All endpoints use Standard Webhooks signatures. The displayed `whsec_...` value encodes the signing key for a standard verifier.
 
 ### Signing-secret rotation
 
-ADMIN/OWNER can `POST /api/endpoints/:id/rotate-secret`; application API clients use `/api/v1/endpoints/:id/rotate-secret`. Default grace is seven days (`SIGNING_SECRET_GRACE_HOURS=168`). Standard deliveries include both signatures in `webhook-signature`, so either old or new key verifies. Legacy deliveries retain the old key in `X-Webhook-Signature` during grace and add `X-Webhook-Signature-Current` for the new key. After expiry only the current key signs. A second rotation during grace returns 409 to avoid invalidating an integrated receiver early. The worker clears expired previous secrets. Rotations, format changes, and secret display are recorded without secret values in `AuditLog`.
+ADMIN/OWNER can `POST /api/endpoints/:id/rotate-secret`; application API clients use `/api/v1/endpoints/:id/rotate-secret`. Default grace is seven days (`SIGNING_SECRET_GRACE_HOURS=168`). Deliveries include both signatures in `webhook-signature`, so either old or new key verifies. After expiry only the current key signs. A second rotation during grace returns 409 to avoid invalidating an integrated receiver early. The worker clears expired previous secrets. Rotations and secret display are recorded without secret values in `AuditLog`.
 
 Encryption migration and operational rollout: [SECURITY.md](SECURITY.md#endpoint-bound-signing-secrets). Architecture decisions: [ADR index](docs/adr/README.md).
 
@@ -146,7 +146,7 @@ The production security migration was completed on 2026-09-21. Other existing in
 
 ## Inbound webhook Setup Wizard
 
-Open an application's **Webhook Sources** tab to add a source. The wizard creates a unique `/api/inbound/<token>` URL, guides provider setup, encrypts the provider signing secret, validates your destination as public HTTPS, and waits for a real signed event or an explicitly marked forwarding simulation. Verified events use the existing `Event → Delivery → DeliveryAttempt` outbox and worker. The dedicated inbound `Endpoint` is excluded from ordinary outbound endpoint lists but has the same retry, circuit, idempotency, and attempt history behavior. No second delivery engine is used.
+Open an application's **Webhook Sources** tab to add a source. The wizard saves progress so you can leave and resume. It creates a unique `/api/inbound/<token>` URL, guides provider setup, encrypts the provider signing secret, validates your destination as public HTTPS, and waits for a real signed event or an explicitly marked forwarding simulation. GitHub repository webhooks can be created from the wizard with a one-time fine-grained personal access token that has repository Webhooks write permission; Hooka Relay does not retain that token. Meta providers use the callback Verify Token challenge. Verified events use the existing `Event → Delivery → DeliveryAttempt` outbox and worker.
 
 | Provider | Verification | Setup reference |
 | --- | --- | --- |
@@ -156,6 +156,9 @@ Open an application's **Webhook Sources** tab to add a source. The wizard create
 | Shopify | `X-Shopify-Hmac-Sha256`, base64 raw-body HMAC-SHA256 | [Shopify verification](https://shopify.dev/docs/apps/build/webhooks/verify-deliveries) |
 | Twilio | `X-Twilio-Signature`, URL + sorted form parameters HMAC-SHA1; JSON `bodySHA256` also checked | [Twilio security](https://www.twilio.com/docs/usage/webhooks/webhooks-security) |
 | WooCommerce | `X-WC-Webhook-Signature`, base64 raw-body HMAC-SHA256 | [WooCommerce webhooks](https://developer.woocommerce.com/docs/apis/rest-api/v2/webhooks) |
+| Linear, Square, Intercom, Mailgun, Zoom | Provider-specific HMAC over the documented signed fields | [Linear](https://linear.app/developers/webhooks), [Square](https://developer.squareup.com/docs/webhooks/step3validate), [Intercom](https://developers.intercom.com/docs/references/2.7/rest-api/webhooks/webhook-models), [Mailgun](https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/securing-webhooks), [Zoom](https://developers.zoom.us/docs/api/webhooks/) |
+| Facebook, Instagram, WhatsApp, TikTok, LinkedIn | Provider-specific callback validation and HMAC | [Meta](https://developers.facebook.com/docs/graph-api/webhooks/getting-started), [TikTok](https://developers.tiktok.com/docs/en/webhooks-verification), [LinkedIn](https://learn.microsoft.com/en-us/linkedin/shared/api-guide/webhook-validation) |
+| Zendesk, Typeform, Paddle | Provider-specific HMAC over the raw body and required timestamp | [Zendesk](https://developer.zendesk.com/documentation/webhooks/verifying/), [Typeform](https://www.typeform.com/developers/webhooks/secure-your-webhooks/), [Paddle](https://developer.paddle.com/webhooks/about/signature-verification/) |
 | Custom / Manual | Configurable HMAC-SHA256/SHA1, hex/base64, optional timestamp format | Provider's own signing documentation |
 
 PayPal is **not** selectable or forwarded unverified. PayPal webhook verification requires its registered webhook ID and either RSA certificate verification or an authenticated server-to-server call to its `verify-webhook-signature` API; its simulator does not support that API. See [PayPal's webhook guide](https://developer.paypal.com/api/rest/webhooks/rest/). Other providers are omitted until their schemes have verified adapters. Twilio and Custom offer a simulation of Hooka Relay forwarding; it does **not** prove the provider signature configuration. Actual live provider verification requires a signed webhook from the provider.

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secrets";
 import { ipRateLimit } from "@/lib/ip-rate-limit";
@@ -58,6 +58,11 @@ export async function POST(req: Request, { params }: Context) {
       const entries = new URLSearchParams(rawBody.toString("utf8"));
       payload = Object.fromEntries(entries);
     }
+    if (source.provider === "ZOOM" && payload && typeof payload === "object" && (payload as Record<string, unknown>).event === "endpoint.url_validation") {
+      const plainToken = ((payload as Record<string, unknown>).payload as Record<string, unknown> | undefined)?.plainToken;
+      if (typeof plainToken !== "string" || plainToken.length > 512) return Response.json({ error: "Webhook rejected" }, { status: 400 });
+      return Response.json({ plainToken, encryptedToken: createHmac("sha256", secret).update(plainToken).digest("hex") });
+    }
     const providerId = adapter.eventId(payload, req.headers);
     const digest = createHash("sha256").update(providerId || rawBody).digest("hex");
     const type = adapter.eventType(payload, req.headers).replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 120);
@@ -79,4 +84,25 @@ export async function POST(req: Request, { params }: Context) {
     console.error("Inbound webhook processing failed", { name: error instanceof Error ? error.name : "Unknown" });
     return Response.json({ error: "Webhook rejected" }, { status: error instanceof Error && (error.message === "body_limit") ? 413 : 400 });
   }
+}
+export async function GET(req: Request, { params }: Context) {
+  const token = (await params).ingestionToken;
+  if (!/^[a-f0-9]{64}$/.test(token)) return new Response(null, { status: 404 });
+  const source = await db.webhookSource.findUnique({ where: { ingestionToken: token } });
+  if (!source?.encryptedProviderSecret) return new Response(null, { status: 404 });
+  const url = new URL(req.url);
+  if (["FACEBOOK", "INSTAGRAM", "WHATSAPP"].includes(source.provider)) {
+    const mode = url.searchParams.get("hub.mode"), supplied = url.searchParams.get("hub.verify_token"), challenge = url.searchParams.get("hub.challenge");
+    if (mode !== "subscribe" || !supplied || !challenge || supplied.length > 256 || challenge.length > 512 || !source.verificationTokenHash) return new Response(null, { status: 403 });
+    const actual = createHash("sha256").update(supplied).digest();
+    const expected = Buffer.from(source.verificationTokenHash, "hex");
+    return actual.length === expected.length && timingSafeEqual(actual, expected) ? new Response(challenge, { headers: { "Content-Type": "text/plain; charset=utf-8" } }) : new Response(null, { status: 403 });
+  }
+  if (source.provider === "LINKEDIN") {
+    const challengeCode = url.searchParams.get("challengeCode");
+    if (!challengeCode || challengeCode.length > 512) return new Response(null, { status: 403 });
+    const secret = decryptSecret(source.encryptedProviderSecret, source.applicationId);
+    return Response.json({ challengeCode, challengeResponse: createHmac("sha256", secret).update(challengeCode).digest("hex") });
+  }
+  return new Response(null, { status: 405 });
 }

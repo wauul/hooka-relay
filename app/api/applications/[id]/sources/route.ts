@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: Context) {
   try {
     const app = await ownApplication((await params).id);
     const sources = await db.webhookSource.findMany({ where: { applicationId: app.id }, orderBy: { createdAt: "desc" }, include: { endpoint: { select: { circuitState: true, retryPolicy: true } } } });
-    return Response.json(sources.map(({ encryptedProviderSecret, ...source }) => ({ ...source, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, providerDisplayName: providers[source.provider].displayName })));
+    return Response.json(sources.map(({ encryptedProviderSecret, verificationTokenHash, ...source }) => ({ ...source, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, hasVerificationToken: !!verificationTokenHash, providerDisplayName: providers[source.provider].displayName })));
   } catch (error) { return apiError(error); }
 }
 export async function POST(req: Request, { params }: Context) {

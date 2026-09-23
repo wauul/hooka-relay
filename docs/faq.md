@@ -18,7 +18,7 @@ Pause is an explicit choice to stop creating delivery intents for new events. Re
 
 ## How do I verify the HMAC signature?
 
-New endpoints use Standard Webhooks. Verify webhook-id, webhook-timestamp and webhook-signature with the standardwebhooks reference library and the displayed whsec_ secret. It authenticates the stable Event ID, timestamp and exact raw request body, with a five-minute tolerance. Atomically deduplicate the verified webhook-id. Existing LEGACY endpoints retain X-Webhook-Signature (timestamp plus raw-body HMAC) until explicitly switched; do not trust their unsigned idempotency header for deduplication. During signing-secret rotation, both keys work for seven days by default. Legacy mode keeps the old primary signature during grace and places the new signature in X-Webhook-Signature-Current. Update the receiver before expiry. See README.md for the migration path. Never parse and reserialize JSON before verification or accept the former body-only format.
+Endpoints use Standard Webhooks. Verify webhook-id, webhook-timestamp and webhook-signature with the standardwebhooks reference library and the displayed whsec_ secret. It authenticates the stable Event ID, timestamp and exact raw request body, with a five-minute tolerance. Atomically deduplicate the verified webhook-id. During signing-secret rotation, both keys work for seven days by default. Update the receiver before expiry. Never parse and reserialize JSON before verification.
 
 ## Why can't I see my API key again?
 

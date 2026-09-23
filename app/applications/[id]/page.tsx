@@ -43,11 +43,11 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
           <div className="eyebrow">APPLICATION</div>
           <h1>{data?.name || "Loading application…"}</h1>
         </div>
-        <Link
+        {section === "endpoints" && <Link
           className="btn"
           href={`/applications/${resolvedParams.id}/endpoints/new`}
         >
-          <Plus size={14} /><T text={"Add endpoint"} /></Link>
+          <Plus size={14} /><T text={"Add endpoint"} /></Link>}
       </div>
 
       <ErrorBox error={error || failure} />
@@ -124,41 +124,24 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 <h2><T text={"Endpoints"} />{" "}
                   <span className="count">{data.endpoints.length}</span>
                 </h2>
-                <Radio size={15} color="#92a398" />
+                <span className="muted">Destinations receiving application events</span>
               </div>
               {data.endpoints.length ? (
                 <div className="table-wrap">
-                  <table>
+                  <table className="resource-table">
                     <thead>
                       <tr>
                         <th>Destination</th>
-                        <th>Circuit</th>
+                        <th>Environment</th>
+                        <th>Health</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.endpoints.map((ep: any) => (
                         <tr key={ep.id}>
-                          <td>
-                            <Link href={`/endpoints/${ep.id}`}>
-                              <span
-                                style={{
-                                  display: "block",
-                                  maxWidth: 310,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {ep.url}
-                              </span>
-                              <span className="muted mono">
-                                {ep.eventTypes.join(", ")}
-                              </span>
-                            </Link>
-                          </td>
-                          <td>
-                            <Badge value={ep.circuitState} />{" "}
-                            <span className="muted">{ep.environment} · </span><Badge value={ep.status} />
-                          </td>
+                          <td><Link className="resource-main" href={`/endpoints/${ep.id}`}><span className="resource-symbol"><Radio size={17} /></span><span className="resource-text"><strong title={ep.url}>{ep.url}</strong><small>{ep.eventTypes.join(", ") || "All events"}</small></span><span className="resource-arrow">↗</span></Link></td>
+                          <td><span className="resource-environment">{ep.environment}</span></td>
+                          <td><div className="resource-status"><Badge value={ep.status} /><Badge value={ep.circuitState} /></div></td>
                         </tr>
                       ))}
                     </tbody>

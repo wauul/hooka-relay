@@ -991,156 +991,6 @@
         }
       }
     },
-    "/api/v1/endpoints/{id}/signature-format": {
-      "patch": {
-        "tags": [
-          "Endpoints"
-        ],
-        "summary": "Choose signature format",
-        "description": "Existing unscoped key required. Explicit opt-in for existing legacy receivers; deploy verification support before switching.",
-        "operationId": "patch__api_v1_endpoints_id_signature_format",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "signatureFormat": {
-                    "type": "string",
-                    "enum": [
-                      "STANDARD",
-                      "LEGACY"
-                    ]
-                  }
-                },
-                "required": [
-                  "signatureFormat"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "signatureFormat": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "signatureFormat"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid input or schema mismatch",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid API key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Key scope does not permit this action",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found in this application",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflicting active grace period or recovery job",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Request body too large",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Rate limit exceeded",
-            "headers": {
-              "Retry-After": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "Seconds before retry, when provided by the limiter."
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/attempts": {
       "get": {
         "tags": [
@@ -2851,7 +2701,7 @@
           "Webhook sources"
         ],
         "summary": "Receive a signed provider webhook",
-        "description": "Public URL, no API key. Provider-specific signature is mandatory. Supports Stripe, GitHub, Slack, Shopify, Twilio and configured custom HMAC. Maximum 256 KiB; JSON depth 32; existing IP and application event limits apply. Verified events enter the existing Event → Delivery → DeliveryAttempt pipeline. Twilio form bodies are supported. Slack URL verification returns a challenge after signature validation.",
+        "description": "Public URL, no API key. Provider-specific signatures are mandatory. Supports signed webhooks from the provider catalog and configured custom HMAC. Maximum 256 KiB; JSON depth 32; IP and application event limits apply. Verified events enter the existing Event → Delivery → DeliveryAttempt pipeline.",
         "operationId": "post__api_inbound_ingestionToken_",
         "parameters": [
           {
@@ -3163,7 +3013,6 @@
           },
           "signatureFormat": {
             "enum": [
-              "LEGACY",
               "STANDARD"
             ],
             "type": "string"
