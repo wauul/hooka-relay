@@ -13,12 +13,16 @@ describe("public documentation shell", () => {
     expect(html).not.toContain("Search everything");
     expect(html).not.toContain("Sign out");
     expect(html).not.toContain("topbar-signout");
+    expect(html).not.toContain("Applications");
+    expect(html).not.toContain('href="/dashboard"');
+    expect(html).toContain('href="/docs"');
     expect(html).toContain("Public documentation");
   });
   it("retains workspace controls and search for an authenticated session", () => {
     const html = renderToStaticMarkup(<SiteTools signedIn><Shell>Private workspace</Shell></SiteTools>);
     expect(controls.workspace).toHaveBeenCalled();
     expect(html).toContain("Search everything");
+    expect(html).toContain("Applications");
     expect(html.match(/Sign out/g)).toHaveLength(1);
     expect(html.match(/href="\/profile"/g)).toHaveLength(1);
     expect(html).toContain("topbar-signout");

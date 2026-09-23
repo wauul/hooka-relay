@@ -66,11 +66,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {signedIn && <WorkspaceSwitcher />}
           <div className="nav-label">{signedIn ? "WORKSPACE" : "HOOKA RELAY"}</div>
           <nav aria-label="Main navigation" onClick={() => setMenu(false)}>
-            <Link
+            {signedIn && <Link
               className={`nav-link ${path === "/dashboard" || path.startsWith("/applications") || path.startsWith("/endpoints") ? "active" : ""}`}
               href="/dashboard"
             >
-              <Layers3 size={17} /><T text={"Applications"} /></Link>
+              <Layers3 size={17} /><T text={"Applications"} /></Link>}
             <Link
               className={`nav-link ${path === "/docs" ? "active" : ""}`}
               href="/docs"
