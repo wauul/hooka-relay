@@ -59,3 +59,14 @@ it("backfills readable display names without changing account identifiers", asyn
     }),
   ).toMatchObject({ name: "migration's Workspace" });
 });
+
+it("grants the restricted runtime role access to inbound sources", async () => {
+  const rows = await db.$queryRaw<{ canSelect: boolean; canInsert: boolean; canUpdate: boolean; canDelete: boolean }[]>`
+    SELECT
+      has_table_privilege('hooka_runtime', '"WebhookSource"', 'SELECT') AS "canSelect",
+      has_table_privilege('hooka_runtime', '"WebhookSource"', 'INSERT') AS "canInsert",
+      has_table_privilege('hooka_runtime', '"WebhookSource"', 'UPDATE') AS "canUpdate",
+      has_table_privilege('hooka_runtime', '"WebhookSource"', 'DELETE') AS "canDelete"
+  `;
+  expect(rows[0]).toEqual({ canSelect: true, canInsert: true, canUpdate: true, canDelete: true });
+});

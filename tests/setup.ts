@@ -29,6 +29,7 @@ export default async function setup(project: TestProject) {
         INSERT INTO "Delivery" (id,"eventId","endpointId") VALUES ('migration-delivery','migration-event','migration-endpoint');
         INSERT INTO "DeliveryAttempt" (id,"eventId","endpointId","deliveryId","attemptNumber",status) VALUES ('migration-attempt','migration-event','migration-endpoint','migration-delivery',1,'SUCCESS');
         INSERT INTO "FakeReceipt" (key,calls) VALUES ('migration-counter',2);`);
+      await client.query('CREATE ROLE hooka_runtime');
     } finally { await client.end(); }
     execFileSync(process.execPath, [require.resolve("prisma/build/index.js"), "migrate", "resolve", "--applied", "202609140001_init"], {
       cwd: process.cwd(), env: { ...process.env, DATABASE_URL: databaseUrl }, stdio: "pipe", timeout: 60000,
