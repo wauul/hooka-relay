@@ -584,7 +584,7 @@ it("discloses a new API key only once and restricts signing secrets to admins", 
   expect((await db.application.findUniqueOrThrow({ where: { id: app.id } })).currentApiKey).toBe(hashApiKey(app.currentApiKey));
   expect((await (await appRoute(req(undefined, "GET"), context(app.id))).json()).currentApiKey).toBeUndefined();
   const endpoint = await db.endpoint.create({ data: { applicationId: app.id, url: "https://example.com", eventTypes: ["*"], secret: encryptSecret("secret-for-admins", app.id) } });
-  expect((await (await endpointDetails(req(undefined, "GET"), context(endpoint.id))).json()).endpoint.secret).toBe("secret-for-admins");
+  expect((await (await endpointDetails(req(undefined, "GET"), context(endpoint.id))).json()).endpoint.secret).toBe("whsec_c2VjcmV0LWZvci1hZG1pbnM=");
   session(2);
   expect((await (await endpointDetails(req(undefined, "GET"), context(endpoint.id))).json()).endpoint.secret).toBeUndefined();
   const listed = await (await endpointList(req(undefined, "GET"), context(app.id))).json();
