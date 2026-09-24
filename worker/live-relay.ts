@@ -4,6 +4,7 @@ import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import WebSocket, { WebSocketServer } from "ws";
 import { db } from "../lib/db";
 import { authorizeLiveSource, LiveAuthError } from "../lib/live-auth";
+import { forwardableProviderHeaders } from "../lib/inbound-headers";
 import { LIVE_EXCHANGE } from "../lib/queue/topology";
 
 type Session = { id: string; sourceId: string; alive: boolean };
@@ -29,7 +30,7 @@ export function createLiveRelay(server: Server) {
         const attempt = await db.inboundLiveAttempt.create({ data: { receiptId, sessionId: session.id, replayId: replayId || null, status: "SENT" } });
         send(socket, { type: "event", attemptId: attempt.id, receiptId, replayId: replayId || null,
           eventType: receipt.eventType || "inbound.event", receivedAt: receipt.receivedAt.toISOString(),
-          headers: receipt.rawHeaders, bodyBase64: receipt.rawBody });
+          headers: forwardableProviderHeaders(receipt.rawHeaders as Record<string, string>), bodyBase64: receipt.rawBody });
       }
     } catch (error) {
       console.error("Live inbound message failed", { name: error instanceof Error ? error.name : "Unknown" });

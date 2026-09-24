@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { apiError, ownApplication } from "@/lib/access";
+import { forwardableProviderHeaders } from "@/lib/inbound-headers";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string; receiptId: string }> }) {
   try {
@@ -18,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // the public ingestion response deliberately reveals no signature detail.
     return Response.json({ id: receipt.id, sourceId: receipt.sourceId, sourceName: receipt.source.name, eventId: receipt.eventId,
       provider: receipt.provider, eventType: receipt.eventType, verified: receipt.verified, failureReason: receipt.failureReason,
-      receivedAt: receipt.receivedAt, rawHeaders: receipt.rawHeaders, rawBody: receipt.searchText,
+      receivedAt: receipt.receivedAt, rawHeaders: forwardableProviderHeaders(receipt.rawHeaders as Record<string, string>), rawBody: receipt.searchText,
       bodyBase64: receipt.rawBody, deliveries, attempts, liveAttempts: receipt.liveAttempts, replays: receipt.replays,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }

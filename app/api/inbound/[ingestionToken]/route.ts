@@ -7,6 +7,7 @@ import { checkJsonDepth } from "@/lib/input-limits";
 import { ingest } from "@/lib/events";
 import { manualVerifierSchema, providers } from "@/lib/webhook-providers";
 import { publishInboundLive } from "@/lib/queue/client";
+import { forwardableProviderHeaders } from "@/lib/inbound-headers";
 
 export const maxDuration = 30;
 type Context = { params: Promise<{ ingestionToken: string }> };
@@ -40,7 +41,7 @@ export async function POST(req: Request, { params }: Context) {
     const contentType = req.headers.get("content-type") || "";
     if (!contentType.startsWith("application/json") && !contentType.startsWith("application/x-www-form-urlencoded")) return Response.json({ error: "Webhook rejected" }, { status: 415 });
     const rawBody = await boundedRaw(req);
-    const rawHeaders = Object.fromEntries(req.headers.entries());
+    const rawHeaders = forwardableProviderHeaders(Object.fromEntries(req.headers.entries()));
     const publicUrl = new URL(req.url);
     publicUrl.protocol = new URL(process.env.NEXTAUTH_URL || req.url).protocol;
     publicUrl.host = new URL(process.env.NEXTAUTH_URL || req.url).host;
