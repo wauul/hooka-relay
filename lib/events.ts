@@ -35,7 +35,7 @@ export async function flushDelivery(id: string) {
 export async function ingest(
   applicationId: string,
   input: z.infer<typeof eventInput>,
-  target?: { endpointId?: string; webhookSourceId?: string },
+  target?: { endpointId?: string; webhookSourceId?: string; synthetic?: boolean },
 ) {
   return traced("event.ingest", {}, async span => {
   // Application-scoped uniqueness handles simultaneous producer retries. A
@@ -64,7 +64,7 @@ export async function ingest(
         data: {
           applicationId,
           customerId,
-          billable: !target || Boolean(target.webhookSourceId),
+          billable: !target || Boolean(target.webhookSourceId && !target.synthetic),
           ...(target?.webhookSourceId ? { webhookSourceId: target.webhookSourceId } : {}),
           idempotencyKey,
           type: input.type,

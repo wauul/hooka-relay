@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       type: "inbound.simulated",
       payload: { provider: source.provider, simulated: true, message: "Hooka Relay setup test", sourceId: source.id },
       idempotencyKey: `inbound-simulated:${source.id}:${randomUUID()}`,
-    }, { endpointId: source.endpointId, webhookSourceId: source.id });
+    }, { endpointId: source.endpointId, webhookSourceId: source.id, synthetic: true });
     return Response.json({ eventId: event.id, simulated: true }, { status: 202 });
   } catch (error) { return apiError(error); }
 }

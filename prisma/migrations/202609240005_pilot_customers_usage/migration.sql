@@ -38,7 +38,7 @@ CREATE INDEX "WorkspaceUsageMonth_month_idx" ON "WorkspaceUsageMonth"("month");
 BEGIN;
 LOCK TABLE "Event", "Delivery", "DeliveryAttempt" IN SHARE ROW EXCLUSIVE MODE;
 -- Existing synthetic and operational events have never been invoiceable.
-UPDATE "Event" SET "billable" = false WHERE operational = true OR "idempotencyKey" LIKE 'synthetic-%';
+UPDATE "Event" SET "billable" = false WHERE operational = true OR "idempotencyKey" LIKE 'synthetic-%' OR "idempotencyKey" LIKE 'inbound-simulated:%';
 INSERT INTO "WorkspaceUsageMonth" ("workspaceId", "month", "acceptedEvents", "destinationDeliveries", "retryAttempts")
 SELECT "workspaceId", month, sum(accepted), sum(deliveries), sum(retries)
 FROM (

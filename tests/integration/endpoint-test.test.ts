@@ -29,7 +29,7 @@ it.each(["OWNER", "ADMIN", "MEMBER"] as const)("allows %s to test only the selec
   if (role !== "OWNER") { memberId = randomUUID(); await db.user.create({ data: { id: memberId, email: memberId + "@example.com", hashedPassword: "unused" } }); await db.workspaceMember.create({ data: { userId: memberId, workspaceId: ws, role } }); mocks.session.mockResolvedValue({ user: { id: memberId } }); }
   try {
     const result = await call(); expect(result.status).toBe(202); const { eventId } = await result.json();
-    const event = await db.event.findUniqueOrThrow({ where: { id: eventId } }); expect(event.type).toBe("hooka.test"); expect(event.payload).toMatchObject({ hookaTest: true });
+    const event = await db.event.findUniqueOrThrow({ where: { id: eventId } }); expect(event.type).toBe("hooka.test"); expect(event.payload).toMatchObject({ hookaTest: true }); expect(event.billable).toBe(false);
     const deliveries = await db.delivery.findMany({ where: { eventId } }); expect(deliveries).toHaveLength(1); expect(deliveries[0].endpointId).toBe(endpointId); expect(deliveries[0].attemptNumber).toBe(1); expect(mocks.publish).toHaveBeenCalled();
   } finally { if (memberId) { await db.workspaceMember.deleteMany({ where: { userId: memberId } }); await db.user.delete({ where: { id: memberId } }); } }
 });
