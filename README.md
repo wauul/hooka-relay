@@ -281,6 +281,16 @@ The integration API contract is [OpenAPI 3.0](docs/openapi.json), available at `
 
 SDK releases use `.github/workflows/publish-sdks.yml` and require successful CI for the exact master commit. Temporary `NPM_TOKEN` and `PYPI_API_TOKEN` bootstrap secrets are used only with the explicit bootstrap option; normal releases use registry trusted publishing bound to this repository and workflow.
 
+### Scalability & Reliability
+
+The `hooka listen` relay uses a separate RabbitMQ exclusive, auto-delete queue for each worker process. The queue is bound to each locally subscribed `inbound.live.<sourceId>` topic. RabbitMQ gives every worker a copy; each relay forwards only to its own matching WebSocket sessions. The integration suite runs two independent broker connections and checks that the subscribed worker receives the event while the other acknowledges and ignores its copy.
+
+Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` on **both Vercel and Railway** to use the free Upstash Redis database for application rolling admissions, IP and support fixed-window budgets, synthetic test budgets, and circuit failure streaks. These operations use atomic Redis Lua scripts so concurrent replicas share one budget. Until both variables are set, the original Postgres implementation remains active. If Redis is configured but unavailable, requests/jobs fail instead of silently bypassing limits. The endpoint circuit state and transitions remain in Postgres; the UI reads the current streak from Redis. Configure both services together during rollout to avoid split rate-limit budgets. Redis is for volatile counters only, never payloads or durable delivery state. The free database has usage limits; monitor its command count.
+
+The [Neon disaster-recovery runbook](docs/disaster-recovery.md) describes a non-production point-in-time restore drill and production recovery. **Restore is documented but not yet verified** because the current project has no paid trial available for the requested drill.
+
+Grafana alert targets are: delivery attempt success below 90% for 5 minutes, any endpoint circuit opening, and ready delivery queue depth above 100 for 5 minutes. The 5-minute success window filters isolated failures; the circuit signal is immediate because it means a receiver has crossed the five-failure threshold. The queue threshold is above ordinary small bursts and signals sustained worker lag. Each rule should notify the Hooka Relay email contact point; see [alert setup](docs/grafana-alerts.md) for exact PromQL, evaluation and contact configuration. Alert rules require an organization-member email in Grafana Cloud.
+
 ### OpenTelemetry and Grafana
 
 [Live operator dashboard](https://happybadger1637.grafana.net/d/hooka-relay) (Grafana sign-in required).

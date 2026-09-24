@@ -4,6 +4,7 @@ import { revealSigningSecret } from "@/lib/signing-secrets";
 import { publicEndpoint } from "@/lib/endpoint-config";
 import { db } from "@/lib/db";
 import { ownEndpoint, apiError, userId } from "@/lib/access";
+import { failureStreak, redisConfigured } from "@/lib/redis-counters";
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -36,7 +37,7 @@ export async function GET(
       }),
     ]);
     return Response.json({
-      endpoint: { ...publicEndpoint(ep), customHeaders: ep.role === "MEMBER" ? undefined : outboundCustomHeaders(ep), secret: ep.role === "MEMBER" ? undefined : await revealSigningSecret(ep, await userId()) },
+      endpoint: { ...publicEndpoint(ep), consecutiveFailures: redisConfigured() ? await failureStreak(ep.id, ep.consecutiveFailures) : ep.consecutiveFailures, customHeaders: ep.role === "MEMBER" ? undefined : outboundCustomHeaders(ep), secret: ep.role === "MEMBER" ? undefined : await revealSigningSecret(ep, await userId()) },
       attempts,
       pattern: failurePattern(attempts),
       successRate: total ? Math.round((success / total) * 100) : null,

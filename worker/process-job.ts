@@ -12,6 +12,7 @@ import { flushDelivery } from "../lib/events";
 import { originalReplayPayload } from "../lib/inbound-replay-payload";
 import { advanceRoutingExecution } from "../lib/routing";
 import { diagnose } from "../lib/diagnosis";
+import { clearFailureStreak, incrementFailureStreak, redisConfigured } from "../lib/redis-counters";
 export async function processJob(job: { id: string; attemptNumber: number }) {
   const delivery = await db.delivery.findUnique({
     where: { id: job.id },
@@ -117,12 +118,19 @@ export async function processJob(job: { id: string; attemptNumber: number }) {
     span.setAttribute("http.response.status_code", result.code || 0);
     const retry = retryPlan(endpoint.retryPolicy, delivery.attemptNumber);
     const dead = !success && retry.exhausted;
-    const next = afterAttempt(gate.state, success);
+    const streak = redisConfigured() && !success
+      ? await incrementFailureStreak(endpoint.id, endpoint.consecutiveFailures, `${delivery.id}:${delivery.attemptNumber}`)
+      : undefined;
+    const next = afterAttempt(streak === undefined ? gate.state : { ...gate.state, consecutiveFailures: streak - 1 }, success);
     const delay = retry.delay;
     await db.$transaction(async (tx) => {
       const owned = await tx.endpoint.updateMany({
         where: { id: endpoint.id, leaseToken: token },
-        data: next,
+        data: redisConfigured()
+          ? next.circuitState !== gate.state.circuitState
+            ? { circuitState: next.circuitState, circuitOpenedAt: next.circuitOpenedAt, consecutiveFailures: next.consecutiveFailures }
+            : {}
+          : next,
       });
       if (!owned.count) throw new Error("Endpoint lease expired");
       await tx.deliveryAttempt.create({
@@ -163,6 +171,7 @@ export async function processJob(job: { id: string; attemptNumber: number }) {
       if (!delivery.event.operational && endpoint.circuitState !== "CLOSED" && next.circuitState === "CLOSED") await operationalEvent(tx, endpoint, "endpoint.re-enabled", {});
       if (!delivery.event.operational && dead) await operationalEvent(tx, endpoint, "message.failed", { eventId: delivery.eventId, deliveryId: delivery.id });
     });
+    if (redisConfigured() && success) await clearFailureStreak(endpoint.id);
     span.setAttributes({ "hooka.outcome": success ? "delivered" : dead ? "dead_lettered" : "retry", "hooka.circuit": next.circuitState, "hooka.delay_ms": success || dead ? 0 : delay.ms });
     if (!success && !dead) count("hooka.delivery.retries", { delay: delay.name });
     if (success || dead) count("hooka.delivery.terminal", { outcome: success ? "delivered" : "dead_lettered" });

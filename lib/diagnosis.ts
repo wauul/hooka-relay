@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "./db";
 import { failurePattern } from "./failure-pattern";
+import { failureStreak, redisConfigured } from "./redis-counters";
 const schema = z.object({
   likelyCause: z.string().max(1500),
   suggestedFix: z.string().max(1500),
@@ -9,8 +10,9 @@ const schema = z.object({
 export async function diagnose(endpointId: string) {
   if (!process.env.GROQ_API_KEY) return;
   const ep = await db.endpoint.findUniqueOrThrow({ where: { id: endpointId } });
+  const streak = redisConfigured() ? await failureStreak(endpointId, ep.consecutiveFailures) : ep.consecutiveFailures;
   if (
-    ep.consecutiveFailures < 3 ||
+    streak < 3 ||
     (ep.diagnosedAt && Date.now() - ep.diagnosedAt.getTime() < 60_000)
   )
     return;
@@ -57,9 +59,10 @@ export async function diagnose(endpointId: string) {
   const json = await response.json();
   if (json.choices?.[0]?.finish_reason !== "stop") throw new Error("Incomplete diagnosis");
   const diagnosis = schema.parse(JSON.parse(json.choices[0].message.content));
+  if (redisConfigured() && await failureStreak(endpointId, ep.consecutiveFailures) < 3) return;
   await db.endpoint.updateMany({
     // A successful recovery during the LLM request must not acquire a stale diagnosis.
-    where: { id: endpointId, consecutiveFailures: { gte: 3 }, diagnosedAt: ep.diagnosedAt },
+    where: { id: endpointId, diagnosedAt: ep.diagnosedAt, ...(redisConfigured() ? {} : { consecutiveFailures: { gte: 3 } }) },
     data: { diagnosis: { ...diagnosis, pattern }, diagnosedAt: new Date() },
   });
 }

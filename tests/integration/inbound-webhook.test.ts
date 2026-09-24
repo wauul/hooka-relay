@@ -1,6 +1,8 @@
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import WebSocket from "ws";
+import amqp from "amqplib";
+import { GenericContainer } from "testcontainers";
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createApplication } from "../fixtures";
@@ -12,6 +14,7 @@ import { encryptSecret } from "../../lib/secrets";
 import { POST } from "../../app/api/inbound/[ingestionToken]/route";
 import { authorizeLiveSource } from "../../lib/live-auth";
 import { createLiveRelay } from "../../worker/live-relay";
+import { LIVE_EXCHANGE } from "../../lib/queue/topology";
 import { advanceRoutingExecution, createRoutingReplay } from "../../lib/routing";
 
 let userId: string, appId: string, sourceId: string, endpointId: string, token: string, apiKey: string;
@@ -142,3 +145,43 @@ it("sends the exact captured headers and body through a subscribed live socket",
     await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });
+it("fans out a live event to two worker connections but forwards only on the subscribed instance", async () => {
+  const rabbit = await new GenericContainer("rabbitmq:3.13-alpine").withExposedPorts(5672).withStartupTimeout(90_000).start();
+  const url = `amqp://guest:guest@${rabbit.getHost()}:${rabbit.getMappedPort(5672)}`;
+  const [connectionA, connectionB] = await Promise.all([amqp.connect(url), amqp.connect(url)]);
+  const [channelA, channelB] = await Promise.all([connectionA.createConfirmChannel(), connectionB.createConfirmChannel()]);
+  const assertB = vi.spyOn(channelB, "assertQueue");
+  const ackB = vi.spyOn(channelB, "ack");
+  const [serverA, serverB] = [createServer(), createServer()];
+  const [relayA, relayB] = [createLiveRelay(serverA), createLiveRelay(serverB)];
+  let socket: WebSocket | undefined;
+  try {
+    await Promise.all([channelA.assertExchange(LIVE_EXCHANGE, "topic", { durable: true }), channelB.assertExchange(LIVE_EXCHANGE, "topic", { durable: true })]);
+    await Promise.all([relayA.attach(channelA), relayB.attach(channelB)]);
+    await new Promise<void>(resolve => serverA.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => serverB.listen(0, "127.0.0.1", resolve));
+    socket = new WebSocket(`ws://127.0.0.1:${(serverA.address() as { port: number }).port}/live`);
+    await new Promise<void>((resolve, reject) => { socket!.once("open", resolve); socket!.once("error", reject); });
+    const subscribed = new Promise<void>(resolve => socket!.once("message", () => resolve()));
+    socket.send(JSON.stringify({ type: "subscribe", apiKey, source: sourceId }));
+    await subscribed;
+    // Simulate a binding left on B while its local CLI session has disconnected.
+    // The relay's own consumer must acknowledge its copy without forwarding it.
+    const bQueue = (await assertB.mock.results[0].value).queue as string;
+    await channelB.bindQueue(bQueue, LIVE_EXCHANGE, `inbound.live.${sourceId}`);
+    const body = JSON.stringify({ action: "opened", issue: { id: 44 } });
+    const response = await POST(incoming(body, sign(body)), { params: Promise.resolve({ ingestionToken: token }) });
+    const receipt = await db.inboundReceipt.findUniqueOrThrow({ where: { eventId: (await response.json()).id } });
+    const event = new Promise<{ receiptId: string }>(resolve => socket!.once("message", data => resolve(JSON.parse(data.toString()))));
+    channelB.publish(LIVE_EXCHANGE, `inbound.live.${sourceId}`, Buffer.from(JSON.stringify({ receiptId: receipt.id })));
+    await channelB.waitForConfirms();
+    expect((await event).receiptId).toBe(receipt.id);
+    await vi.waitFor(() => expect(ackB).toHaveBeenCalledTimes(1));
+    expect(await db.inboundLiveAttempt.count({ where: { receiptId: receipt.id } })).toBe(1);
+  } finally {
+    socket?.close(); relayA.close(); relayB.close();
+    await Promise.all([new Promise<void>(resolve => serverA.close(() => resolve())), new Promise<void>(resolve => serverB.close(() => resolve()))]);
+    await Promise.all([connectionA.close(), connectionB.close()]);
+    await rabbit.stop();
+  }
+}, 120_000);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import { db } from "./db";
+import { admitFixedWindow, redisConfigured } from "./redis-counters";
 // Only the platform-controlled header is trusted. Self-hosted deployments use
 // a shared bucket until a trusted ingress is configured, never spoofable XFF.
 export function requestIp(req: Request) {
@@ -22,14 +23,16 @@ export async function ipRateLimit(req: Request, scope: "events" | "auth" | "port
     throw new Error("Invalid IP rate limit");
   const key =
     scope + ":" + createHash("sha256").update(requestIp(req)).digest("hex");
+  const admitted = redisConfigured()
+    ? await admitFixedWindow(key, 60, configured)
+    : (await db.$queryRaw<{ hits: number }[]>`
+      INSERT INTO "IpRateBucket" (key, bucket, hits, "expiresAt")
+      VALUES (${key}, FLOOR(EXTRACT(EPOCH FROM NOW()) / 60)::bigint, 1, NOW() + interval '2 minutes')
+      ON CONFLICT (key, bucket) DO UPDATE SET hits = "IpRateBucket".hits + 1
+      WHERE "IpRateBucket".hits < ${configured} RETURNING hits`).length > 0;
   // A single atomic upsert prevents parallel requests/serverless replicas from
   // spending the same admission. Keys are hashed so raw IPs are not persisted.
-  const rows = await db.$queryRaw<{ hits: number }[]>`
-    INSERT INTO "IpRateBucket" (key, bucket, hits, "expiresAt")
-    VALUES (${key}, FLOOR(EXTRACT(EPOCH FROM NOW()) / 60)::bigint, 1, NOW() + interval '2 minutes')
-    ON CONFLICT (key, bucket) DO UPDATE SET hits = "IpRateBucket".hits + 1
-    WHERE "IpRateBucket".hits < ${configured} RETURNING hits`;
-  if (!rows.length)
+  if (!admitted)
     return Response.json(
       { error: "Too many requests. Try again shortly.", retryAfter: 60 },
       {

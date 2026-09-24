@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { db } from "./db";
 import { requestIp } from "./ip-rate-limit";
+import { admitMultipleWindows, redisConfigured } from "./redis-counters";
 class Exhausted extends Error {}
 function limit(name: string, fallback: number) {
   const value = Number(process.env[name] || fallback);
@@ -21,6 +22,7 @@ export async function admitSupport(req: Request, userId?: string) {
   // prevents concurrent replicas spending the same quota, partial admissions
   // consuming another user's budget, and distributed IPs bypassing a global cap.
   budgets.sort((a, b) => a.key.localeCompare(b.key));
+  if (redisConfigured()) return admitMultipleWindows(budgets);
   try {
     await db.$transaction(async tx => {
       for (const budget of budgets) {

@@ -1,4 +1,6 @@
 import { db } from "./db";
+import { randomUUID } from "node:crypto";
+import { admitRollingWindow, redisConfigured } from "./redis-counters";
 
 export function eventRateLimit() {
   const value = Number(process.env.EVENTS_RATE_LIMIT_PER_MINUTE || 100);
@@ -11,6 +13,7 @@ export function eventRateLimit() {
 // Both keys share this rolling 60-second budget during rotation.
 export async function admitEvent(applicationId: string) {
   const limit = eventRateLimit();
+  if (redisConfigured()) return admitRollingWindow(applicationId, limit, randomUUID());
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${applicationId} FOR UPDATE`;
     const [{ now }] = await tx.$queryRaw<
