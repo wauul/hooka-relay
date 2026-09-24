@@ -1,10 +1,12 @@
 .source-live { margin:16px 0; padding:10px 12px; border:1px solid var(--line); border-radius:8px; color:var(--muted); font-size:13px; }
 .source-live.active { color:var(--green); background:var(--accent-soft); border-color:var(--green); font-weight:700; }
 .source-events { margin:24px 0; overflow:visible; }
-.source-filters { display:grid; grid-template-columns:minmax(180px,2fr) repeat(3,minmax(155px,1fr)) auto; align-items:end; gap:12px; padding:0 20px 18px; }
-.source-filters>label { display:grid; gap:6px; min-width:0; color:var(--muted); font-size:12px; }
-.source-filters>.btn { min-height:42px; }
-.source-filters input,.source-filters select { min-height:38px; width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; color:var(--text); background:var(--input); }
+.source-filters { display:grid; grid-template-columns:minmax(180px,2fr) repeat(3,minmax(155px,1fr)) auto; align-items:start; gap:12px; padding:0 20px 18px; }
+.source-filters>label,.source-filters>.date-time-picker { display:grid; grid-template-rows:20px 42px; gap:6px; min-width:0; margin:0; color:var(--muted); font-size:12px; }
+.source-filters>label,.source-filters>.date-time-picker>label { line-height:20px; font-weight:600; }
+.source-filters>.date-time-picker>label { margin:0; }
+.source-filters>.btn { height:42px; min-height:42px; align-self:end; }
+.source-filters>label input,.source-filters>label select { height:42px; min-height:42px; width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; color:var(--text); background:var(--input); }
 .source-pagination { display:flex; justify-content:flex-end; gap:8px; padding:15px 20px; border-top:1px solid var(--line); }
 .inbound-signature { color:var(--green); font-weight:700; }
 .json-key { color:#82b7e8; }.json-string { color:#b6d37c; }.json-number { color:#e4ae74; }.json-keyword { color:#c29ced; }
@@ -33,7 +35,7 @@
 .date-time-grid button:hover { background:var(--surface); }
 .date-time-grid button.selected { background:var(--green); color:var(--bg); font-weight:700; }
 .date-time-footer { border-top:1px solid var(--line); margin-top:12px; padding-top:12px; flex-wrap:wrap; }
-.date-time-footer label { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+.date-time-footer label { display:flex; align-items:center; gap:8px; margin:0; color:var(--muted); font-size:12px; }
 .date-time-footer input { width:105px; min-height:38px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--input); color:var(--text); color-scheme:dark; }
 html[data-theme="light"] .date-time-footer input { color-scheme:light; }
 .date-time-footer .btn { min-height:38px; }
@@ -73,6 +75,7 @@ html[data-theme="light"] .date-time-footer input { color-scheme:light; }
 .source-filters .date-time-picker { width:100%; }
 .source-filters .date-time-picker>label { margin-bottom:0; }
 .source-filters .date-time-footer input { width:105px; }
+.scoped-keys { overflow:visible; }
 .inspector-detail { margin-top:18px; border-top:1px solid var(--line); padding-top:14px; }
 .inspector-detail summary { display:flex; align-items:center; gap:7px; width:fit-content; color:var(--green); cursor:pointer; font-size:12px; font-weight:600; list-style:none; }
 .inspector-detail summary::-webkit-details-marker { display:none; }
