@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@prisma/client";
 const mocks = vi.hoisted(() => ({
+  application: { findUniqueOrThrow: vi.fn() },
   event: { findUnique: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn() },
   endpoint: { findMany: vi.fn() },
   delivery: { createMany: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
@@ -10,10 +11,11 @@ vi.mock("../../lib/db", () => ({ db: { event: mocks.event, endpoint: mocks.endpo
 vi.mock("../../lib/queue/client", () => ({ publish: mocks.publish }));
 import { eventInput, flushDelivery, ingest } from "../../lib/events";
 const input = { type: "order.shipped", idempotencyKey: "order-42", payload: { order: 42 } };
-const event = { id: "event-1", applicationId: "app-1", ...input };
+const event = { id: "event-1", applicationId: "app-1", customerId: null, ...input };
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.transaction.mockImplementation(async callback => callback({ $queryRaw: vi.fn(), eventSchema: { findUnique: vi.fn() }, event: mocks.event, endpoint: mocks.endpoint, delivery: mocks.delivery }));
+  mocks.application.findUniqueOrThrow.mockResolvedValue({ customerMode: "LEGACY" });
+  mocks.transaction.mockImplementation(async callback => callback({ $queryRaw: vi.fn(), application: mocks.application, eventSchema: { findUnique: vi.fn() }, event: mocks.event, endpoint: mocks.endpoint, delivery: mocks.delivery }));
   mocks.event.create.mockResolvedValue(event);
   mocks.endpoint.findMany.mockResolvedValue([]);
   mocks.delivery.findMany.mockResolvedValue([]);
@@ -22,7 +24,7 @@ beforeEach(() => {
 describe("producer idempotency", () => {
   it("creates a new event for a new application-scoped key", async () => {
     expect(await ingest("app-1", input)).toEqual(event);
-    expect(mocks.event.create).toHaveBeenCalledExactlyOnceWith({ data: { applicationId: "app-1", ...input } });
+    expect(mocks.event.create).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({ applicationId: "app-1", customerId: null, billable: true, ...input }) });
     expect(mocks.event.findUniqueOrThrow).not.toHaveBeenCalled();
   });
   it("returns the existing event on the database uniqueness conflict", async () => {
@@ -34,7 +36,7 @@ describe("producer idempotency", () => {
   });
   it("scopes a reused key to a different application", async () => {
     await ingest("app-2", input);
-    expect(mocks.event.create).toHaveBeenCalledWith({ data: { ...input, applicationId: "app-2" } });
+    expect(mocks.event.create).toHaveBeenCalledWith({ data: expect.objectContaining({ ...input, applicationId: "app-2", customerId: null }) });
   });
   it("generates a UUID when the caller omits the key", async () => {
     await ingest("app-1", { type: input.type, payload: input.payload });
@@ -48,7 +50,7 @@ describe("producer idempotency", () => {
     mocks.delivery.findUnique.mockImplementation(async ({where}) => ({id:where.id,attemptNumber:1,status:"PENDING",publishedAt:null,delayQueue:null}));
     await ingest("app-1", input);
     expect(mocks.delivery.createMany).toHaveBeenCalledWith({data:[{eventId:event.id,endpointId:"ep-1"},{eventId:event.id,endpointId:"ep-2"}]});
-    expect(mocks.endpoint.findMany).toHaveBeenCalledWith({where:{applicationId:"app-1",status:"ACTIVE",kind:"BUSINESS",OR:[{eventTypes:{has:"*"}},{eventTypes:{has:input.type}}]},select:{id:true}});
+    expect(mocks.endpoint.findMany).toHaveBeenCalledWith({where:{applicationId:"app-1",customerId:null,status:"ACTIVE",kind:"BUSINESS",OR:[{eventTypes:{has:"*"}},{eventTypes:{has:input.type}}]},select:{id:true}});
     expect(mocks.publish).toHaveBeenCalledWith({id:"d-1",attemptNumber:1},null);
     expect(mocks.publish).toHaveBeenCalledWith({id:"d-2",attemptNumber:1},null);
   });
