@@ -14,6 +14,7 @@ export function DateTimePicker({ id, name, label, value, onChange }: Props) {
   const [internal, setInternal] = useState("");
   const current = value ?? internal;
   const [open, setOpen] = useState(false);
+  const [above, setAbove] = useState(false);
   const [month, setMonth] = useState(() => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); });
   const [time, setTime] = useState("09:00");
   const root = useRef<HTMLDivElement>(null);
@@ -39,6 +40,8 @@ export function DateTimePicker({ id, name, label, value, onChange }: Props) {
     if (!onChange) setInternal(formatted);
   }
   function openPicker() {
+    const bounds = root.current?.getBoundingClientRect();
+    if (bounds) setAbove(window.innerHeight - bounds.bottom < 350 && bounds.top > 350);
     if (selected && !Number.isNaN(selected.getTime())) {
       setMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
       setTime(`${pad(selected.getHours())}:${pad(selected.getMinutes())}`);
@@ -51,7 +54,7 @@ export function DateTimePicker({ id, name, label, value, onChange }: Props) {
     <button id={controlId} type="button" className="date-time-trigger" aria-label={`${label}: ${displayValue(current)}`} aria-expanded={open} aria-haspopup="dialog" onClick={openPicker}>
       <CalendarClock size={16} aria-hidden="true" /><span className={current ? "" : "muted"}>{displayValue(current)}</span>
     </button>
-    {open && <div className="date-time-popover" role="dialog" aria-label={`${label} calendar`}>
+    {open && <div className={`date-time-popover${above ? " above" : ""}`} role="dialog" aria-label={`${label} calendar`}>
       <div className="date-time-month"><button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={16} /></button><strong>{month.toLocaleString(undefined, { month: "long", year: "numeric" })}</strong><button type="button" aria-label="Next month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={16} /></button></div>
       <div className="date-time-grid" role="group" aria-label={month.toLocaleString(undefined, { month: "long", year: "numeric" })}>
         {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <span className="date-time-weekday" key={index}>{day}</span>)}

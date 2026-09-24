@@ -878,6 +878,11 @@ kbd {
   margin-left: auto;
 }
 .modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
   background: #151d1a;
   color: #eaf1ed;
   width: min(660px, calc(100% - 28px));

@@ -1,10 +1,11 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Search, Trash2 } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { api, CopyButton, ErrorBox, useData } from "@/components/ui";
 import { ProviderIcon } from "@/components/provider-icon";
+import { useConfirm } from "@/components/site-tools";
 
 type Provider = { name: string; displayName: string; icon: string; docsUrl: string; setupInstructions: string[]; testEventSupport: boolean };
 type SourceDetail = { id: string; name: string; status: string; setupStep: number; ingestionUrl: string; destinationUrl: string | null; hasProviderSecret: boolean; hasVerificationToken: boolean; manualConfig: Record<string, string> | null; provider: Provider; lastVerifiedAt: string | null; attempts: { status: string; event: { id: string } }[] };
@@ -55,6 +56,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const [signaturePrefix, setSignaturePrefix] = useState(""), [signedPayload, setSignedPayload] = useState("body");
   const [timestampHeader, setTimestampHeader] = useState(""), [timestampFormat, setTimestampFormat] = useState("{timestamp}.{body}");
   const [busy, setBusy] = useState(false), [failure, setFailure] = useState(""), [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("source");
     if (!id) { setLoading(false); return; }
@@ -89,7 +91,13 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     }
     setProvider(item); await goTo(1);
   }
-  return <Shell><a className="back" href={`/applications/${applicationId}#sources`}><ArrowLeft size={14} /> Webhook Sources</a><div className="page-head"><div><div className="eyebrow">SETUP WIZARD</div><h1>Connect a webhook provider</h1><p className="muted">Receive signed events and forward them to your own backend with reliable delivery.</p></div></div>
+  async function cancelSetup() {
+    if (!sourceId || !(await confirm({ title: `Cancel setup for ${name}?`, description: "This permanently deletes the draft source and any events it received. Remove its webhook from the provider separately if you already created one.", label: "Delete draft" }))) return;
+    setBusy(true); setFailure("");
+    try { await api(`/api/sources/${sourceId}`, {}, "DELETE"); window.location.assign(`/applications/${applicationId}#sources`); }
+    catch (cause) { setFailure((cause as Error).message); setBusy(false); }
+  }
+  return <Shell><a className="back" href={`/applications/${applicationId}#sources`}><ArrowLeft size={14} /> Webhook Sources</a><div className="page-head"><div><div className="eyebrow">SETUP WIZARD</div><h1>Connect a webhook provider</h1><p className="muted">Receive signed events and forward them to your own backend with reliable delivery.</p></div>{sourceId && step < 6 && <button type="button" className="btn danger" disabled={busy} onClick={() => void cancelSetup()}><Trash2 size={15} />Cancel setup</button>}</div>
     <ol className="wizard-progress" aria-label="Setup progress">{titles.map((title, index) => <li key={title} aria-current={step === index ? "step" : undefined} className={index < step ? "complete" : ""}><span>{index < step ? "✓" : index + 1}</span>{title}</li>)}</ol><ErrorBox error={catalogError || failure} />
     {loading ? <div className="wizard-card">Loading setup draft…</div> : <>
     {step === 0 && <div className="wizard-card"><h2>Choose a provider</h2><p>Every listed provider has signature verification. Use Custom / Manual for another provider.</p><label className="wizard-search"><Search size={17} /><input aria-label="Search providers" placeholder="Search providers" value={search} onChange={event => setSearch(event.target.value)} /></label><div className="provider-grid">{catalog?.filter(item => item.displayName.toLowerCase().includes(search.toLowerCase())).map(item => <button type="button" className={`provider-choice ${item.name === "CUSTOM" ? "manual" : ""}`} key={item.name} onClick={() => void choose(item).catch(cause => setFailure((cause as Error).message))}><ProviderIcon provider={item.name} /><strong>{item.displayName}</strong><small>Verified signatures</small></button>)}</div></div>}

@@ -1,7 +1,7 @@
 "use client";
 import { T } from "@/components/preferences";
 import { Section, SectionNav, useSection } from "@/components/section-nav";
-import { Trash2, RotateCcw, Play, Pause } from "lucide-react";
+import { Trash2, RotateCcw, Play, Pause, KeyRound, Settings2, SlidersHorizontal } from "lucide-react";
 import { EndpointOptions } from "@/components/endpoint-options";
 import { EndpointTest } from "@/components/endpoint-test";
 import { EndpointSigning } from "@/components/endpoint-signing";
@@ -56,7 +56,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       {notice && <p className="notice" role="status">{notice}</p>}
       <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "Signing & Security" }, { id: "settings", label: "Settings" }]} />
       <Section active={section} name="settings">
-      {ep && <section className="panel panel-body"><h2><T text={"Endpoint status:"} />{" "}{ep.status}</h2>{ep.status === "DISABLED" && <p role="status"><Link href={`/applications/${ep.applicationId}/backlog?endpoint_id=${ep.id}`}>View missed events and recovery tools</Link></p>}<p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : ep.status === "DISABLED" ? "Delivery disabled by the circuit breaker; automatic recovery probes remain enabled." : "Active: matching new events create deliveries."} Pausing also holds queued attempts until resumed; a request already in flight may finish.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}<T text={ep.status === "PAUSED" ? "Resume" : "Pause"} /></button><button className="btn danger" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}><Trash2 size={16} aria-hidden="true" /><T text={"Delete endpoint"} /></button></>}</section>}
+      {ep && <section className="visual-card endpoint-setting-card"><div className="visual-card-top"><span>Endpoint status</span><span className="visual-card-icon"><Settings2 size={18} /></span></div><div className="visual-card-value"><Badge value={ep.status} /></div><p className="visual-card-caption">{ep.status === "PAUSED" ? "New deliveries and queued attempts wait until resumed." : ep.status === "DISABLED" ? "Circuit protection is checking recovery." : "Matching events are delivered."}</p>{ep.status === "DISABLED" && <p className="visual-card-caption"><Link href={`/applications/${ep.applicationId}/backlog?endpoint_id=${ep.id}`}>Missed events & recovery →</Link></p>}{ep.role !== "MEMBER" && <div className="endpoint-setting-actions"><button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}<T text={ep.status === "PAUSED" ? "Resume" : "Pause"} /></button><button className="btn danger" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}><Trash2 size={16} aria-hidden="true" /><T text={"Delete endpoint"} /></button></div>}</section>}
       </Section>
       <Section active={section} name="security">{ep && <EndpointSigning endpoint={ep} reload={reload} />}</Section>
       <Section active={section} name="settings">{ep && <EndpointOptions endpoint={ep} reload={reload} />}</Section>
@@ -173,16 +173,12 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               </div>
             )}
           </section>
-          </Section><Section active={section} name="settings"><section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
-            <h2><T text={"Retry policy"} /></h2><p className="muted">Default schedules: Standard: 5 attempts · Aggressive: 7 attempts · Relaxed: 4 attempts. Circuit protection still applies.</p>
+          </Section><Section active={section} name="settings"><section className="visual-card endpoint-setting-card">
+            <div className="visual-card-top"><span>Retry policy</span><span className="visual-card-icon"><SlidersHorizontal size={18} /></span></div><div className="visual-card-value">{ep.retryPolicy.toLowerCase()}</div><p className="visual-card-caption">{ep.retryPolicy === "AGGRESSIVE" ? "7 attempts · shorter delays" : ep.retryPolicy === "RELAXED" ? "4 attempts · longer delays" : "5 attempts · balanced delays"}</p>
             {ep.role === "MEMBER" ? <Badge value={ep.retryPolicy} /> : <Select label="Retry policy" value={ep.retryPolicy} options={[{ value: "STANDARD", label: "Standard", description: "30s, 2m, 5m, 15m" }, { value: "AGGRESSIVE", label: "Aggressive", description: "30s, 30s, 30s, 2m, 2m, 5m" }, { value: "RELAXED", label: "Relaxed", description: "5m, 15m, 30m" }]} onChange={async retryPolicy => { try { await api(`/api/endpoints/${ep.id}/retry-policy`, { retryPolicy }, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } }} />}
-            <p className="muted">Changes apply to subsequent failures. Already scheduled delays keep their due times.</p>
+            <details className="inspector-detail"><summary>How retries work</summary><p className="muted">Changes apply to future failures. Already scheduled attempts keep their due times. Circuit protection still applies.</p></details>
           </section>
-          </Section><Section active={section} name="security"><details className="panel panel-body">
-            <summary style={{ cursor: "pointer" }}><T text={"Endpoint configuration & signing secret"} /></summary>
-            <div style={{ marginTop: 22 }}>
-              <label><T text={"Subscribed event types"} /></label>
-              <CodeBlock>{ep.eventTypes.join(", ")}</CodeBlock>
+          </Section><Section active={section} name="security"><section className="visual-card endpoint-setting-card"><div className="visual-card-top"><span>Event subscription</span><span className="visual-card-icon"><KeyRound size={18} /></span></div><div className="visual-card-value">{ep.eventTypes.includes("*") ? "All events" : `${ep.eventTypes.length} event types`}</div><p className="visual-card-caption">{ep.eventTypes.includes("*") ? "Every matching application event" : ep.eventTypes.slice(0, 2).join(", ")}</p><details className="inspector-detail"><summary>Signing secret & event types</summary><div style={{ marginTop: 18 }}><label><T text={"Subscribed event types"} /></label><CodeBlock>{ep.eventTypes.join(", ")}</CodeBlock>
               {ep.secret && <>
               <label><T text={"HMAC signing secret"} /></label>
               <div className="secret-row">
@@ -194,8 +190,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                 client applications.
               </p>
               </>}
-            </div>
-          </details></Section>
+            </div></details></section></Section>
         </>
       )}
     </Shell>
