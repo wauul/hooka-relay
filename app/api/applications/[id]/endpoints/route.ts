@@ -3,6 +3,7 @@ import { workspaceTransaction } from "@/lib/workspaces";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ownApplication, apiError, sameOrigin, userId } from "@/lib/access";
+import { validateCustomer } from "@/lib/customer-scope";
 
 export async function GET(
   _req: Request,
@@ -33,6 +34,7 @@ export async function POST(
           .min(1)
           .max(50)
           .default(["*"]),
+        customerId: z.string().min(1).max(100).optional(),
       })
       .parse(await req.json());
     const url = input.mode
@@ -41,10 +43,13 @@ export async function POST(
     if (!url) throw new Error("URL required");
     const data = await newEndpointData(app.id, url, input.eventTypes);
     return Response.json(
-      await workspaceTransaction(app.workspaceId, await userId(), "manage", tx => tx.endpoint.create({
-        data,
-        select: { id: true, applicationId: true, url: true, eventTypes: true, status: true },
-      })),
+      await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
+        const customerId = await validateCustomer(tx, app.id, input.customerId);
+        return tx.endpoint.create({
+          data: { ...data, customerId },
+          select: { id: true, applicationId: true, customerId: true, url: true, eventTypes: true, status: true },
+        });
+      }),
       { status: 201 },
     );
   } catch (e) {

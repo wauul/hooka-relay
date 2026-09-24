@@ -19,6 +19,7 @@ export async function POST(req: Request, { params }: Context) {
   try {
     sameOrigin(req);
     const app = await ownApplication((await params).id, "manage");
+    if (app.customerMode === "ISOLATED") return Response.json({ error: "Inbound sources require a legacy application" }, { status: 409 });
     const input = inputSchema.parse(await boundedJson(req, 4096));
     const source = await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
       if (await tx.webhookSource.count({ where: { applicationId: app.id } }) >= 50) throw new Error("Source limit reached");
