@@ -67,6 +67,7 @@
     "prisma": "7.10.0",
     "standardwebhooks": "1.1.1",
     "tailwindcss": "^4.3.3",
+    "testcontainers": "^12.1.0",
     "typescript": "^6.0.3",
     "vitest": "^5.0.1"
   },
