@@ -22,10 +22,10 @@ it("measures a bounded ingest burst, broker outage and outbox recovery", async (
     broker.publish.mockRejectedValue(new Error("broker unavailable"));
     const latencies: number[] = [];
     const started = performance.now();
-    const total = 60, concurrency = 6;
+    const concurrency = 6, targetSeconds = 30;
     let next = 0;
     await Promise.all(Array.from({ length: concurrency }, async () => {
-      while (next < total) {
+      while (performance.now() - started < targetSeconds * 1000) {
         const i = next++;
         const began = performance.now();
         await ingest(app.id, { type: "capacity.test", payload: { i }, idempotencyKey: `capacity-${i}` });
@@ -33,6 +33,8 @@ it("measures a bounded ingest burst, broker outage and outbox recovery", async (
       }
     }));
     const duration = (performance.now() - started) / 1000;
+    const total = next;
+    expect(total).toBeGreaterThanOrEqual(60);
     const pending = await db.delivery.findMany({ where: { event: { applicationId: app.id }, status: "PENDING" }, select: { id: true, publishedAt: true } });
     expect(pending).toHaveLength(total);
     expect(pending.every(row => row.publishedAt === null)).toBe(true);
@@ -43,7 +45,7 @@ it("measures a bounded ingest burst, broker outage and outbox recovery", async (
     const recoverySeconds = (performance.now() - recoveryStarted) / 1000;
     expect(await db.delivery.count({ where: { event: { applicationId: app.id }, publishedAt: null } })).toBe(0);
     latencies.sort((a, b) => a - b);
-    const report = { capacity: { total, concurrency, sustainedAcceptedPerSecond: Number((total / duration).toFixed(2)), latencyMs: { p50: percentile(latencies, .5), p95: percentile(latencies, .95), p99: percentile(latencies, .99) }, largestBacklog, brokerRecoverySeconds: Number(recoverySeconds.toFixed(2)), limitUnchanged: true } };
+    const report = { capacity: { total, concurrency, durationSeconds: Number(duration.toFixed(2)), sustainedAcceptedPerSecond: Number((total / duration).toFixed(2)), latencyMs: { p50: percentile(latencies, .5), p95: percentile(latencies, .95), p99: percentile(latencies, .99) }, largestBacklog, brokerRecoverySeconds: Number(recoverySeconds.toFixed(2)), limitUnchanged: true } };
     console.log(JSON.stringify(report));
     writeFileSync("capacity-results.json", JSON.stringify(report, null, 2) + "\n");
   } finally {
