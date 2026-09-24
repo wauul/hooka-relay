@@ -17,6 +17,8 @@ import { encryptionKey } from "../lib/secrets";
 import { webhookHeaders } from "../lib/webhook-signing";
 import { deliver } from "../lib/deliver";
 import { flushDelivery } from "../lib/events";
+import { originalReplayPayload } from "../lib/inbound-replay-payload";
+import { createLiveRelay } from "./live-relay";
 import { diagnose } from "../lib/diagnosis";
 encryptionKey(); // Refuse to advertise a ready worker without its required key.
 let stopping = false,
@@ -24,7 +26,7 @@ let stopping = false,
 async function processJob(job: { id: string; attemptNumber: number }) {
   const delivery = await db.delivery.findUnique({
     where: { id: job.id },
-    include: { event: true },
+    include: { event: { include: { inboundReceipt: true } } },
   });
   if (
     !delivery ||
@@ -102,12 +104,22 @@ async function processJob(job: { id: string; attemptNumber: number }) {
         data: { circuitState: gate.state.circuitState },
       });
     }
-    let raw: string;
+    let raw: string | Buffer;
     let transformError = false;
-    try { raw = await transformPayload(endpoint.transform, delivery.event.payload); }
+    const rawReplay = delivery.event.inboundReceipt && await db.inboundReplay.findFirst({
+      where: { receiptId: delivery.event.inboundReceipt.id, generation: delivery.generation }, select: { id: true },
+    });
+    const replayPayload = rawReplay && delivery.event.inboundReceipt ? originalReplayPayload(delivery.event.inboundReceipt) : null;
+    try {
+      raw = replayPayload
+        ? replayPayload.body
+        : await transformPayload(endpoint.transform, delivery.event.payload);
+    }
     catch { raw = ""; transformError = true; }
     const custom = outboundCustomHeaders(endpoint);
-    const headers = { ...custom, ...webhookHeaders(raw, delivery.event, endpoint) };
+    const original = replayPayload?.headers || {};
+    const headers = { ...original, ...custom, ...webhookHeaders(raw, delivery.event, endpoint) };
+    if (original["content-type"]) headers["Content-Type"] = original["content-type"];
     if (endpoint.deliveryRatePerMinute) await db.endpoint.updateMany({ where: { id: endpoint.id, leaseToken: token }, data: { nextDeliveryAt: new Date(Date.now() + Math.ceil(60000 / endpoint.deliveryRatePerMinute)) } });
     const result = transformError ? { code: null, body: "", headers: {}, error: "transform_failed", duration: 0 } : await deliver(endpoint.url, raw, headers);
     const success =
@@ -141,7 +153,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
           responseBody: result.body,
           error: result.error,
           durationMs: result.duration,
-          requestBody: raw,
+          requestBody: Buffer.isBuffer(raw) ? raw.toString("utf8") : raw,
           requestHeaders: redactedDeliveryHeaders(headers, custom),
           responseHeaders: result.headers,
         },
@@ -188,6 +200,7 @@ async function processJob(job: { id: string; attemptNumber: number }) {
   }, delivery.event.traceparent);
 }
 async function drain() {
+  await db.inboundLiveSession.deleteMany({ where: { lastSeenAt: { lt: new Date(Date.now() - 60000) } } });
   await db.endpoint.updateMany({ where: { previousSecretExpiresAt: { lte: new Date() } }, data: { previousSecret: null, previousSecretVersion: null, previousSecretExpiresAt: null } });
   await db.application.updateMany({ where: { previousApiKeyExpiresAt: { lte: new Date() } }, data: { previousApiKey: null, previousApiKeyExpiresAt: null } });
   await db.$executeRaw`DELETE FROM "IpRateBucket" WHERE "expiresAt" < NOW()`;
@@ -223,12 +236,14 @@ const server = createServer((_req, res) => {
   res.writeHead(ready ? 200 : 503);
   res.end(ready ? "worker ready" : "worker reconnecting");
 });
+const liveRelay = createLiveRelay(server);
 server.listen(Number(process.env.PORT || 8080));
 async function main() {
   while (!stopping) {
     try {
       const ch = await channel();
       await ch.prefetch(4);
+      await liveRelay.attach(ch);
       console.log(
         "Topology ready: webhook-relay, webhook-relay-retry, delivery-attempt-queue, " +
           DELAYS.map((d) => d.name).join(", "),
@@ -283,6 +298,7 @@ async function main() {
         console.error("Initial outbox drain unavailable; retrying on interval"),
       );
       await closed;
+      liveRelay.detach();
       clearInterval(timer);
       clearInterval(maintenance);
       clearInterval(telemetryTimer);
@@ -298,6 +314,7 @@ process.on("SIGTERM", async () => {
   stopping = true;
   ready = false;
   await stopObservability();
+  liveRelay.close();
   await closeQueue();
   server.close();
   await db.$disconnect();

@@ -54,6 +54,22 @@ pnpm worker
 
 The app is available at `http://localhost:3000`. The worker health endpoint is `http://localhost:8080/health`.
 
+## Inbound sources and local development
+
+Create a webhook source under an Application, choose a provider, and enter its signing secret. The source wizard gives you a private ingestion URL to register with the provider. A public destination is optional during development. Verified requests are recorded even when no destination or local listener is connected; signature failures are visible only to authenticated workspace users.
+
+Install the [Hooka CLI](https://www.npmjs.com/package/hooka-relay-cli), log in with an Application API key, and start a local listener:
+
+```sh
+npm install -g hooka-relay-cli
+hooka login
+hooka listen --source SOURCE_ID --forward-to http://localhost:3000/webhooks
+```
+
+The always-on worker serves `/live` over WebSocket on its existing HTTP port. Configure a public HTTPS domain for that worker and set `TUNNEL_PUBLIC_URL=wss://your-worker.example/live` on the web app. For local development, use `--tunnel-url ws://localhost:8080/live`. The CLI sends the original request body bytes and provider signature header to localhost; the transport `Host` and `Content-Length` are regenerated. A listener does not replace a configured public destination: each verified event goes to both. RabbitMQ live messages are transient, so events missed while offline remain in the source event log for manual replay.
+
+The source page lists received requests with date, verification, and body-text filters. Open one to inspect original headers and body, verification, destination and local attempts, and replay history. Manual replay sends the saved original bytes to the current public destination and any connected local listeners. It creates a new delivery generation; the original receipt remains unchanged. Only verified events can be replayed.
+
 ## Sending events
 
 After creating an application and endpoint in the dashboard, send an event with the application API key:

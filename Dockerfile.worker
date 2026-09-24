@@ -11,7 +11,7 @@ COPY prisma ./prisma
 RUN npm ci --no-audit --no-fund
 COPY tsconfig.json tsconfig.worker.json ./
 COPY lib ./lib
-COPY worker/index.ts ./worker/index.ts
+COPY worker ./worker
 RUN npm run build:worker
 
 FROM base AS runtime

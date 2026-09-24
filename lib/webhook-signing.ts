@@ -4,7 +4,7 @@ export type SigningEndpoint = SecretContext & { secret: string; signatureFormat:
 export function displaySigningSecret(secret: string, _format: "STANDARD") {
   return "whsec_" + Buffer.from(secret, "utf8").toString("base64");
 }
-export function webhookHeaders(raw: string, event: { id: string; idempotencyKey: string; type: string }, endpoint: SigningEndpoint, now = new Date()): Record<string, string> {
+export function webhookHeaders(raw: string | Buffer, event: { id: string; idempotencyKey: string; type: string }, endpoint: SigningEndpoint, now = new Date()): Record<string, string> {
   const current = decryptEndpointSecret(endpoint.secret, endpoint);
   const previous = endpoint.previousSecret && endpoint.previousSecretVersion !== null && endpoint.previousSecretExpiresAt && endpoint.previousSecretExpiresAt > now
     ? decryptEndpointSecret(endpoint.previousSecret, { ...endpoint, secretVersion: endpoint.previousSecretVersion }) : null;
@@ -15,6 +15,7 @@ export function webhookHeaders(raw: string, event: { id: string; idempotencyKey:
   if (!/^[A-Za-z0-9_-]+$/.test(event.id)) throw new Error("Invalid webhook event ID");
   headers["webhook-id"] = event.id;
   headers["webhook-timestamp"] = String(timestamp);
-  headers["webhook-signature"] = [current, ...(previous ? [previous] : [])].map(secret => "v1," + createHmac("sha256", secret).update(`${event.id}.${timestamp}.${raw}`).digest("base64")).join(" ");
+  const signed = Buffer.concat([Buffer.from(`${event.id}.${timestamp}.`), Buffer.isBuffer(raw) ? raw : Buffer.from(raw)]);
+  headers["webhook-signature"] = [current, ...(previous ? [previous] : [])].map(secret => "v1," + createHmac("sha256", secret).update(signed).digest("base64")).join(" ");
   return headers;
 }

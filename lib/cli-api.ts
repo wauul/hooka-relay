@@ -54,6 +54,13 @@ export async function cliApi(req: Request, path: string[]) {
       return json({ id: updated.id, status: effectiveEndpointStatus(updated), environment: updated.environment });
     }
     if (req.method === "GET" && route === "me") return json({ application: app });
+    if (req.method === "GET" && route === "live") {
+      const configured = process.env.TUNNEL_PUBLIC_URL;
+      if (!configured) return json({ error: "Live forwarding is not configured" }, 503);
+      const url = new URL(configured);
+      if (url.protocol !== "wss:" && !(url.protocol === "ws:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) return json({ error: "Live forwarding URL is invalid" }, 503);
+      return json({ url: url.toString() });
+    }
     if (route === "endpoints" && req.method === "GET") {
       const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id, kind: { not: "INBOUND" } }, select: endpointFields, orderBy: { createdAt: "asc" } });
       const counts = await db.deliveryAttempt.groupBy({

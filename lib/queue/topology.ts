@@ -1,6 +1,7 @@
 import type { Channel } from "amqplib";
 export const EXCHANGE = "webhook-relay";
 export const RETRY_EXCHANGE = "webhook-relay-retry";
+export const LIVE_EXCHANGE = "webhook-relay-inbound-live";
 export const QUEUE = "delivery-attempt-queue";
 export const DELAYS = [
   { name: "retry-delay-30s", ms: 30_000 },
@@ -21,6 +22,7 @@ export const DELAYS = [
 export async function declareTopology(ch: Channel) {
   await ch.assertExchange(EXCHANGE, "direct", { durable: true });
   await ch.assertExchange(RETRY_EXCHANGE, "direct", { durable: true });
+  await ch.assertExchange(LIVE_EXCHANGE, "topic", { durable: true });
   await ch.assertQueue(QUEUE, { durable: true });
   await ch.bindQueue(QUEUE, EXCHANGE, "deliver");
   await ch.bindQueue(QUEUE, RETRY_EXCHANGE, "deliver");

@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import type { Metadata } from "next";
 import { Telemetry } from "@/components/telemetry";
 import "./globals.css";
+import "./inbound.css";
 import { SiteTools } from "@/components/site-tools";
 export const metadata: Metadata = {
   title: "Hooka Relay — Every event. Delivered.",

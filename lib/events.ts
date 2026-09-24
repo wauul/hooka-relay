@@ -32,7 +32,7 @@ export async function flushDelivery(id: string) {
 export async function ingest(
   applicationId: string,
   input: z.infer<typeof eventInput>,
-  target?: { endpointId: string; webhookSourceId?: string },
+  target?: { endpointId?: string; webhookSourceId?: string },
 ) {
   return traced("event.ingest", {}, async span => {
   // Application-scoped uniqueness handles simultaneous producer retries. A
@@ -60,7 +60,7 @@ export async function ingest(
               : (input.payload as Prisma.InputJsonValue),
         },
       });
-      const endpoints = await tx.endpoint.findMany({
+      const endpoints = target?.webhookSourceId && !target.endpointId ? [] : await tx.endpoint.findMany({
         where: {
           applicationId,
           status: "ACTIVE",
@@ -71,7 +71,7 @@ export async function ingest(
         },
         select: { id: true },
       });
-      if (target && endpoints.length !== 1) throw new WorkspaceError(409, "Endpoint is unavailable for a synthetic test.");
+      if (target?.endpointId && endpoints.length !== 1) throw new WorkspaceError(409, "Endpoint is unavailable for a synthetic test.");
       await tx.delivery.createMany({
         data: endpoints.map((e) => ({ eventId: event.id, endpointId: e.id })),
       });

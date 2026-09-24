@@ -1,5 +1,5 @@
 import amqp, { type ConfirmChannel, type ChannelModel } from "amqplib";
-import { declareTopology, EXCHANGE } from "./topology";
+import { declareTopology, EXCHANGE, LIVE_EXCHANGE } from "./topology";
 let connection: ChannelModel | undefined;
 let pending: Promise<ConfirmChannel> | undefined;
 export function channel() {
@@ -45,4 +45,15 @@ export async function publish(
 export async function closeQueue() {
   await connection?.close();
   pending = undefined;
+}
+// Transient fanout: only queues bound by currently connected worker sessions
+// receive a copy. A broker outage must never change durable event admission.
+export async function publishInboundLive(sourceId: string, receiptId: string, replayId?: string) {
+  const ch = await channel();
+  await new Promise<void>((resolve, reject) => ch.publish(
+    LIVE_EXCHANGE, `inbound.live.${sourceId}`,
+    Buffer.from(JSON.stringify({ receiptId, replayId })),
+    { persistent: false, contentType: "application/json" },
+    error => error ? reject(error) : resolve(),
+  ));
 }

@@ -30,9 +30,12 @@ async function ownSource(id: string, action: "view" | "manage" = "view") {
 export async function GET(req: Request, { params }: Context) {
   try {
     const { source, app } = await ownSource((await params).id);
-    const attempts = source.endpointId ? await db.deliveryAttempt.findMany({ where: { endpointId: source.endpointId }, orderBy: { createdAt: "desc" }, take: 30, include: { event: { select: { id: true, type: true } } } }) : [];
+    const [attempts, liveListenerCount] = await Promise.all([
+      source.endpointId ? db.deliveryAttempt.findMany({ where: { endpointId: source.endpointId }, orderBy: { createdAt: "desc" }, take: 30, include: { event: { select: { id: true, type: true } } } }) : [],
+      db.inboundLiveSession.count({ where: { sourceId: source.id, lastSeenAt: { gt: new Date(Date.now() - 45000) } } }),
+    ]);
     const { encryptedProviderSecret, verificationTokenHash, ...safe } = source;
-    return Response.json({ ...safe, canManage: app.role !== "MEMBER", ingestionUrl: app.role === "MEMBER" ? undefined : `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, hasVerificationToken: !!verificationTokenHash, provider: providers[source.provider], attempts }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ...safe, canManage: app.role !== "MEMBER", ingestionUrl: app.role === "MEMBER" ? undefined : `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, hasVerificationToken: !!verificationTokenHash, provider: providers[source.provider], attempts, liveListenerCount }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }
 export async function PATCH(req: Request, { params }: Context) {
@@ -50,7 +53,7 @@ export async function PATCH(req: Request, { params }: Context) {
       if (input.provider && input.provider !== current.provider && (current.status !== "SETUP_IN_PROGRESS" || current.lastVerifiedAt)) throw new Error("Provider cannot be changed after verification");
       let endpointId = current.endpointId;
       if (input.status === "ACTIVE") {
-        if (!(input.providerSecret || current.encryptedProviderSecret) || !(input.destinationUrl || current.destinationUrl) || (current.provider === "CUSTOM" && !(config || current.manualConfig))) throw new Error("Complete signing and destination setup first");
+        if (!(input.providerSecret || current.encryptedProviderSecret) || (current.provider === "CUSTOM" && !(config || current.manualConfig))) throw new Error("Complete signing setup first");
         const delivered = endpointId && await tx.deliveryAttempt.findFirst({ where: { endpointId, status: "SUCCESS", event: { webhookSourceId: current.id } }, select: { id: true } });
         if (!current.lastVerifiedAt && !delivered) throw new Error("Verify a real webhook or deliver a simulation before activating");
       }

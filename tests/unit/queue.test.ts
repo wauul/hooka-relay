@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 const transport = vi.hoisted(() => ({ connect: vi.fn() }));
 vi.mock("amqplib", () => ({ default: { connect: transport.connect } }));
-import { declareTopology, DELAYS, EXCHANGE, RETRY_EXCHANGE, QUEUE } from "../../lib/queue/topology";
+import { declareTopology, DELAYS, EXCHANGE, LIVE_EXCHANGE, RETRY_EXCHANGE, QUEUE } from "../../lib/queue/topology";
 function fakeChannel() {
   return Object.assign(new EventEmitter(), {
     assertExchange: vi.fn().mockResolvedValue({}), assertQueue: vi.fn().mockResolvedValue({}), bindQueue: vi.fn().mockResolvedValue({}),
@@ -13,7 +13,7 @@ beforeEach(() => { vi.resetModules(); vi.resetAllMocks(); });
 describe("TTL + DLX topology", () => {
   it("declares durable direct exchanges and both routes into the real queue", async () => {
     const ch = fakeChannel(); await declareTopology(ch as never);
-    expect(ch.assertExchange.mock.calls).toEqual([[EXCHANGE,"direct",{durable:true}],[RETRY_EXCHANGE,"direct",{durable:true}]]);
+    expect(ch.assertExchange.mock.calls).toEqual([[EXCHANGE,"direct",{durable:true}],[RETRY_EXCHANGE,"direct",{durable:true}],[LIVE_EXCHANGE,"topic",{durable:true}]]);
     expect(ch.bindQueue.mock.calls).toEqual([[QUEUE,EXCHANGE,"deliver"],[QUEUE,RETRY_EXCHANGE,"deliver"]]);
     expect(ch.assertQueue).toHaveBeenCalledTimes(6);
     for (const delay of DELAYS) expect(ch.assertQueue).toHaveBeenCalledWith(delay.name,{durable:true,arguments:{"x-message-ttl":delay.ms,"x-dead-letter-exchange":RETRY_EXCHANGE,"x-dead-letter-routing-key":"deliver"}});
@@ -34,6 +34,13 @@ describe("publisher wire contract", () => {
   it("publishes retries to a named delay queue via the default exchange", async () => {
     const {ch,client}=await setup(); await client.publish({id:"d",attemptNumber:2},"retry-delay-30s");
     expect(ch.publish.mock.calls[0].slice(0,2)).toEqual(["","retry-delay-30s"]);
+  });
+  it("publishes live receipts transiently to the source topic", async () => {
+    const {ch,client}=await setup(); await client.publishInboundLive("src", "receipt", "replay");
+    const [exchange,key,body,options]=ch.publish.mock.calls[0];
+    expect([exchange,key]).toEqual([LIVE_EXCHANGE,"inbound.live.src"]);
+    expect(JSON.parse(body.toString())).toEqual({receiptId:"receipt",replayId:"replay"});
+    expect(options).toEqual({persistent:false,contentType:"application/json"});
   });
   it("rejects a broker negative confirmation", async () => {
     const {ch,client}=await setup(); ch.publish.mockImplementation((_e,_k,_b,_o,confirm)=>{confirm(new Error("nack"));return true;});

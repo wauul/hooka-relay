@@ -23,6 +23,7 @@
     "quickjs-emscripten": "0.32.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "ws": "8.21.3",
     "zod": "4.6.5"
   }
 }

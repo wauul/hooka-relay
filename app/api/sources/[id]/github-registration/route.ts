@@ -20,7 +20,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!source) throw new Error("NOT_FOUND");
     const app = await ownApplication(source.applicationId, "manage");
     if (source.provider !== "GITHUB" || source.status !== "SETUP_IN_PROGRESS" || source.lastVerifiedAt) throw new Error("GitHub registration is only available during setup");
-    if (!source.destinationUrl || !source.endpointId) throw new Error("Set the destination before connecting GitHub");
     const input = inputSchema.parse(await boundedJson(req, 4096));
     const secret = randomBytes(32).toString("hex");
     const ingestionUrl = `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`;

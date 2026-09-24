@@ -139,7 +139,9 @@ model WebhookSource {
   lastVerificationFailure String?
   lastVerificationFailureAt DateTime?
   createdAt DateTime @default(now())
-  events Event[]
+    events Event[]
+    receipts InboundReceipt[]
+    liveSessions InboundLiveSession[]
   @@index([applicationId, createdAt])
 }
 model Event {
@@ -155,7 +157,8 @@ model Event {
   operational Boolean @default(false)
   createdAt DateTime @default(now())
   attempts DeliveryAttempt[]
-  deliveries Delivery[]
+    deliveries Delivery[]
+    inboundReceipt InboundReceipt?
   @@unique([applicationId, idempotencyKey])
   @@index([applicationId, createdAt, id])
   @@index([webhookSourceId, createdAt])
@@ -310,6 +313,62 @@ model SupportDecision {
 
 enum SignatureFormat {
   STANDARD
+}
+
+model InboundReceipt {
+  id String @id @default(cuid())
+  sourceId String
+  source WebhookSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  eventId String? @unique
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  provider WebhookProvider
+  eventType String?
+  rawBody String @db.Text
+  searchText String? @db.Text
+  rawHeaders Json
+  verified Boolean
+  failureReason String?
+  receivedAt DateTime @default(now())
+  replays InboundReplay[]
+  liveAttempts InboundLiveAttempt[]
+  @@index([sourceId, receivedAt, id])
+  @@index([sourceId, verified, receivedAt])
+}
+
+model InboundReplay {
+  id String @id @default(cuid())
+  receiptId String
+  receipt InboundReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  userId String
+  generation Int?
+  createdAt DateTime @default(now())
+  @@index([receiptId, createdAt])
+}
+
+model InboundLiveSession {
+  id String @id
+  sourceId String
+  source WebhookSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  connectedAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  @@index([sourceId, lastSeenAt])
+}
+
+model InboundLiveAttempt {
+  id String @id @default(cuid())
+  receiptId String
+  receipt InboundReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  sessionId String
+  replayId String?
+  status String
+  httpStatusCode Int?
+  responseBody String?
+  error String?
+  durationMs Int?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  @@index([receiptId, createdAt])
+  @@index([sessionId, createdAt])
 }
 model AuditLog {
   id String @id @default(cuid())

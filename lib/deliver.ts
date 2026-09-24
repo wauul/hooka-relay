@@ -9,7 +9,7 @@ export type HttpResult = {
 };
 export async function deliver(
   url: string,
-  body: string,
+  body: string | Buffer,
   headers: Record<string, string>,
 ): Promise<HttpResult> {
   const start = Date.now();
