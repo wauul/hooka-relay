@@ -32,6 +32,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   );
   const ep = data?.endpoint;
   const [failure, setFailure] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const confirm = useConfirm();
   return (
@@ -52,57 +53,26 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <Refresh onClick={reload} />
       </div>
       <ErrorBox error={error || failure} />
+      {notice && <p className="notice" role="status">{notice}</p>}
       <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "Signing & Security" }, { id: "settings", label: "Settings" }]} />
       <Section active={section} name="settings">
       {ep && <section className="panel panel-body"><h2><T text={"Endpoint status:"} />{" "}{ep.status}</h2>{ep.status === "DISABLED" && <p role="status"><Link href={`/applications/${ep.applicationId}/backlog?endpoint_id=${ep.id}`}>View missed events and recovery tools</Link></p>}<p>{ep.status === "PAUSED" ? "Paused by your team: new events create no deliveries or skipped logs for this endpoint. Resuming will not backfill them." : ep.status === "DISABLED" ? "Delivery disabled by the circuit breaker; automatic recovery probes remain enabled." : "Active: matching new events create deliveries."} Pausing also holds queued attempts until resumed; a request already in flight may finish.</p>{ep.role !== "MEMBER" && <><button className="btn" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/endpoints/${ep.id}/${ep.status === "PAUSED" ? "resume" : "pause"}`, {}, "PATCH"); await reload(); } catch(e) { setFailure((e as Error).message); } finally { setBusy(false); } }}>{ep.status === "PAUSED" ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}<T text={ep.status === "PAUSED" ? "Resume" : "Pause"} /></button><button className="btn danger" disabled={busy} onClick={async () => { if (!(await confirm({ title: "Delete endpoint?", description: "This permanently removes the endpoint and its delivery history.", label: "Delete endpoint" }))) return; try { await api(`/api/endpoints/${ep.id}`, {}, "DELETE"); window.location.assign(`/applications/${ep.applicationId}`); } catch(e) { setFailure((e as Error).message); } }}><Trash2 size={16} aria-hidden="true" /><T text={"Delete endpoint"} /></button></>}</section>}
-      </Section>
-      <Section active={section} name="events">
-      {ep && ep.status === "ACTIVE" && <form className="panel panel-body" onSubmit={async e => { e.preventDefault(); const eventId = String(new FormData(e.currentTarget).get("eventId")); try { await api(`/api/events/${encodeURIComponent(eventId)}/replay`, { endpointId: ep.id }); await reload(); } catch(e) { setFailure((e as Error).message); } }}><label>Replay a stored event to this endpoint<input name="eventId" placeholder="Event ID (including events received while paused)" required /></label><button className="btn secondary"><RotateCcw size={16} aria-hidden="true" /><T text={"Replay event"} /></button></form>}
       </Section>
       <Section active={section} name="security">{ep && <EndpointSigning endpoint={ep} reload={reload} />}</Section>
       <Section active={section} name="settings">{ep && <EndpointOptions endpoint={ep} reload={reload} />}</Section>
       {!data && !error && <LoadingState />}
       {data && (
         <>
-          <Section active={section} name="overview"><div className="stats">
-            <div className="stat">
-              <div className="stat-label"><T text={"Circuit breaker"} /><ShieldCheck size={16} />
-              </div>
-              <div style={{ margin: "21px 0 13px" }}>
-                <Badge value={ep.circuitState} />
-              </div>
-              <div className="stat-note">
-                {ep.circuitState === "OPEN"
-                  ? "Recovery probe after 10-minute cooldown"
-                  : ep.circuitState === "HALF_OPEN" ? "One probe checks whether delivery can recover" : "Healthy: requests are delivered normally"}
-              </div>
-            </div>
-            <div className="stat">
-              <div className="stat-label"><T text={"Success rate"} /><Activity size={16} />
-              </div>
-              <div className="stat-value">
-                {data.successRate === null ? "—" : `${data.successRate}%`}
-              </div>
-              <div className="stat-note">
-                {data.total} HTTP attempts · last 24 hours
-              </div>
-            </div>
-            <div className="stat">
-              <div className="stat-label"><T text={"Consecutive failures"} /><Timer size={16} />
-              </div>
-              <div className="stat-value">
-                {ep.consecutiveFailures}
-                <span style={{ fontSize: 14, color: "#657082" }}> / 5</span>
-              </div>
-              <div className="stat-note"><T text={"Success resets the failure counter"} /></div>
-            </div>
+          <Section active={section} name="overview"><div className="visual-card-grid">
+            <div className="visual-card"><div className="visual-card-top"><span>Circuit</span><span className="visual-card-icon"><ShieldCheck size={18} /></span></div><div className="visual-card-value"><Badge value={ep.circuitState} /></div><p className="visual-card-caption">{ep.circuitState === "OPEN" ? "Recovery probe pending" : ep.circuitState === "HALF_OPEN" ? "Checking recovery" : "Delivering normally"}</p></div>
+            <div className="visual-card"><div className="visual-card-top"><span>Success · 24h</span><span className="visual-card-icon"><Activity size={18} /></span></div><div className="visual-card-value">{data.successRate === null ? "—" : `${data.successRate}%`}</div><p className="visual-card-caption">{data.total} HTTP attempts</p><div className="delivery-meter" aria-hidden="true"><span style={{ width: `${data.successRate || 0}%` }} /></div></div>
+            <div className="visual-card"><div className="visual-card-top"><span>Failure streak</span><span className="visual-card-icon"><Timer size={18} /></span></div><div className="visual-card-value">{ep.consecutiveFailures}<small className="muted"> / 5</small></div><p className="visual-card-caption">Resets after a success</p><div className="delivery-streak" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <span key={index} className={index < ep.consecutiveFailures ? "filled" : ""} />)}</div></div>
           </div>
           {data.pattern?.observed > 0 && <section className="panel panel-body" style={{ marginBottom: 24 }}>
             <div className="eyebrow">RECENT DELIVERY EVIDENCE</div>
             <h2 style={{ marginTop: 8 }}>{data.pattern.active ? "Failure pattern" : "Latest delivery"}</h2>
-            <p style={{ lineHeight: 1.7 }}>{data.pattern.summary}</p>
-            {data.pattern.changes.length > 0 && <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>{data.pattern.changes.map((change: string) => <li key={change} style={{ marginBottom: 8 }}>{change}</li>)}</ul>}
-            <p className="muted">Based on {data.pattern.observed} recent HTTP attempts. Times are UTC; circuit-open skips are excluded. Observed changes do not establish the root cause.</p>
+            <p>{data.pattern.summary}</p>
+            {data.pattern.changes.length > 0 && <details className="inspector-detail"><summary>View {data.pattern.changes.length} observed changes</summary><ul>{data.pattern.changes.map((change: string) => <li key={change}>{change}</li>)}</ul></details>}
           </section>}
           {ep.diagnosis && (
             <section className="panel">
@@ -122,14 +92,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   {ep.diagnosis.confidence} confidence
                 </span>
               </div>
-              <div className="panel-body">
-                <strong>{ep.diagnosis.likelyCause}</strong>
-                <p className="muted">{ep.diagnosis.suggestedFix}</p>
-                <span className="muted" style={{ fontSize: 10 }}>
-                  Groq analysis · {new Date(ep.diagnosedAt).toLocaleString()} ·
-                  Advice may be incomplete.
-                </span>
-              </div>
+              <div className="panel-body"><div className="visual-list-main"><span className="visual-card-icon"><Sparkles size={18} /></span><div><strong>{ep.diagnosis.likelyCause}</strong><p className="muted">{ep.diagnosis.suggestedFix}</p></div></div><details className="inspector-detail"><summary>Analysis details</summary><small className="muted">Groq analysis · {new Date(ep.diagnosedAt).toLocaleString()} · Advice may be incomplete.</small></details></div>
             </section>
           )}
           <EndpointTest endpoint={ep} /></Section>
@@ -153,6 +116,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                       <th>HTTP</th>
                       <th>Duration</th>
                       <th>Time</th>
+                      <th><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -181,6 +145,13 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                         <td className="muted">
                           {new Date(a.createdAt).toLocaleTimeString()}
                         </td>
+                        <td>{ep.status === "ACTIVE" && ep.role !== "MEMBER" && <button type="button" className="replay-icon" title="Replay to this endpoint" aria-label={`Replay ${a.event.type} to this endpoint`} disabled={busy} onClick={async () => {
+                          if (!(await confirm({ title: `Replay ${a.event.type}?`, description: "This queues a new delivery of the stored event to this endpoint. The receiver may repeat its action unless it deduplicates the event.", label: "Queue replay" }))) return;
+                          setBusy(true); setFailure(""); setNotice("");
+                          try { await api(`/api/events/${encodeURIComponent(a.eventId)}/replay`, { endpointId: ep.id }); setNotice(`Replay queued for ${a.event.type}.`); await reload(); }
+                          catch (cause) { setFailure((cause as Error).message); }
+                          finally { setBusy(false); }
+                        }}><RotateCcw size={15} aria-hidden="true" /></button>}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Badge, ErrorBox, useData } from "@/components/ui";
+import { DateTimePicker } from "@/components/date-time-picker";
 
 type Receipt = { id: string; eventId: string | null; eventType: string | null; provider: string; verified: boolean; failureReason: string | null; receivedAt: string; _count: { replays: number; liveAttempts: number } };
 type Page = { receipts: Receipt[]; nextCursor: string | null };
@@ -20,8 +21,8 @@ export function SourceEventLog({ sourceId }: { sourceId: string }) {
   return <section className="panel source-events"><div className="panel-head"><div><h2>Inbound events</h2><p className="muted">Inspect original requests, signature checks, delivery attempts, and replays.</p></div></div>
     <form className="source-filters" onSubmit={event => { event.preventDefault(); setCursor(""); setFilters({ search: search.trim(), since, until, verification }); }}>
       <label>Search body<input value={search} onChange={event => setSearch(event.target.value)} maxLength={100} placeholder="Order ID or payload text" /></label>
-      <label>From<input type="datetime-local" value={since} onChange={event => setSince(event.target.value)} /></label>
-      <label>To<input type="datetime-local" value={until} onChange={event => setUntil(event.target.value)} /></label>
+      <DateTimePicker label="From" value={since} onChange={setSince} />
+      <DateTimePicker label="To" value={until} onChange={setUntil} />
       <label>Verification<select value={verification} onChange={event => setVerification(event.target.value)}><option value="">All</option><option value="true">Verified</option><option value="false">Failed</option></select></label>
       <button className="btn secondary">Filter</button>
     </form><ErrorBox error={error} />

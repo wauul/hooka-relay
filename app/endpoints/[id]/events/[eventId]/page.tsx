@@ -4,7 +4,7 @@ import { use } from "react";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { Activity, ArrowLeft, Clock3, KeyRound, RotateCcw, Send } from "lucide-react";
 import { CodeBlock } from "@/components/ui";
 import { LoadingState } from "@/components/ui";
 import { Shell } from "@/components/shell";
@@ -73,45 +73,18 @@ export default function Page({
       {!data && !error && <LoadingState />}
       {data && (
         <>
-          <div className="panel panel-body">
-            <label><T text={"Idempotency key"} /></label>
-            <code>{data.event.idempotencyKey}</code>
-            <p className="muted" style={{ fontSize: 12 }}>
-              Receivers should deduplicate this key atomically with their
-              business operation, including on replay.
-            </p>
-            <div className="section-title">
-              <h2><T text={"Delivery runs"} /></h2>
-            </div>
-            {data.deliveries.map((d: any) => (
-              <p key={d.id}>
-                <Badge value={d.status} />{" "}
-                <span className="muted mono">
-                  Run {d.generation + 1} · attempt {d.attemptNumber}
-                </span>
-              </p>
-            ))}
+          <div className="visual-card-grid">
+            <section className="visual-card"><div className="visual-card-top"><span>Delivery runs</span><span className="visual-card-icon"><Send size={18} /></span></div><div className="visual-card-value">{data.deliveries.length}</div><p className="visual-card-caption">Original and replay runs</p></section>
+            <section className="visual-card"><div className="visual-card-top"><span>HTTP attempts</span><span className="visual-card-icon"><Activity size={18} /></span></div><div className="visual-card-value">{data.attempts.length}</div><p className="visual-card-caption">{data.attempts.length ? `${data.attempts.filter((attempt: any) => attempt.status === "SUCCESS").length} successful` : "Waiting for delivery"}</p></section>
+            <section className="visual-card"><div className="visual-card-top"><span>Idempotency</span><span className="visual-card-icon"><KeyRound size={18} /></span></div><div className="visual-card-value" style={{ fontSize: 14 }}><code>{data.event.idempotencyKey}</code></div><p className="visual-card-caption">Preserved on replay</p></section>
           </div>
+          <section className="panel panel-body"><div className="visual-list-main"><span className="visual-card-icon"><Clock3 size={18} /></span><h2><T text={"Delivery runs"} /></h2></div><div className="visual-list">{data.deliveries.map((delivery: any) => <div className="visual-list-row" key={delivery.id}><div className="visual-list-main"><strong>Run {delivery.generation + 1}</strong><small>Attempt {delivery.attemptNumber}</small></div><Badge value={delivery.status} /></div>)}</div></section>
           {data.attempts.length ? (
             data.attempts.map((a: any) => (
-              <section className="panel" key={a.id}>
-                <div className="panel-head">
-                  <h2>
-                    Attempt {a.attemptNumber}{" "}
-                    <span
-                      className="muted"
-                      style={{ fontWeight: 400, marginLeft: 10 }}
-                    >
-                      {new Date(a.createdAt).toLocaleString()}
-                    </span>
-                  </h2>
-                  <Badge value={a.status} />
-                </div>
+              <details className="panel inspector-attempt" key={a.id}>
+                <summary><div className="visual-list-main"><span className="visual-card-icon"><Send size={17} /></span><div><strong>Attempt {a.attemptNumber}</strong><small>{new Date(a.createdAt).toLocaleString()}</small></div></div><span className="inspector-attempt-meta"><span>HTTP {a.httpStatusCode || "—"} · {a.durationMs ?? "—"} ms</span><Badge value={a.status} /></span></summary>
                 <div className="panel-body">
-                  <div className="muted" style={{ marginBottom: 18 }}>
-                    HTTP {a.httpStatusCode || "—"} · {a.durationMs ?? 0} ms{" "}
-                    {a.error && `· ${a.error}`}
-                  </div>
+                  {a.error && <p role="status">{a.error}</p>}
                   <div className="split">
                     <div>
                       <label><T text={"Request headers"} /></label>
@@ -135,7 +108,7 @@ export default function Page({
                     </div>
                   </div>
                 </div>
-              </section>
+              </details>
             ))
           ) : (
             <div className="panel empty">

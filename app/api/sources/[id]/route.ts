@@ -35,7 +35,7 @@ export async function GET(req: Request, { params }: Context) {
       db.inboundLiveSession.count({ where: { sourceId: source.id, lastSeenAt: { gt: new Date(Date.now() - 45000) } } }),
     ]);
     const { encryptedProviderSecret, verificationTokenHash, ...safe } = source;
-    return Response.json({ ...safe, canManage: app.role !== "MEMBER", ingestionUrl: app.role === "MEMBER" ? undefined : `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, hasVerificationToken: !!verificationTokenHash, provider: providers[source.provider], attempts, liveListenerCount }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ...safe, canManage: app.role !== "MEMBER", ingestionUrl: app.role === "MEMBER" ? undefined : `${new URL(process.env.NEXTAUTH_URL || req.url).origin}/api/inbound/${source.ingestionToken}`, ingestionToken: app.role === "MEMBER" ? undefined : source.ingestionToken, hasProviderSecret: !!encryptedProviderSecret, hasVerificationToken: !!verificationTokenHash, providerCode: source.provider, provider: providers[source.provider], attempts, liveListenerCount }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }
 export async function PATCH(req: Request, { params }: Context) {
