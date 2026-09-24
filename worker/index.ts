@@ -13,6 +13,7 @@ import { flushDelivery } from "../lib/events";
 import { advanceRoutingExecution } from "../lib/routing";
 import { createLiveRelay } from "./live-relay";
 import { processJob } from "./process-job";
+import { pruneEventHistory } from "../lib/retention";
 encryptionKey(); // Refuse to advertise a ready worker without its required key.
 let stopping = false,
   ready = false;
@@ -113,6 +114,12 @@ async function main() {
         maintaining = true;
         Promise.allSettled([drainRecovery(), drainNotices()]).then(results => { if (results.some(r => r.status === "rejected")) console.error("Lifecycle maintenance pending; delivery processing continues"); }).finally(() => { maintaining = false; });
       }, 5000);
+      let pruning = false;
+      const retentionTimer = setInterval(() => {
+        if (pruning) return;
+        pruning = true;
+        pruneEventHistory().catch(() => console.error("Event retention pending; retrying on next interval")).finally(() => { pruning = false; });
+      }, 60000);
       await drain().catch(() =>
         console.error("Initial outbox drain unavailable; retrying on interval"),
       );
@@ -120,6 +127,7 @@ async function main() {
       liveRelay.detach();
       clearInterval(timer);
       clearInterval(maintenance);
+      clearInterval(retentionTimer);
       clearInterval(telemetryTimer);
       ready = false;
     } catch {

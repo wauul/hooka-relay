@@ -2,11 +2,11 @@ import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { GenericContainer } from "testcontainers";
 import { expect, it } from "vitest";
-import { admitFixedWindow, admitMultipleWindows, admitRollingWindow, clearFailureStreak, failureStreak, incrementFailureStreak } from "../../lib/redis-counters";
+import { admitFixedWindow, admitMultipleWindows, admitRollingWindow } from "../../lib/redis-counters";
 import { ipRateLimit } from "../../lib/ip-rate-limit";
 import { admitEvent } from "../../lib/rate-limit";
 
-it("keeps limits and failure streak atomic across callers using real Redis", async () => {
+it("keeps admission limits atomic across callers using real Redis", async () => {
   const redis = await new GenericContainer("redis:7-alpine").withStartupTimeout(90_000).start();
   // Adapt Upstash's documented JSON-array REST command to a disposable Redis
   // container. Redis executes the exact production Lua scripts, not JS fakes.
@@ -46,12 +46,6 @@ it("keeps limits and failure streak atomic across callers using real Redis", asy
     expect(await admitMultipleWindows(budgets)).toBe(true);
     expect(await admitMultipleWindows(budgets)).toBe(false);
     expect(await admitMultipleWindows([{ key: `global:${id}`, seconds: 86400, max: 2 }])).toBe(true);
-    expect(await incrementFailureStreak(id, 0, `${id}:1`)).toBe(1);
-    expect(await incrementFailureStreak(id, 0, `${id}:1`)).toBe(1);
-    expect(await incrementFailureStreak(id, 0, `${id}:2`)).toBe(2);
-    expect(await failureStreak(id, 0)).toBe(2);
-    await clearFailureStreak(id);
-    expect(await failureStreak(id, 0)).toBe(0);
     const request = new Request("https://hooka.example/api/v1/events", { headers: { "x-vercel-forwarded-for": "203.0.113.72" } });
     expect((await Promise.all(Array.from({ length: 5 }, () => ipRateLimit(request, "events")))).map(value => value?.status || 200).sort()).toEqual([200, 200, 429, 429, 429]);
     expect((await Promise.all(Array.from({ length: 5 }, () => admitEvent(id + ":route")))).filter(value => value === 0)).toHaveLength(2);

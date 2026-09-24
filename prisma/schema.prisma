@@ -237,6 +237,7 @@ model Event {
     inboundReceipt InboundReceipt?
   @@unique([applicationId, idempotencyKey])
   @@index([applicationId, createdAt, id])
+  @@index([createdAt, id])
   @@index([webhookSourceId, createdAt])
 }
 model Delivery {
@@ -409,6 +410,7 @@ model InboundReceipt {
   replays InboundReplay[]
   liveAttempts InboundLiveAttempt[]
   @@index([sourceId, receivedAt, id])
+  @@index([receivedAt, id])
   @@index([sourceId, verified, receivedAt])
 }
 

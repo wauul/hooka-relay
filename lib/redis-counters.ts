@@ -71,25 +71,3 @@ return 0`;
 export async function admitRollingWindow(applicationId: string, maximum: number, member: string) {
   return redisEval<number>(rollingScript, [`hooka:admission:${applicationId}`], [maximum, member]);
 }
-
-const streakScript = `
-local recorded = redis.call('GET', KEYS[2])
-if recorded then return tonumber(recorded) end
-if redis.call('EXISTS', KEYS[1]) == 0 then redis.call('SET', KEYS[1], ARGV[1]) end
-local next = redis.call('INCR', KEYS[1])
-redis.call('SET', KEYS[2], next, 'EX', 604800)
-return next`;
-
-export async function incrementFailureStreak(endpointId: string, initial: number, attemptId: string) {
-  return redisEval<number>(streakScript, [`hooka:failure:${endpointId}`, `hooka:failure-attempt:${attemptId}`], [initial]);
-}
-
-const resetStreakScript = `redis.call('DEL', KEYS[1]); return 1`;
-export async function clearFailureStreak(endpointId: string) {
-  await redisEval<number>(resetStreakScript, [`hooka:failure:${endpointId}`], []);
-}
-
-const getStreakScript = `return tonumber(redis.call('GET', KEYS[1]) or ARGV[1])`;
-export async function failureStreak(endpointId: string, initial: number) {
-  return redisEval<number>(getStreakScript, [`hooka:failure:${endpointId}`], [initial]);
-}

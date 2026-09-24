@@ -1,6 +1,6 @@
 # Neon point-in-time recovery
 
-**Status: documented but not yet verified.** The current project has no paid Neon trial for the requested restore drill, and its two branch slots are occupied. Do not claim a tested recovery time or recovery point until the drill below is completed on a disposable branch.
+**Status: Neon point-in-time restore documented but not yet verified.** On September 24, 2026, the production console showed a six-hour history window and two existing branches. The owner chose documentation only for the Neon drill. Do not claim a tested Neon recovery time or recovery point until the drill below is completed on a disposable branch. CI separately verifies a logical `pg_dump`/`psql` restore of the migrated Hooka schema and representative application, event, and attempt rows in disposable Postgres; that does not validate Neon's point-in-time restore.
 
 ## Before an incident
 

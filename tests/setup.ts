@@ -38,6 +38,30 @@ export default async function setup(project: TestProject) {
       cwd: process.cwd(), env: { ...process.env, DATABASE_URL: databaseUrl },
       stdio: "pipe", timeout: 60_000,
     });
+    // Prove a full logical export can be restored into an isolated database.
+    // This checks our migrated schema and representative existing rows, without
+    // touching Neon or relying on its point-in-time history window.
+    for (const command of [
+      ["pg_dump", "-U", "test", "-d", "hooka_relay_test", "-f", "/tmp/hooka-recovery.sql"],
+      ["createdb", "-U", "test", "hooka_relay_restore_test"],
+      ["psql", "-v", "ON_ERROR_STOP=1", "-U", "test", "-d", "hooka_relay_restore_test", "-f", "/tmp/hooka-recovery.sql"],
+    ]) {
+      const result = await container.exec(command);
+      if (result.exitCode !== 0) throw new Error(`Logical restore drill failed: ${command[0]}: ${result.output}`);
+    }
+    const restoreUrl = new URL(databaseUrl);
+    restoreUrl.pathname = "/hooka_relay_restore_test";
+    const restored = new Client({ connectionString: restoreUrl.toString() });
+    await restored.connect();
+    try {
+      const { rows } = await restored.query(`SELECT
+        (SELECT count(*)::int FROM "Event" WHERE id = 'migration-event') AS events,
+        (SELECT count(*)::int FROM "DeliveryAttempt" WHERE id = 'migration-attempt') AS attempts,
+        (SELECT count(*)::int FROM "Application" WHERE id = 'migration-app') AS applications`);
+      if (rows[0].events !== 1 || rows[0].attempts !== 1 || rows[0].applications !== 1)
+        throw new Error("Logical restore drill lost representative Hooka rows");
+    } finally { await restored.end(); }
+    console.log("Logical backup/restore drill passed on disposable Postgres");
     project.provide("databaseUrl", databaseUrl);
   } catch (error) {
     await container.stop();
