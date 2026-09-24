@@ -28,4 +28,12 @@ it("keeps capability links out of referrers and marks them for analytics exclusi
   const r = proxy(new NextRequest("https://example.com/portal/private-token", { headers: { "x-hooka-private-page": "0" } }));
   expect(r.headers.get("Referrer-Policy")).toBe("no-referrer");
   expect(r.headers.get("x-middleware-request-x-hooka-private-page")).toBe("1");
+  expect(r.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+});
+
+it("indexes only intended public content pages", () => {
+  for (const path of ["/", "/docs", "/privacy", "/terms", "/robots.txt", "/sitemap.xml", "/opengraph-image"])
+    expect(proxy(new NextRequest(`https://example.com${path}`)).headers.get("X-Robots-Tag")).toBeNull();
+  for (const path of ["/status", "/dashboard", "/signup", "/login", "/forgot-password", "/reset-password?token=secret", "/invites/accept?token=secret", "/portal/private-token", "/api/search"])
+    expect(proxy(new NextRequest(`https://example.com${path}`)).headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
 });

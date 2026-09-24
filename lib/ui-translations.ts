@@ -210,11 +210,28 @@ export function translate(text: string, language: string) { return language === 
 
 Object.assign(french, Object.fromEntries(`
 Status|État du service
+Webhook delivery|Livraison de webhooks
+for SaaS teams.|pour les équipes SaaS.
+Send events from your app to customer endpoints. Hooka Relay handles signed delivery, retries and logs, with tools to investigate failures and replay events.|Envoyez les événements de votre application aux endpoints de vos clients. Hooka Relay gère les livraisons signées, les nouvelles tentatives et les journaux, avec des outils pour analyser les échecs et rejouer les événements.
+Read the documentation|Lire la documentation
+Webhook retries, signing and delivery logs|Nouvelles tentatives, signatures et journaux de livraison
+Manage outbound webhooks across customer endpoints from one workspace.|Gérez les webhooks sortants vers les endpoints de vos clients depuis un seul espace.
+Retry temporary failures|Réessayer après un échec temporaire
+Failed deliveries retry on a chosen schedule, so a brief receiver outage does not require a manual resend.|Les livraisons échouées sont réessayées selon le calendrier choisi : une brève panne du récepteur ne nécessite pas de renvoi manuel.
+Verify signed webhooks|Vérifier les webhooks signés
+New endpoints use Standard Webhooks signatures, so receivers can verify who sent a request and check its raw body.|Les nouveaux endpoints utilisent les signatures Standard Webhooks pour permettre aux récepteurs de vérifier l’origine et le contenu brut des requêtes.
+Investigate delivery failures|Analyser les échecs de livraison
+Delivery logs show each attempt, response status and timing, helping you find where a webhook failed.|Les journaux affichent chaque tentative, son état et sa durée pour vous aider à comprendre les échecs.
+Investigate and replay failed webhooks|Analyser et rejouer les webhooks échoués
+Use the delivery history to understand failures before you retry an event.|Consultez l’historique pour comprendre les échecs avant de rejouer un événement.
+Replay when ready|Rejouer au bon moment
+Replay a failed event after fixing your receiver. Recovery tools also help find exhausted deliveries.|Rejouez un événement échoué après avoir corrigé votre récepteur. Les outils de récupération aident aussi à retrouver les livraisons épuisées.
+Keep customers in control|Donner le contrôle aux clients
+Give customers a private portal to register endpoints and view their recent delivery results.|Offrez aux clients un portail privé pour enregistrer leurs endpoints et consulter leurs résultats de livraison récents.
 Send once.|Envoyez une fois.
 Deliver with confidence.|Livrez en confiance.
 Your app creates the event. Hooka Relay handles the delivery trail: signed webhooks, retries, recovery and the tools to see what happened.|Votre application crée l’événement. Hooka Relay prend le relais : webhooks signés, nouvelles tentatives, récupération et outils pour comprendre chaque livraison.
 Read the quickstart|Guide de démarrage
-Free to start. Open source. No credit card.|Démarrage gratuit. Open source. Sans carte bancaire.
 Stored. Queued. Ready to deliver.|Enregistré. En file. Prêt à livrer.
 A route for the unexpected|Un parcours qui prévoit l’imprévu
 Your application|Votre application
@@ -242,7 +259,6 @@ Follow an event from acceptance to its delivery attempts. Inspect the actual sta
 Recover deliberately|Reprenez le contrôle
 Browse missed events and replay failed deliveries when your receiver is ready. No silent backfills or hidden changes.|Parcourez les événements manqués et rejouez les échecs quand votre récepteur est prêt. Sans rattrapage silencieux ni modification cachée.
 Keep the protocol open|Gardez un protocole ouvert
-Standard signatures, documented behavior and open-source SDKs make your integration portable and reviewable.|Signatures standard, comportement documenté et SDK open source rendent votre intégration portable et vérifiable.
 Your language. Your terminal.|Votre langage. Votre terminal.
 Send events with a typed SDK, verify signatures with the reference standard, or follow deliveries from the command line.|Envoyez des événements avec un SDK typé, vérifiez les signatures avec le standard de référence ou suivez les livraisons en ligne de commande.
 Give your next event a reliable route.|Offrez un parcours fiable à votre prochain événement.

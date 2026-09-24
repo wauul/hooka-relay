@@ -7,7 +7,7 @@ export const faq = [
   {
     question: "Can I receive the same event twice?",
     answer:
-      "Yes. Delivery is at least once. Store the X-Idempotency-Key atomically with your business operation and return a successful response for a previously processed event.",
+      "Yes. Delivery is at least once. For new Standard Webhooks endpoints, verify the signature first, then store the authenticated webhook-id atomically with your business operation. Return a successful response for an already processed event.",
   },
   {
     question: "Why is my circuit breaker open?",
@@ -17,7 +17,7 @@ export const faq = [
   {
     question: "How do I verify a webhook signature?",
     answer:
-      "Verify the timestamp and raw body in X-Webhook-Signature using your signing secret and a timing-safe HMAC comparison. Reject timestamps outside five minutes and deduplicate the idempotency key.",
+      "New endpoints use Standard Webhooks. Verify webhook-id, webhook-timestamp, webhook-signature and the exact raw body with the standardwebhooks library, then deduplicate the verified webhook-id. Existing legacy endpoints use X-Webhook-Signature until switched.",
   },
   {
     question: "Can I work from my terminal?",

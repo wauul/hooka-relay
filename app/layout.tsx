@@ -8,9 +8,9 @@ import "./globals.css";
 import "./inbound.css";
 import { SiteTools } from "@/components/site-tools";
 export const metadata: Metadata = {
-  title: "Hooka Relay — Every event. Delivered.",
-  description:
-    "Reliable webhook delivery with automatic retries, circuit breaking, and complete observability.",
+  metadataBase: new URL("https://hooka-relay.vercel.app"),
+  title: "Hooka Relay",
+  description: "Webhook delivery for SaaS teams.",
 };
 export default async function RootLayout({
   children,

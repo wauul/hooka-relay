@@ -2,7 +2,7 @@ import { T } from "@/components/preferences";
 import { PreferencesMenu } from "@/components/preferences";
 import Link from "next/link";
 import { Brand } from "@/components/shell";
-export const metadata = { title: "Terms of Use — Hooka Relay" };
+export const metadata = { title: "Terms of Use — Hooka Relay", description: "Terms for using the hosted Hooka Relay webhook delivery service.", alternates: { canonical: "/terms" } };
 export default function TermsPage() {
   return <main id="main-content" className="legal-page"><header className="public-header"><Brand /><PreferencesMenu /></header><h1><T text={"Terms of Use"} /></h1><p className="muted">Effective 22 September 2026</p><p>These terms describe use of the hosted Hooka Relay service, maintained by Wael Fezari. Hooka Relay helps you send, monitor and retry outbound webhooks. Contact <a className="auth-link" href="mailto:waelfezari@gmail.com">waelfezari@gmail.com</a> with questions about these terms.</p>
     <h2>Your account and workspace</h2><p>Use accurate account information and keep your credentials, API keys, signing secrets and private portal links secure. Only invite people or register destinations you are authorized to use. Workspace owners control their members and application data; make sure you have permission before acting for an organization.</p>

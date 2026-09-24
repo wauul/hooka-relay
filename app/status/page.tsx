@@ -4,7 +4,7 @@ import { PreferencesMenu } from "@/components/preferences";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { publicStatus } from "@/lib/public-status";
-export const metadata = { title: "Service status | Hooka Relay" };
+export const metadata = { title: "Service status | Hooka Relay", description: "View recent aggregate webhook delivery outcomes for Hooka Relay.", alternates: { canonical: "/status" } };
 export default async function StatusPage() {
   let data;
   try { data = await publicStatus(); } catch { return <main id="main-content" className="portal-layout"><Link href="/">hooka relay</Link><h1>Status temporarily unavailable</h1><p>We could not load delivery metrics. Please check again shortly.</p></main>; }

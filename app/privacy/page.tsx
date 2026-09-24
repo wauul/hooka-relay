@@ -2,6 +2,7 @@ import { T } from "@/components/preferences";
 import { PreferencesMenu } from "@/components/preferences";
 import Link from "next/link";
 import { Brand } from "@/components/shell";
+export const metadata = { title: "Privacy & data use | Hooka Relay", description: "How Hooka Relay uses account data, webhook delivery data, cookies and service providers.", alternates: { canonical: "/privacy" } };
 export default function PrivacyPage() {
   return <main id="main-content" className="legal-page"><header className="public-header"><Brand /><PreferencesMenu /></header><h1 style={{ marginTop: 40 }}><T text={"Privacy & data use"} /></h1><p className="muted">Updated 22 September 2026</p>
     <h2>Account and workspace data</h2><p>Hooka Relay stores your email address, display name and workspace memberships. Email/password accounts use a password hash. If you choose GitHub or Google sign-in, we use your provider identity and verified email to sign you in. We store the provider account identifier, not its access or refresh token. Linking an existing account requires signing in first.</p>

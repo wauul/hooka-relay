@@ -27,6 +27,10 @@ export function proxy(request: NextRequest) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", privatePage ? "no-referrer" : "same-origin");
+  // Only stable public content pages are intended for search indexing.
+  const indexablePages = new Set(["/", "/docs", "/privacy", "/terms", "/robots.txt", "/sitemap.xml", "/opengraph-image"]);
+  if (!indexablePages.has(request.nextUrl.pathname))
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
   if (!development)
     response.headers.set(
       "Strict-Transport-Security",
