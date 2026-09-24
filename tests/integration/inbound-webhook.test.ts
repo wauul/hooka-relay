@@ -12,6 +12,7 @@ import { encryptSecret } from "../../lib/secrets";
 import { POST } from "../../app/api/inbound/[ingestionToken]/route";
 import { authorizeLiveSource } from "../../lib/live-auth";
 import { createLiveRelay } from "../../worker/live-relay";
+import { advanceRoutingExecution, createRoutingReplay } from "../../lib/routing";
 
 let userId: string, appId: string, sourceId: string, endpointId: string, token: string, apiKey: string;
 const secret = "github-source-secret";
@@ -68,6 +69,28 @@ it("routes a verified provider event into the existing outbox once, even with an
   expect(await db.delivery.count({ where: { eventId } })).toBe(1);
   expect(await db.event.count({ where: { webhookSourceId: sourceId } })).toBe(1);
   expect((await db.webhookSource.findUniqueOrThrow({ where: { id: sourceId } })).lastVerifiedAt).toBeInstanceOf(Date);
+});
+it("runs a fallback only after the primary exhausts, then records a successful route and replay", async () => {
+  const backup = await db.endpoint.create({ data: { applicationId: appId, url: "https://backup.example.com/receiver", secret: "backup-secret", eventTypes: ["*"], kind: "INBOUND" } });
+  await db.destinationGroup.create({ data: { webhookSourceId: sourceId, order: 0, destinations: { create: { endpointId } } } });
+  await db.destinationGroup.create({ data: { webhookSourceId: sourceId, order: 1, triggerCondition: "ON_PREVIOUS_FAILURE", destinations: { create: { endpointId: backup.id } } } });
+  const response = await POST(incoming(payload, sign(payload)), { params: Promise.resolve({ ingestionToken: token }) });
+  expect(response.status).toBe(202);
+  const eventId = (await response.json()).id as string;
+  const first = await db.delivery.findFirstOrThrow({ where: { eventId, endpointId } });
+  expect(await db.delivery.count({ where: { eventId } })).toBe(1);
+  const execution = await db.routingExecution.findUniqueOrThrow({ where: { eventId_generation: { eventId, generation: 0 } } });
+  await db.delivery.update({ where: { id: first.id }, data: { status: "DEAD_LETTERED" } });
+  await advanceRoutingExecution(execution.id);
+  const second = await db.delivery.findFirstOrThrow({ where: { eventId, endpointId: backup.id } });
+  expect(second.generation).toBe(0);
+  await db.delivery.update({ where: { id: second.id }, data: { status: "DELIVERED" } });
+  await advanceRoutingExecution(execution.id);
+  expect((await db.routingExecution.findUniqueOrThrow({ where: { id: execution.id } })).status).toBe("SUCCESS");
+  expect((await db.routingGroupRun.findMany({ where: { executionId: execution.id }, orderBy: { order: "asc" } })).map(group => group.status)).toEqual(["FAILED", "SUCCESS"]);
+  const replay = await db.$transaction(tx => createRoutingReplay(tx, eventId, sourceId));
+  expect(replay).toEqual({ generation: 1, queued: 1 });
+  expect((await db.delivery.findFirstOrThrow({ where: { eventId, generation: 1 } })).endpointId).toBe(endpointId);
 });
 it("accepts a verified event for a local listener without a destination", async () => {
   await db.webhookSource.update({ where: { id: sourceId }, data: { endpointId: null, destinationUrl: null } });

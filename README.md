@@ -70,6 +70,20 @@ The always-on worker serves `/live` over WebSocket on its existing HTTP port. Co
 
 The source page lists received requests with date, verification, and body-text filters. Open one to inspect original headers and body, verification, destination and local attempts, and replay history. Manual replay sends the saved original bytes to the current public destination and any connected local listeners. It creates a new delivery generation; the original receipt remains unchanged. Only verified events can be replayed.
 
+### Routing inbound events
+
+Open a source's **Destination routing** builder to arrange ordered groups. Destinations within one group start together, and each is a normal inbound Endpoint with its own signing secret, retry policy, circuit breaker, pause state, and attempt history. A group succeeds when **all** destinations deliver, or when **any** delivers if you select that policy. Later groups can always run, run only after the preceding group succeeds, or run only after it fails.
+
+| Pattern | Groups |
+| --- | --- |
+| Fan-out | One group containing multiple destinations |
+| Primary then fallback | Primary group, then a group set to **If previous failed** |
+| Success-gated pipeline | First service, then a group set to **If previous succeeded** |
+| Primary plus monitoring | Primary group, then a group set to **Always** |
+| Redundant primaries plus fallback | First group with **Any may succeed**, then a fallback group |
+
+A group resolves only after **all** of its destinations either deliver or exhaust their retries, even under **Any may succeed**. Thus a fallback can wait through the longest retry schedule and an open circuit; pausing a destination can delay its group until it is resumed. The worker records each group, skipped condition, destination delivery, and outcome in the receipt's **Routing execution trace**. Editing a route affects new events and manual replays; an event already in progress keeps its route snapshot. Existing single-destination sources are migrated to one group with one destination using the same Endpoint and delivery settings.
+
 ## Sending events
 
 After creating an application and endpoint in the dashboard, send an event with the application API key:

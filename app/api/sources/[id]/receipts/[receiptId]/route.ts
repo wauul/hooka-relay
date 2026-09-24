@@ -11,16 +11,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (new URL(req.url).searchParams.get("raw") === "1") return new Response(Buffer.from(receipt.rawBody, "base64"), {
       headers: { "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="inbound-${receipt.id}.bin"`, "Cache-Control": "no-store" },
     });
-    const [deliveries, attempts] = receipt.eventId ? await Promise.all([
+    const [deliveries, attempts, routingExecutions] = receipt.eventId ? await Promise.all([
       db.delivery.findMany({ where: { eventId: receipt.eventId }, orderBy: { generation: "desc" }, include: { endpoint: { select: { url: true } } } }),
       db.deliveryAttempt.findMany({ where: { eventId: receipt.eventId }, orderBy: { createdAt: "desc" } }),
-    ]) : [[], []];
+      db.routingExecution.findMany({ where: { eventId: receipt.eventId }, orderBy: { generation: "desc" }, include: { groups: { orderBy: { order: "asc" }, include: { destinations: { include: { delivery: { select: { status: true, attemptNumber: true } } } } } } } }),
+    ]) : [[], [], []];
     // Only this authenticated workspace view exposes verification failures;
     // the public ingestion response deliberately reveals no signature detail.
     return Response.json({ id: receipt.id, sourceId: receipt.sourceId, sourceName: receipt.source.name, eventId: receipt.eventId,
       provider: receipt.provider, eventType: receipt.eventType, verified: receipt.verified, failureReason: receipt.failureReason,
       receivedAt: receipt.receivedAt, rawHeaders: forwardableProviderHeaders(receipt.rawHeaders as Record<string, string>), rawBody: receipt.searchText,
-      bodyBase64: receipt.rawBody, deliveries, attempts, liveAttempts: receipt.liveAttempts, replays: receipt.replays,
+      bodyBase64: receipt.rawBody, deliveries, attempts, routingExecutions, liveAttempts: receipt.liveAttempts, replays: receipt.replays,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }

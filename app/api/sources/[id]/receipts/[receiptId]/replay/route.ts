@@ -3,6 +3,7 @@ import { apiError, ownApplication, sameOrigin, userId } from "@/lib/access";
 import { replayEvent } from "@/lib/replay";
 import { flushDelivery } from "@/lib/events";
 import { publishInboundLive } from "@/lib/queue/client";
+import { createRoutingReplay } from "@/lib/routing";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string; receiptId: string }> }) {
   try {
@@ -14,11 +15,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!receipt.verified || !receipt.eventId) throw new Error("Only verified events can be replayed");
     if (receipt.source.status === "PAUSED") throw new Error("Resume this source before replaying");
     const endpointId = receipt.source.destinationUrl ? receipt.source.endpointId : null;
+    const hasRoute = await db.destinationGroup.count({ where: { webhookSourceId: id } }) > 0;
     const listeners = await db.inboundLiveSession.count({ where: { sourceId: id, lastSeenAt: { gt: new Date(Date.now() - 45000) } } });
-    if (!endpointId && !listeners) throw new Error("Configure a destination or start hooka listen before replaying");
+    if (!endpointId && !hasRoute && !listeners) throw new Error("Configure a destination or start hooka listen before replaying");
     const actor = await userId();
     const result = await db.$transaction(async tx => {
-      const delivery = endpointId ? await replayEvent(tx, receipt.eventId!, [endpointId]) : null;
+      const delivery = hasRoute ? await createRoutingReplay(tx, receipt.eventId!, id) : endpointId ? await replayEvent(tx, receipt.eventId!, [endpointId]) : null;
       const audit = await tx.inboundReplay.create({ data: { receiptId, userId: actor, generation: delivery?.generation ?? null } });
       return { audit, delivery };
     });

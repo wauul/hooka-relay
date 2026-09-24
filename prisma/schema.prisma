@@ -91,6 +91,8 @@ model Endpoint {
   attempts DeliveryAttempt[]
   deliveries Delivery[]
   webhookSource WebhookSource?
+  routingDestination RoutingDestination?
+  routingRuns RoutingDestinationRun[]
 }
 enum WebhookProvider {
   STRIPE
@@ -131,6 +133,8 @@ model WebhookSource {
   encryptedProviderSecret String?
   manualConfig Json?
   destinationUrl String?
+  destinationGroups DestinationGroup[]
+  routingExecutions RoutingExecution[]
   setupStep Int @default(2)
   verificationTokenHash String?
   status WebhookSourceStatus @default(SETUP_IN_PROGRESS)
@@ -143,6 +147,77 @@ model WebhookSource {
     receipts InboundReceipt[]
     liveSessions InboundLiveSession[]
   @@index([applicationId, createdAt])
+}
+enum RoutingTriggerCondition {
+  ALWAYS
+  ON_PREVIOUS_SUCCESS
+  ON_PREVIOUS_FAILURE
+}
+enum RoutingSuccessPolicy {
+  ALL_MUST_SUCCEED
+  ANY_MUST_SUCCEED
+}
+enum RoutingRunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+model DestinationGroup {
+  id String @id @default(cuid())
+  webhookSourceId String
+  webhookSource WebhookSource @relation(fields: [webhookSourceId], references: [id], onDelete: Cascade)
+  order Int
+  triggerCondition RoutingTriggerCondition @default(ALWAYS)
+  successPolicy RoutingSuccessPolicy @default(ALL_MUST_SUCCEED)
+  destinations RoutingDestination[]
+  @@unique([webhookSourceId, order])
+}
+model RoutingDestination {
+  id String @id @default(cuid())
+  destinationGroupId String
+  destinationGroup DestinationGroup @relation(fields: [destinationGroupId], references: [id], onDelete: Cascade)
+  endpointId String @unique
+  endpoint Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  @@index([destinationGroupId])
+}
+model RoutingExecution {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  webhookSourceId String
+  webhookSource WebhookSource @relation(fields: [webhookSourceId], references: [id], onDelete: Cascade)
+  generation Int @default(0)
+  status RoutingRunStatus @default(RUNNING)
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  groups RoutingGroupRun[]
+  @@unique([eventId, generation])
+  @@index([status, createdAt])
+}
+model RoutingGroupRun {
+  id String @id @default(cuid())
+  executionId String
+  execution RoutingExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  order Int
+  triggerCondition RoutingTriggerCondition
+  successPolicy RoutingSuccessPolicy
+  status RoutingRunStatus @default(PENDING)
+  reason String?
+  destinations RoutingDestinationRun[]
+  @@unique([executionId, order])
+}
+model RoutingDestinationRun {
+  id String @id @default(cuid())
+  groupRunId String
+  groupRun RoutingGroupRun @relation(fields: [groupRunId], references: [id], onDelete: Cascade)
+  endpointId String?
+  endpoint Endpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+  url String
+  deliveryId String? @unique
+  delivery Delivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  @@index([groupRunId])
 }
 model Event {
   id String @id @default(cuid())
@@ -158,6 +233,7 @@ model Event {
   createdAt DateTime @default(now())
   attempts DeliveryAttempt[]
     deliveries Delivery[]
+    routingExecutions RoutingExecution[]
     inboundReceipt InboundReceipt?
   @@unique([applicationId, idempotencyKey])
   @@index([applicationId, createdAt, id])
@@ -176,6 +252,7 @@ model Delivery {
   publishedAt DateTime?
   delayQueue String?
   createdAt DateTime @default(now())
+  routingRun RoutingDestinationRun?
   @@unique([eventId, endpointId, generation])
   @@index([status, dueAt])
 }

@@ -7,6 +7,7 @@ import { api, Badge, CopyButton, ErrorBox, Refresh, useData } from "@/components
 import { useConfirm } from "@/components/site-tools";
 import { ProviderIcon } from "@/components/provider-icon";
 import { SourceEventLog } from "@/components/source-event-log";
+import { RoutingBuilder } from "@/components/routing-builder";
 
 type Attempt = { id: string; status: string; httpStatusCode: number | null; createdAt: string; event: { id: string; type: string } };
 type Detail = { id: string; applicationId: string; name: string; status: string; providerCode: string; ingestionUrl?: string; destinationUrl: string | null; lastEventReceivedAt: string | null; lastVerifiedAt: string | null; lastVerificationFailure: string | null; lastVerificationFailureAt: string | null; liveListenerCount: number; canManage: boolean; provider: { displayName: string; docsUrl: string }; attempts: Attempt[] };
@@ -58,6 +59,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         <section className="visual-card"><div className="visual-card-top"><span>Live listener</span><span className="visual-card-icon"><Radio size={18} /></span></div><div className="visual-card-value">{data.liveListenerCount}</div><p className="visual-card-caption">{data.liveListenerCount ? "Connected local sessions" : "No local session connected"}</p><details><summary>CLI command</summary><code className="source-url">hooka listen --source {id} --forward-to http://localhost:3000/webhooks</code></details></section>
         <section className="visual-card"><div className="visual-card-top"><span>Last received</span><span className="visual-card-icon"><CalendarClock size={18} /></span></div><div className="visual-card-value" style={{ fontSize: 17 }}>{data.lastEventReceivedAt ? new Date(data.lastEventReceivedAt).toLocaleString() : "Waiting"}</div><p className="visual-card-caption"><a href={data.provider.docsUrl} target="_blank" rel="noopener noreferrer">Provider setup <ExternalLink size={12} aria-hidden="true" /></a></p></section>
       </div>
+      <RoutingBuilder sourceId={id} />
       <SourceEventLog sourceId={id} />
       <section className="panel"><div className="panel-head"><div className="visual-list-main"><span className="visual-card-icon"><Activity size={18} /></span><h2>Recent destination attempts</h2></div><span className="count">{data.attempts.length}</span></div>{data.attempts.length ? <div className="table-wrap"><table className="resource-table"><thead><tr><th>Event</th><th>Status</th><th>HTTP</th><th>Time</th></tr></thead><tbody>{data.attempts.map(attempt => <tr key={attempt.id}><td><strong>{attempt.event.type}</strong><br /><small className="muted mono">{attempt.event.id}</small></td><td><Badge value={attempt.status} /></td><td>{attempt.httpStatusCode || "—"}</td><td>{new Date(attempt.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div> : <div className="visual-empty"><Webhook size={20} />No destination attempts yet.</div>}</section>
     </>}

@@ -63,6 +63,9 @@ export async function PATCH(req: Request, { params }: Context) {
           const endpoint = await tx.endpoint.create({ data: { ...endpointData!, kind: "INBOUND" } });
           endpointId = endpoint.id;
         }
+        if (!await tx.destinationGroup.count({ where: { webhookSourceId: source.id } })) {
+          await tx.destinationGroup.create({ data: { webhookSourceId: source.id, order: 0, destinations: { create: { endpointId: endpointId! } } } });
+        }
       }
       if (endpointId && input.status) await tx.endpoint.update({ where: { id: endpointId }, data: { status: input.status === "PAUSED" ? "PAUSED" : "ACTIVE" } });
       return tx.webhookSource.update({ where: { id: source.id }, data: {
@@ -84,8 +87,10 @@ export async function DELETE(req: Request, { params }: Context) {
     sameOrigin(req);
     const { source, app } = await ownSource((await params).id, "manage");
     await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
+      const groups = await tx.destinationGroup.findMany({ where: { webhookSourceId: source.id }, include: { destinations: { select: { endpointId: true } } } });
+      const endpointIds = [...new Set([source.endpointId, ...groups.flatMap(group => group.destinations.map(destination => destination.endpointId))].filter((id): id is string => !!id))];
       await tx.webhookSource.delete({ where: { id: source.id } });
-      if (source.endpointId) await tx.endpoint.delete({ where: { id: source.endpointId } });
+      await tx.endpoint.deleteMany({ where: { id: { in: endpointIds } } });
     });
     return Response.json({ ok: true });
   } catch (error) { return apiError(error); }

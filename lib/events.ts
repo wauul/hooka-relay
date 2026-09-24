@@ -6,6 +6,7 @@ import { db } from "./db";
 import { publish } from "./queue/client";
 import { traced, traceparent } from "./observability";
 import { WorkspaceError } from "./workspaces";
+import { createRoutingExecution } from "./routing";
 export const eventInput = z.object({
   type: z
     .string()
@@ -60,6 +61,7 @@ export async function ingest(
               : (input.payload as Prisma.InputJsonValue),
         },
       });
+      if (target?.webhookSourceId && await createRoutingExecution(tx, event.id, target.webhookSourceId)) return event;
       const endpoints = target?.webhookSourceId && !target.endpointId ? [] : await tx.endpoint.findMany({
         where: {
           applicationId,

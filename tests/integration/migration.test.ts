@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { db } from "../../lib/db";
 it("migrates realistic legacy owners and all application data without orphaning anything", async () => {
   const apps = await db.application.findMany({
@@ -69,4 +70,23 @@ it("grants the restricted runtime role access to inbound sources", async () => {
       has_table_privilege('hooka_runtime', '"WebhookSource"', 'DELETE') AS "canDelete"
   `;
   expect(rows[0]).toEqual({ canSelect: true, canInsert: true, canUpdate: true, canDelete: true });
+});
+
+it("backfills a legacy single-destination source without changing its endpoint", async () => {
+  const id = "migration-routing-source";
+  await db.webhookSource.create({ data: { id, applicationId: "migration-app", endpointId: "migration-endpoint", destinationUrl: "https://example.com", name: "Legacy source", provider: "GITHUB", ingestionToken: "migration-routing-token", status: "ACTIVE" } });
+  try {
+    const sql = readFileSync("prisma/migrations/202609240003_inbound_routing/migration.sql", "utf8");
+    const backfill = sql.match(/(INSERT INTO "DestinationGroup"[\s\S]*?;)\s*(INSERT INTO "RoutingDestination"[\s\S]*?;)/);
+    expect(backfill).not.toBeNull();
+    await db.$executeRawUnsafe(backfill![1]);
+    await db.$executeRawUnsafe(backfill![2]);
+    const source = await db.webhookSource.findUniqueOrThrow({ where: { id }, include: { destinationGroups: { include: { destinations: { include: { endpoint: true } } } } } });
+    expect(source.endpointId).toBe("migration-endpoint");
+    expect(source.destinationUrl).toBe("https://example.com");
+    expect(source.destinationGroups).toHaveLength(1);
+    expect(source.destinationGroups[0]).toMatchObject({ order: 0, triggerCondition: "ALWAYS", successPolicy: "ALL_MUST_SUCCEED" });
+    expect(source.destinationGroups[0].destinations).toHaveLength(1);
+    expect(source.destinationGroups[0].destinations[0].endpoint).toMatchObject({ id: "migration-endpoint", url: "https://example.com", status: "ACTIVE" });
+  } finally { await db.webhookSource.delete({ where: { id } }); }
 });
