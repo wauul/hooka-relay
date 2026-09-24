@@ -116,13 +116,12 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                       <th>HTTP</th>
                       <th>Duration</th>
                       <th>Time</th>
-                      <th><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.attempts.map((a: any) => (
                       <tr key={a.id}>
-                        <td>
+                        <td><div className="event-cell">
                           <Link
                             href={`/endpoints/${ep.id}/events/${a.eventId}`}
                           >
@@ -131,7 +130,14 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                               {a.eventId.slice(-12)} ↗
                             </div>
                           </Link>
-                        </td>
+                          {ep.status === "ACTIVE" && ep.role !== "MEMBER" && <button type="button" className="replay-icon" title="Replay to this endpoint" aria-label={`Replay ${a.event.type} to this endpoint`} disabled={busy} onClick={async () => {
+                            if (!(await confirm({ title: `Replay ${a.event.type}?`, description: "This queues a new delivery of the stored event to this endpoint. The receiver may repeat its action unless it deduplicates the event.", label: "Queue replay" }))) return;
+                            setBusy(true); setFailure(""); setNotice("");
+                            try { await api(`/api/events/${encodeURIComponent(a.eventId)}/replay`, { endpointId: ep.id }); setNotice(`Replay queued for ${a.event.type}.`); await reload(); }
+                            catch (cause) { setFailure((cause as Error).message); }
+                            finally { setBusy(false); }
+                          }}><RotateCcw size={15} aria-hidden="true" /></button>}
+                        </div></td>
                         <td>
                           <Badge value={a.status} />
                         </td>
@@ -145,13 +151,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                         <td className="muted">
                           {new Date(a.createdAt).toLocaleTimeString()}
                         </td>
-                        <td>{ep.status === "ACTIVE" && ep.role !== "MEMBER" && <button type="button" className="replay-icon" title="Replay to this endpoint" aria-label={`Replay ${a.event.type} to this endpoint`} disabled={busy} onClick={async () => {
-                          if (!(await confirm({ title: `Replay ${a.event.type}?`, description: "This queues a new delivery of the stored event to this endpoint. The receiver may repeat its action unless it deduplicates the event.", label: "Queue replay" }))) return;
-                          setBusy(true); setFailure(""); setNotice("");
-                          try { await api(`/api/events/${encodeURIComponent(a.eventId)}/replay`, { endpointId: ep.id }); setNotice(`Replay queued for ${a.event.type}.`); await reload(); }
-                          catch (cause) { setFailure((cause as Error).message); }
-                          finally { setBusy(false); }
-                        }}><RotateCcw size={15} aria-hidden="true" /></button>}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -48,7 +48,7 @@ export function DateTimePicker({ id, name, label, value, onChange }: Props) {
   return <div className="date-time-picker" ref={root}>
     <label id={`${controlId}-label`} htmlFor={controlId}>{label}</label>
     <input type="hidden" name={name} value={current} />
-    <button id={controlId} type="button" className="date-time-trigger" aria-labelledby={`${controlId}-label`} aria-expanded={open} aria-haspopup="dialog" onClick={openPicker}>
+    <button id={controlId} type="button" className="date-time-trigger" aria-label={`${label}: ${displayValue(current)}`} aria-expanded={open} aria-haspopup="dialog" onClick={openPicker}>
       <CalendarClock size={16} aria-hidden="true" /><span className={current ? "" : "muted"}>{displayValue(current)}</span>
     </button>
     {open && <div className="date-time-popover" role="dialog" aria-label={`${label} calendar`}>
