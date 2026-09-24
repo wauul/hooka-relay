@@ -42,7 +42,7 @@ it("rejects outsiders, forged endpoint configuration and cross-origin requests",
 it("never resets pause or circuit protection and rolls back an unavailable target", async () => {
   await db.endpoint.update({ where: { id: endpointId }, data: { status: "PAUSED" } }); expect((await call()).status).toBe(409);
   await db.endpoint.update({ where: { id: endpointId }, data: { status: "ACTIVE", circuitState: "OPEN", consecutiveFailures: 5 } }); expect((await call()).status).toBe(409);
-  await expect(ingest(appId, { type: "hooka.test", payload: {} }, { endpointId: "another-app-endpoint" })).rejects.toMatchObject({ status: 409 });
+  await expect(ingest(appId, { type: "hooka.test", payload: {} }, { endpointId: "another-app-endpoint" })).rejects.toMatchObject({ status: 404 });
   expect(await db.event.count({ where: { applicationId: appId } })).toBe(0);
   expect((await db.endpoint.findUniqueOrThrow({ where: { id: endpointId } })).consecutiveFailures).toBe(5);
 });

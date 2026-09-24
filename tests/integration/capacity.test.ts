@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { writeFileSync } from "node:fs";
 import { afterAll, expect, it, vi } from "vitest";
 
 const broker = vi.hoisted(() => ({ publish: vi.fn() }));
@@ -42,7 +43,9 @@ it("measures a bounded ingest burst, broker outage and outbox recovery", async (
     const recoverySeconds = (performance.now() - recoveryStarted) / 1000;
     expect(await db.delivery.count({ where: { event: { applicationId: app.id }, publishedAt: null } })).toBe(0);
     latencies.sort((a, b) => a - b);
-    console.log(JSON.stringify({ capacity: { total, concurrency, sustainedAcceptedPerSecond: Number((total / duration).toFixed(2)), latencyMs: { p50: percentile(latencies, .5), p95: percentile(latencies, .95), p99: percentile(latencies, .99) }, largestBacklog, brokerRecoverySeconds: Number(recoverySeconds.toFixed(2)), limitUnchanged: true } }));
+    const report = { capacity: { total, concurrency, sustainedAcceptedPerSecond: Number((total / duration).toFixed(2)), latencyMs: { p50: percentile(latencies, .5), p95: percentile(latencies, .95), p99: percentile(latencies, .99) }, largestBacklog, brokerRecoverySeconds: Number(recoverySeconds.toFixed(2)), limitUnchanged: true } };
+    console.log(JSON.stringify(report));
+    writeFileSync("capacity-results.json", JSON.stringify(report, null, 2) + "\n");
   } finally {
     await db.workspace.delete({ where: { id: workspaceId } });
     await db.user.delete({ where: { id: user.id } });

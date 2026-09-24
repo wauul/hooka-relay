@@ -72,6 +72,14 @@ jobs:
         run: docker info
       - name: Integration tests with disposable Postgres
         run: npm run test:integration
+      - name: Upload capacity measurements
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: capacity-results
+          path: capacity-results.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Combined coverage with enforced thresholds
         run: npm run test:coverage
       - name: Upload coverage

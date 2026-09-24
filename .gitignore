@@ -8,6 +8,7 @@ test-results/
 .tools/
 *.log
 coverage/
+capacity-results.json
 dist/
 __pycache__/
 *.egg-info/
