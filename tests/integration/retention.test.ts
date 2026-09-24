@@ -11,6 +11,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
   const now = new Date("2026-09-24T12:00:00Z");
   const old = new Date("2026-08-01T00:00:00Z");
   const recent = new Date("2026-09-23T00:00:00Z");
+  const activeLive = new Date("2026-09-24T11:30:00Z");
   const user = await db.user.create({ data: { email: `${randomUUID()}@example.com` } });
   const workspaceId = await defaultWorkspace(user.id);
   try {
@@ -32,7 +33,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
     await db.inboundReplay.create({ data: { receiptId: receipt.id, userId: user.id } });
     const rejected = await db.inboundReceipt.create({ data: { sourceId: source.id, provider: "STRIPE", rawBody: "rejected body", rawHeaders: {}, verified: false, receivedAt: old } });
     const live = await db.inboundReceipt.create({ data: { sourceId: source.id, provider: "STRIPE", rawBody: "in flight", rawHeaders: {}, verified: false, receivedAt: old } });
-    const liveAttempt = await db.inboundLiveAttempt.create({ data: { receiptId: live.id, sessionId: "test-session", status: "SENT", createdAt: recent } });
+    const liveAttempt = await db.inboundLiveAttempt.create({ data: { receiptId: live.id, sessionId: "test-session", status: "SENT", createdAt: activeLive } });
     const recovery = await db.recoveryJob.create({ data: { applicationId: heldApp.id, since: old, status: "PENDING" } });
 
     const first = await pruneEventHistory(now);
