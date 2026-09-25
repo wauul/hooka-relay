@@ -1,11 +1,11 @@
 "use client";
-import { T } from "@/components/preferences";
 import { use, useState } from "react";
 import { Brand } from "@/components/shell";
 import { PreferencesMenu } from "@/components/preferences";
-import { Pause, Play, Trash2, RefreshCw, Plus } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, Clock3, ExternalLink, KeyRound, Pause, Play, Plus, Radio, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook } from "lucide-react";
 import { useConfirm } from "@/components/site-tools";
 import { api, useData, ErrorBox, CopyButton, Badge, LoadingState } from "@/components/ui";
+
 export default function Portal({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const confirm = useConfirm();
@@ -17,38 +17,58 @@ export default function Portal({ params }: { params: Promise<{ token: string }> 
     setBusy(true); setFailure("");
     try { await api(url, body, method); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); }
   }
-  return <main id="main-content" className="portal-layout">
+  const activeCount = data?.endpoints.filter((ep: any) => ep.status === "ACTIVE").length ?? 0;
+  const latestAttempt = data?.attempts[0];
+
+  return <main id="main-content" className="portal-layout customer-portal">
     <header className="public-header"><Brand /><PreferencesMenu /></header>
-    <div className="eyebrow">CUSTOMER PORTAL</div>
-    <h1>{data?.application || "Your webhook endpoints"}</h1>
-    <p className="muted">Manage your destinations and delivery history. No Hooka Relay account required.</p>
+    <section className="portal-hero">
+      <div className="portal-hero-icon"><Webhook size={25} aria-hidden="true" /></div>
+      <div><p className="eyebrow">CUSTOMER PORTAL</p><h1>{data?.customer || data?.application || "Your webhook delivery"}</h1><p>{data?.customer ? `${data.application} · ` : ""}Manage where your events go and follow every delivery.</p></div>
+    </section>
     <ErrorBox error={error || failure} />
     {!data && !error && <LoadingState />}
     {data && <>
-      <p className="notice">{data.customer ? `Access for ${data.customer} follows this private link across devices. Ask the application owner to rotate or revoke it if it is shared accidentally.` : "Your legacy access is saved in this browser. Clearing cookies or changing browsers removes access to these endpoints; contact the application owner for help."}</p>
-      <section className="panel panel-body"><h2><T text={"Register an endpoint"} /></h2>
+      <div className="portal-context"><ShieldCheck size={17} aria-hidden="true" /><span>{data.customer ? `Private access for ${data.customer}. Keep this link safe; ask the application owner to rotate it if shared.` : "This private browser session controls your endpoints. Contact the application owner if access is lost."}</span></div>
+      <div className="portal-summary" aria-label="Delivery overview">
+        <div><span className="portal-summary-icon"><Radio size={18} aria-hidden="true" /></span><p>Active endpoints</p><strong>{activeCount}<small> / {data.endpoints.length}</small></strong></div>
+        <div><span className="portal-summary-icon"><Activity size={18} aria-hidden="true" /></span><p>Recent attempts</p><strong>{data.attempts.length}</strong></div>
+        <div><span className="portal-summary-icon"><Clock3 size={18} aria-hidden="true" /></span><p>Latest delivery</p><strong className="portal-summary-status">{latestAttempt ? latestAttempt.status.replaceAll("_", " ") : "No attempts yet"}</strong></div>
+      </div>
+
+      <div className="portal-section-title"><div><p className="eyebrow">DESTINATIONS</p><h2>Your endpoints <span className="count">{data.endpoints.length}</span></h2><p>Endpoints receive the event types you subscribe to.</p></div><a className="btn secondary" href="#register-endpoint"><Plus size={16} aria-hidden="true" />Add endpoint</a></div>
+      {data.endpoints.length ? <div className="portal-endpoint-grid">{data.endpoints.map((ep: any) => <section className="portal-endpoint-card" key={ep.id}>
+        <div className="portal-endpoint-top"><span className={`portal-endpoint-icon ${ep.status === "ACTIVE" ? "active" : ""}`}><Webhook size={20} aria-hidden="true" /></span><div className="portal-endpoint-identity"><h3 title={ep.url}>{new URL(ep.url).host}</h3><a href={ep.url} target="_blank" rel="noopener noreferrer" className="portal-endpoint-url">{ep.url}<ExternalLink size={13} aria-hidden="true" /></a></div></div>
+        <div className="portal-endpoint-meta"><Badge value={ep.status} />{ep.circuitState && ep.circuitState !== "CLOSED" && <Badge value={ep.circuitState} />}</div>
+        <div className="portal-subscription"><span><Radio size={15} aria-hidden="true" /> Listening for</span><strong>{ep.eventTypes.includes("*") ? "All event types" : ep.eventTypes.join(", ")}</strong></div>
+        <details className="portal-secret"><summary><KeyRound size={16} aria-hidden="true" /> Signing secret <ArrowRight size={15} aria-hidden="true" /></summary><div className="secret-row"><code>{ep.secret}</code><CopyButton value={ep.secret} /></div><p>Use this secret to verify webhook signatures on your server.</p></details>
+        <div className="portal-endpoint-actions"><button className="btn secondary" disabled={busy} onClick={() => void action({ endpointId: ep.id, action: ep.status === "ACTIVE" ? "pause" : "resume" }, "PATCH")}>{ep.status === "ACTIVE" ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}{ep.status === "ACTIVE" ? "Pause" : "Resume"}</button>
+          <button className="btn quiet portal-delete" disabled={busy} onClick={async () => { if (await confirm({ title: "Delete endpoint?", description: "Permanently delete this endpoint and its delivery history?", label: "Delete endpoint" })) void action({ endpointId: ep.id }, "DELETE"); }}><Trash2 size={16} aria-hidden="true" />Delete</button></div>
+      </section>)}</div> : <div className="portal-empty"><Webhook size={24} aria-hidden="true" /><strong>No endpoints yet</strong><p>Add a public HTTPS URL below to start receiving events.</p></div>}
+
+      <section className="portal-create-card" id="register-endpoint"><div className="portal-create-icon"><Plus size={22} aria-hidden="true" /></div><div className="portal-create-main"><div className="portal-section-title"><div><p className="eyebrow">NEW DESTINATION</p><h2>Register an endpoint</h2><p>Connect a public HTTPS receiver to this customer.</p></div></div>
         <form onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ url: f.get("url"), eventTypes: String(f.get("types")).split(",").map(s => s.trim()).filter(Boolean) }, "POST"); }}>
-          <div className="field"><label htmlFor="url"><T text={"Public HTTPS URL"} /></label><input id="url" name="url" type="url" placeholder="https://example.com/webhooks" maxLength={2000} required /></div>
-          <div className="field"><label htmlFor="types">Event types, separated by commas</label><input id="types" name="types" defaultValue="*" maxLength={6000} required /></div>
-          <button className="btn" disabled={busy}><Plus size={16} aria-hidden="true" /><T text={busy ? "Saving…" : "Register endpoint"} /></button>
-        </form>
+          <div className="field"><label htmlFor="portal-url">Public HTTPS URL</label><input id="portal-url" name="url" type="url" placeholder="https://example.com/webhooks" maxLength={2000} required /><small>The address on your server that receives webhook requests.</small></div>
+          <div className="field"><label htmlFor="portal-types">Event types</label><input id="portal-types" name="types" defaultValue="*" maxLength={6000} required /><small>Use * for all events, or separate types with commas.</small></div>
+          <button className="btn" disabled={busy}><Plus size={16} aria-hidden="true" />{busy ? "Saving…" : "Register endpoint"}</button>
+        </form></div>
       </section>
-      <h2><T text={"Your endpoints"} /><span className="count">{data.endpoints.length}</span></h2>
-      {!data.endpoints.length && <p className="muted">You have not registered any endpoints.</p>}
-      {data.endpoints.map((ep: any) => <section className="panel panel-body" key={ep.id}>
-        <h3 className="portal-url">{ep.url}</h3><p><Badge value={ep.status} /> <Badge value={ep.circuitState} /></p>
-        <p className="muted">{ep.eventTypes.join(", ")}</p>
-        <details><summary>Signing secret</summary><div className="secret-row"><code>{ep.secret}</code><CopyButton value={ep.secret} /></div></details>
-        <div className="portal-actions"><button className="btn secondary" disabled={busy} onClick={() => void action({ endpointId: ep.id, action: ep.status === "ACTIVE" ? "pause" : "resume" }, "PATCH")}>{ep.status === "ACTIVE" ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}<T text={ep.status === "ACTIVE" ? "Pause" : "Resume"} /></button>
-          <button className="btn danger" disabled={busy} onClick={async () => { if (await confirm({ title: "Delete endpoint?", description: "Permanently delete this endpoint and its delivery history?", label: "Delete endpoint" })) void action({ endpointId: ep.id }, "DELETE"); }}><Trash2 size={16} aria-hidden="true" /><T text={"Delete endpoint"} /></button></div>
-      </section>)}
-      <p className="muted">Paused endpoints receive no new delivery work. Resuming does not backfill events received while paused.</p>
-      <section className="panel"><div className="panel-head"><h2><T text={"Your recent deliveries"} /></h2><button className="btn quiet" onClick={() => void reload()}><RefreshCw size={16} aria-hidden="true" /><T text={"Refresh"} /></button></div>
-        {data.attempts.length ? <div className="table-wrap"><table><thead><tr><th><T text={"Event type"} /></th><th>Result</th><th>Time</th></tr></thead><tbody>{data.attempts.map((a: any) => <tr key={a.id}><td>{a.event.type}</td><td><Badge value={a.status} /></td><td>{new Date(a.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div> : <p className="panel-body muted"><T text={"No delivery attempts yet."} /></p>}
+      <p className="portal-note"><Pause size={14} aria-hidden="true" /> Paused endpoints receive no new events. Resuming does not backfill events received while paused.</p>
+
+      <section className="portal-history" aria-labelledby="portal-history-heading"><div className="portal-section-title"><div><p className="eyebrow">DELIVERY HISTORY</p><h2 id="portal-history-heading">Recent deliveries</h2><p>See what was sent and whether your receiver accepted it.</p></div><button className="btn quiet" onClick={() => void reload()}><RefreshCw size={16} aria-hidden="true" />Refresh</button></div>
+        {data.attempts.length ? <div className="portal-table-wrap"><table><thead><tr><th>Event</th><th>Result</th><th>When</th></tr></thead><tbody>{data.attempts.map((a: any) => <tr key={a.id}><td><span className="portal-event-name">{a.event.type}</span></td><td><Badge value={a.status} /></td><td><time dateTime={a.createdAt}>{new Date(a.createdAt).toLocaleString()}</time></td></tr>)}</tbody></table></div> : <div className="portal-empty compact"><CheckCircle2 size={22} aria-hidden="true" /><strong>No deliveries yet</strong><p>Attempts will appear here after an event reaches an endpoint.</p></div>}
       </section>
-        {data.customer && <><section className="panel panel-body"><h2>Your event backlog</h2><p className="muted">Only events addressed to your customer appear here. Completed history is normally kept for 30 days; expired events cannot be replayed. Replay to one of your active endpoints after fixing its receiver.</p>
-        {data.events?.length ? <div className="table-wrap"><table><thead><tr><th>Event</th><th>Received</th><th>Replay</th></tr></thead><tbody>{data.events.map((event: any) => <tr key={event.id}><td><strong>{event.type}</strong><br /><small>{event.id}</small></td><td>{new Date(event.createdAt).toLocaleString()}</td><td><form onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ action: "replay", eventId: event.id, endpointId: f.get("endpointId") }, "POST"); }}><select name="endpointId" required defaultValue=""><option value="" disabled>Choose endpoint</option>{data.endpoints.map((endpoint: any) => <option value={endpoint.id} key={endpoint.id}>{endpoint.url}</option>)}</select><button className="btn quiet" disabled={busy}>Replay</button></form></td></tr>)}</tbody></table></div> : <p className="muted">No events in retained history.</p>}
-      </section><section className="panel panel-body"><h2>Recover failed deliveries</h2><p className="muted">Queue the latest exhausted deliveries since a selected time. Recovery only includes your customer&apos;s events and endpoints.</p><form onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ action: "recover", since: new Date(String(f.get("since"))).toISOString(), ...(f.get("endpointId") ? { endpointId: f.get("endpointId") } : {}) }, "POST"); }}><div className="form-row"><div className="field"><label htmlFor="portal-recovery-since">Since</label><input id="portal-recovery-since" name="since" type="datetime-local" required /></div><div className="field"><label htmlFor="portal-recovery-endpoint">Endpoint</label><select id="portal-recovery-endpoint" name="endpointId"><option value="">All my endpoints</option>{data.endpoints.map((endpoint: any) => <option value={endpoint.id} key={endpoint.id}>{endpoint.url}</option>)}</select></div><button className="btn secondary" disabled={busy}>Start recovery</button></div></form>{data.recoveries?.map((job: any) => <p key={job.id} className="muted">{job.status}: {job.queued} queued · {new Date(job.createdAt).toLocaleString()}</p>)}</section></>}
+
+      {data.customer && <div className="portal-operations">
+        <section className="portal-operation-card" aria-labelledby="portal-events-heading"><span className="portal-operation-icon"><RotateCcw size={20} aria-hidden="true" /></span><div className="portal-section-title"><div><p className="eyebrow">EVENT HISTORY</p><h2 id="portal-events-heading">Replay an event</h2><p>Send a retained event again after fixing a receiver.</p></div></div>
+          {data.events?.length ? <div className="portal-table-wrap"><table><thead><tr><th>Event</th><th>Received</th><th>Replay to</th></tr></thead><tbody>{data.events.map((event: any) => { const eligible = data.endpoints.filter((endpoint: any) => endpoint.status === "ACTIVE" && (endpoint.eventTypes.includes("*") || endpoint.eventTypes.includes(event.type))); return <tr key={event.id}><td><span className="portal-event-name">{event.type}</span><small className="portal-event-id">{event.id}</small></td><td><time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time></td><td><form className="portal-replay-form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ action: "replay", eventId: event.id, endpointId: f.get("endpointId") }, "POST"); }}><select name="endpointId" aria-label={`Destination for ${event.type}`} required defaultValue=""><option value="" disabled>{eligible.length ? "Choose endpoint" : "No matching endpoint"}</option>{eligible.map((endpoint: any) => <option value={endpoint.id} key={endpoint.id}>{endpoint.url}</option>)}</select><button className="btn secondary" disabled={busy || !eligible.length}><RotateCcw size={14} aria-hidden="true" />Replay</button></form></td></tr>; })}</tbody></table></div> : <div className="portal-empty compact"><Activity size={22} aria-hidden="true" /><strong>No retained events</strong><p>Events received for this customer will appear here.</p></div>}
+          <p className="portal-card-footnote">Completed history is normally kept for 30 days. Expired events cannot be replayed.</p>
+        </section>
+        <section className="portal-operation-card" aria-labelledby="portal-recovery-heading"><span className="portal-operation-icon"><RefreshCw size={20} aria-hidden="true" /></span><div className="portal-section-title"><div><p className="eyebrow">FAILED DELIVERIES</p><h2 id="portal-recovery-heading">Recover deliveries</h2><p>Queue exhausted deliveries again, starting from a chosen time.</p></div></div>
+          <form className="portal-recovery-form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ action: "recover", since: new Date(String(f.get("since"))).toISOString(), ...(f.get("endpointId") ? { endpointId: f.get("endpointId") } : {}) }, "POST"); }}><div className="field"><label htmlFor="portal-recovery-since">Since</label><input id="portal-recovery-since" name="since" type="datetime-local" required /></div><div className="field"><label htmlFor="portal-recovery-endpoint">Destination</label><select id="portal-recovery-endpoint" name="endpointId"><option value="">All my endpoints</option>{data.endpoints.map((endpoint: any) => <option value={endpoint.id} key={endpoint.id}>{endpoint.url}</option>)}</select></div><button className="btn secondary" disabled={busy}><RefreshCw size={15} aria-hidden="true" />Start recovery</button></form>
+          {data.recoveries?.length > 0 && <div className="portal-recovery-jobs">{data.recoveries.map((job: any) => <p key={job.id}><Badge value={job.status} /><span>{job.queued} queued · {new Date(job.createdAt).toLocaleString()}</span></p>)}</div>}
+        </section>
+      </div>}
     </>}
   </main>;
 }
