@@ -16,7 +16,7 @@ beforeEach(async () => {
   vi.stubEnv("PORTAL_IP_LIMIT_PER_MINUTE", "1000");
   userId = (await db.user.create({ data: { email: randomUUID() + "@example.com", hashedPassword: "unused" } })).id;
   workspaceId = (await createWorkspace(userId, "Portal test")).id;
-  appId = (await db.application.create({ data: { workspaceId, name: "Portal app", currentApiKey: hashApiKey(randomUUID()) } })).id;
+  appId = (await db.application.create({ data: { workspaceId, name: "Portal app", customerMode: "LEGACY", currentApiKey: hashApiKey(randomUUID()) } })).id;
   token = await enablePortal(appId, userId);
 });
 afterEach(async () => {
@@ -53,7 +53,7 @@ it("isolates two guests, dashboard endpoints and delivery logs, including every 
 });
 it("denies cross-application IDs even when a browser supplies the same guest credential", async () => {
   const cookie = await visitor(); const id = await endpoint(cookie);
-  const other = await db.application.create({ data: { workspaceId, name: "Other", currentApiKey: hashApiKey(randomUUID()) } });
+  const other = await db.application.create({ data: { workspaceId, name: "Other", customerMode: "LEGACY", currentApiKey: hashApiKey(randomUUID()) } });
   const otherToken = await enablePortal(other.id, userId);
   const copied = cookie.replace(appId, other.id);
   expect((await portalRequest(request("PATCH", { endpointId: id, action: "pause" }, copied), otherToken)).status).toBe(404);

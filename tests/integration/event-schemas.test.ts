@@ -8,15 +8,16 @@ import { createWorkspace } from "../../lib/workspaces";
 import { hashApiKey } from "../../lib/secrets";
 import { PUT, DELETE, GET } from "../../app/api/applications/[id]/schemas/route";
 import { POST } from "../../app/api/v1/events/route";
-let uid: string, wid: string, aid: string, key: string;
+let uid: string, wid: string, aid: string, key: string, customerId: string;
 const context = () => ({ params: Promise.resolve({ id: aid }) });
 const schema = { type: "object", properties: { orderId: { type: "string" } }, required: ["orderId"] };
 const mutation = (method: string, body: unknown) => new Request("https://example.com/api", { method, body: JSON.stringify(body) });
-const send = (type: string, payload: unknown, idempotencyKey: string = randomUUID()) => POST(new Request("https://example.com/api/v1/events", { method: "POST", headers: { authorization: "Bearer " + key }, body: JSON.stringify({ type, payload, idempotencyKey }) }));
+const send = (type: string, payload: unknown, idempotencyKey: string = randomUUID()) => POST(new Request("https://example.com/api/v1/events", { method: "POST", headers: { authorization: "Bearer " + key }, body: JSON.stringify({ customerId, type, payload, idempotencyKey }) }));
 beforeEach(async () => {
   uid = (await db.user.create({ data: { email: randomUUID() + "@example.com", hashedPassword: "unused" } })).id;
   wid = (await createWorkspace(uid, "Schemas")).id; key = randomUUID();
   aid = (await db.application.create({ data: { workspaceId: wid, name: "Schemas", currentApiKey: hashApiKey(key) } })).id;
+  customerId = (await db.customer.create({ data: { applicationId: aid, externalId: "test", name: "Test customer" } })).id;
   session.mockResolvedValue({ user: { id: uid } });
 });
 afterEach(async () => { await db.workspace.delete({ where: { id: wid } }); await db.user.delete({ where: { id: uid } }); });
