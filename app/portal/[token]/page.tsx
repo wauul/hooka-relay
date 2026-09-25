@@ -5,6 +5,30 @@ import { PreferencesMenu } from "@/components/preferences";
 import { Activity, ArrowRight, CheckCircle2, Clock3, ExternalLink, KeyRound, Pause, Play, Plus, Radio, RefreshCw, RotateCcw, ShieldCheck, Trash2, Webhook } from "lucide-react";
 import { useConfirm } from "@/components/site-tools";
 import { api, useData, ErrorBox, CopyButton, Badge, LoadingState } from "@/components/ui";
+import { Select } from "@/components/select";
+import { DateTimePicker } from "@/components/date-time-picker";
+
+type PortalEndpoint = { id: string; url: string; eventTypes: string[]; status: string };
+
+function ReplayForm({ event, endpoints, busy, onAction }: { event: { id: string; type: string }; endpoints: PortalEndpoint[]; busy: boolean; onAction: (body: unknown, method: string) => Promise<void> }) {
+  const [selected, setSelected] = useState("");
+  const eligible = endpoints.filter(endpoint => endpoint.status === "ACTIVE" && (endpoint.eventTypes.includes("*") || endpoint.eventTypes.includes(event.type)));
+  const endpointId = eligible.some(endpoint => endpoint.id === selected) ? selected : "";
+  return <form className="portal-replay-form" onSubmit={submit => { submit.preventDefault(); if (endpointId) void onAction({ action: "replay", eventId: event.id, endpointId }, "POST"); }}>
+    <Select label={`Destination for ${event.type}`} value={endpointId} onChange={setSelected} options={[{ value: "", label: eligible.length ? "Choose endpoint" : "No matching endpoint" }, ...eligible.map(endpoint => ({ value: endpoint.id, label: new URL(endpoint.url).host, description: endpoint.url }))]} />
+    <button className="btn secondary" disabled={busy || !endpointId}><RotateCcw size={14} aria-hidden="true" />Replay</button>
+  </form>;
+}
+
+function RecoveryForm({ endpoints, busy, onAction }: { endpoints: PortalEndpoint[]; busy: boolean; onAction: (body: unknown, method: string) => Promise<void> }) {
+  const [since, setSince] = useState("");
+  const [endpointId, setEndpointId] = useState("");
+  return <form className="portal-recovery-form" onSubmit={submit => { submit.preventDefault(); if (!since) return; void onAction({ action: "recover", since: new Date(since).toISOString(), ...(endpointId ? { endpointId } : {}) }, "POST"); }}>
+    <div className="field"><DateTimePicker id="portal-recovery-since" label="Since" value={since} onChange={setSince} /></div>
+    <div className="field"><label htmlFor="portal-recovery-endpoint">Destination</label><Select id="portal-recovery-endpoint" label="Destination" value={endpointId} onChange={setEndpointId} options={[{ value: "", label: "All my endpoints" }, ...endpoints.map(endpoint => ({ value: endpoint.id, label: new URL(endpoint.url).host, description: endpoint.url }))]} /></div>
+    <button className="btn secondary" disabled={busy || !since}><RefreshCw size={15} aria-hidden="true" />Start recovery</button>
+  </form>;
+}
 
 export default function Portal({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -61,11 +85,11 @@ export default function Portal({ params }: { params: Promise<{ token: string }> 
 
       {data.customer && <div className="portal-operations">
         <section className="portal-operation-card" aria-labelledby="portal-events-heading"><span className="portal-operation-icon"><RotateCcw size={20} aria-hidden="true" /></span><div className="portal-section-title"><div><p className="eyebrow">EVENT HISTORY</p><h2 id="portal-events-heading">Replay an event</h2><p>Send a retained event again after fixing a receiver.</p></div></div>
-          {data.events?.length ? <div className="portal-table-wrap"><table><thead><tr><th>Event</th><th>Received</th><th>Replay to</th></tr></thead><tbody>{data.events.map((event: any) => { const eligible = data.endpoints.filter((endpoint: any) => endpoint.status === "ACTIVE" && (endpoint.eventTypes.includes("*") || endpoint.eventTypes.includes(event.type))); return <tr key={event.id}><td><span className="portal-event-name">{event.type}</span><small className="portal-event-id">{event.id}</small></td><td><time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time></td><td><form className="portal-replay-form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ action: "replay", eventId: event.id, endpointId: f.get("endpointId") }, "POST"); }}><select name="endpointId" aria-label={`Destination for ${event.type}`} required defaultValue=""><option value="" disabled>{eligible.length ? "Choose endpoint" : "No matching endpoint"}</option>{eligible.map((endpoint: any) => <option value={endpoint.id} key={endpoint.id}>{endpoint.url}</option>)}</select><button className="btn secondary" disabled={busy || !eligible.length}><RotateCcw size={14} aria-hidden="true" />Replay</button></form></td></tr>; })}</tbody></table></div> : <div className="portal-empty compact"><Activity size={22} aria-hidden="true" /><strong>No retained events</strong><p>Events received for this customer will appear here.</p></div>}
+          {data.events?.length ? <div className="portal-table-wrap"><table><thead><tr><th>Event</th><th>Received</th><th>Replay to</th></tr></thead><tbody>{data.events.map((event: any) => <tr key={event.id}><td><span className="portal-event-name">{event.type}</span><small className="portal-event-id">{event.id}</small></td><td><time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time></td><td><ReplayForm event={event} endpoints={data.endpoints} busy={busy} onAction={action} /></td></tr>)}</tbody></table></div> : <div className="portal-empty compact"><Activity size={22} aria-hidden="true" /><strong>No retained events</strong><p>Events received for this customer will appear here.</p></div>}
           <p className="portal-card-footnote">Completed history is normally kept for 30 days. Expired events cannot be replayed.</p>
         </section>
         <section className="portal-operation-card" aria-labelledby="portal-recovery-heading"><span className="portal-operation-icon"><RefreshCw size={20} aria-hidden="true" /></span><div className="portal-section-title"><div><p className="eyebrow">FAILED DELIVERIES</p><h2 id="portal-recovery-heading">Recover deliveries</h2><p>Queue exhausted deliveries again, starting from a chosen time.</p></div></div>
-          <form className="portal-recovery-form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void action({ action: "recover", since: new Date(String(f.get("since"))).toISOString(), ...(f.get("endpointId") ? { endpointId: f.get("endpointId") } : {}) }, "POST"); }}><div className="field"><label htmlFor="portal-recovery-since">Since</label><input id="portal-recovery-since" name="since" type="datetime-local" required /></div><div className="field"><label htmlFor="portal-recovery-endpoint">Destination</label><select id="portal-recovery-endpoint" name="endpointId"><option value="">All my endpoints</option>{data.endpoints.map((endpoint: any) => <option value={endpoint.id} key={endpoint.id}>{endpoint.url}</option>)}</select></div><button className="btn secondary" disabled={busy}><RefreshCw size={15} aria-hidden="true" />Start recovery</button></form>
+          <RecoveryForm endpoints={data.endpoints} busy={busy} onAction={action} />
           {data.recoveries?.length > 0 && <div className="portal-recovery-jobs">{data.recoveries.map((job: any) => <p key={job.id}><Badge value={job.status} /><span>{job.queued} queued · {new Date(job.createdAt).toLocaleString()}</span></p>)}</div>}
         </section>
       </div>}
