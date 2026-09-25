@@ -22,7 +22,7 @@ class ClientTests(unittest.TestCase):
         event = {"id": "evt_1", "type": "test", "payload": None}
         client._opener = Mock()
         client._opener.open.return_value = Response(event)
-        request = {"type": "test", "payload": None, "idempotencyKey": "stable"}
+        request = {"customerId": "cus_123", "type": "test", "payload": None, "idempotencyKey": "stable"}
         self.assertEqual(client.send_event(request), event)
         sent = client._opener.open.call_args.args[0]
         self.assertEqual(sent.full_url, "https://hooka-relay.vercel.app/api/v1/events")
@@ -36,7 +36,7 @@ class ClientTests(unittest.TestCase):
             client._opener = Mock()
             client._opener.open.side_effect = HTTPError(client._url, status, "test", {"Retry-After": "12"}, io.BytesIO(b'{"error":"test"}'))
             with self.assertRaises(HookaError) as caught:
-                client.send_event({"type": "test", "payload": None})
+                client.send_event({"customerId": "cus_123", "type": "test", "payload": None})
             self.assertEqual(caught.exception.status, status)
             self.assertEqual(caught.exception.retry_after, "12")
             self.assertNotIn("secret-key", str(caught.exception))

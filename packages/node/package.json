@@ -1,6 +1,6 @@
 {
   "name": "hooka-relay-node",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Typed Hooka Relay event client and Standard Webhooks verification",
   "license": "MIT",
   "type": "module",

@@ -201,13 +201,11 @@ Source signing secrets use the existing AES-256-GCM credential key (`ENDPOINT_SE
 
 ## Customer portal
 
-Workspace admins can enable a private customer link from an application page. Visitors need no account: they can register public HTTPS endpoints, inspect their signing secrets and recent delivery results, pause/resume, and delete their own endpoints. Each visitor receives a separate HttpOnly browser credential; possessing the shared application link alone does not grant access to other visitors' or dashboard-created endpoints. Clearing cookies or changing browsers loses that visitor access; the workspace admin can still manage the endpoints.
+Workspace admins create customers inside an application and issue a private portal link for each one. The Customers tab opens a customer detail view with activity, endpoint and source counts, delivery outcomes, and recent events. Admins can open the portal in a new tab, rotate its link, or revoke access. The link works across devices and grants access to that customer's endpoints, signing secrets, delivery attempts, event backlog, replay and recovery. Treat it as a bearer credential and share it privately. A rotated or revoked link stops working.
 
-Only share the link with people authorized to receive the application's matching events. Subscription filtering is by event type, not by a customer field inside the payload. Use separate applications when event data must be isolated between customers. Portal endpoint registration has the same SSRF protection, an 8 KiB request limit, maximum JSON depth 32, a separate `PORTAL_IP_LIMIT_PER_MINUTE` quota (30 by default), and caps of 10 endpoints per visitor / 50 portal endpoints per application. Pausing prevents new delivery work; resuming does not backfill missed events.
+Every endpoint and webhook source belongs to exactly one customer. Direct API events require the customer's `customerId`; wildcard subscriptions match only within that customer. Portal endpoint registration retains the public HTTPS SSRF protection, 8 KiB request limit, JSON depth 32 and `PORTAL_IP_LIMIT_PER_MINUTE` quota (30 by default). Pausing prevents new delivery work; resuming does not backfill missed events.
 
-Portal tokens are stored as digests plus encrypted copies for authorized admin sharing. Portal and invitation pages omit analytics and send `Referrer-Policy: no-referrer`. API responses are not cacheable. Anonymous visitor credentials are not recoverable from the database.
-
-The portal is the first Phase 2 feature. See the support assistant section below for documentation-based help.
+Portal tokens are stored as digests plus encrypted copies for authorized admin sharing. Portal and invitation pages omit analytics and send `Referrer-Policy: no-referrer`. API responses are not cacheable.
 
 ## Event payload schemas
 

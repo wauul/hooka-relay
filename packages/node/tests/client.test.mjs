@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Webhook } from "standardwebhooks";
 import { HookaRelay, HookaError, verifyWebhook } from "../dist/index.js";
-const event = { id: "evt_1", applicationId: "app_1", type: "order.created", payload: { id: 1 }, idempotencyKey: "order-1", operational: false, createdAt: new Date().toISOString() };
+const event = { customerId: "cus_123", id: "evt_1", applicationId: "app_1", type: "order.created", payload: { id: 1 }, idempotencyKey: "order-1", operational: false, createdAt: new Date().toISOString() };
 test("sends exact payload/key once, returns actual 202 event", async () => {
   let calls = 0;
   const client = new HookaRelay("test-key", { fetch: async (url, init) => {
@@ -10,24 +10,24 @@ test("sends exact payload/key once, returns actual 202 event", async () => {
     assert.equal(url, "https://hooka-relay.vercel.app/api/v1/events");
     assert.equal(init.headers.Authorization, "Bearer test-key");
     assert.equal(init.redirect, "error");
-    assert.deepEqual(JSON.parse(init.body), { type: event.type, payload: event.payload, idempotencyKey: "order-1" });
+    assert.deepEqual(JSON.parse(init.body), { customerId: event.customerId, type: event.type, payload: event.payload, idempotencyKey: "order-1" });
     return Response.json(event, { status: 202 });
   } });
-  assert.deepEqual(await client.sendEvent({ type: event.type, payload: event.payload, idempotencyKey: "order-1" }), event);
+  assert.deepEqual(await client.sendEvent({ customerId: event.customerId, type: event.type, payload: event.payload, idempotencyKey: "order-1" }), event);
   assert.equal(calls, 1);
 });
 test("exposes quota and schema failures without retrying or leaking key", async () => {
   for (const status of [400, 401, 403, 413, 429, 503]) {
     let calls = 0;
     const client = new HookaRelay("secret-test-key", { fetch: async () => { calls++; return Response.json({ error: "test", failures: [{ path: "/id", message: "required" }] }, { status, headers: { "Retry-After": "12" } }); } });
-    await assert.rejects(client.sendEvent({ type: "test", payload: null }), e => e instanceof HookaError && e.status === status && e.retryAfter === "12" && e.body.failures[0].path === "/id" && !e.message.includes("secret-test-key"));
+    await assert.rejects(client.sendEvent({ customerId: "cus_123", type: "test", payload: null }), e => e instanceof HookaError && e.status === status && e.retryAfter === "12" && e.body.failures[0].path === "/id" && !e.message.includes("secret-test-key"));
     assert.equal(calls, 1);
   }
 });
 test("rejects insecure remote origin and invalid response", async () => {
   assert.throws(() => new HookaRelay("key", { baseUrl: "http://example.com" }));
   assert.throws(() => new HookaRelay("key", { baseUrl: "https://user:pass@example.com" }));
-  await assert.rejects(new HookaRelay("key", { fetch: async () => Response.json({}, { status: 202 }) }).sendEvent({ type: "test", payload: null }), /Invalid.*response/);
+  await assert.rejects(new HookaRelay("key", { fetch: async () => Response.json({}, { status: 202 }) }).sendEvent({ customerId: "cus_123", type: "test", payload: null }), /Invalid.*response/);
 });
 test("reference verification accepts both rotation keys and rejects tampered ID/body and old timestamp", () => {
   const keys = ["whsec_" + Buffer.alloc(32, 1).toString("base64"), "whsec_" + Buffer.alloc(32, 2).toString("base64")];

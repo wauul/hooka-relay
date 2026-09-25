@@ -17,12 +17,12 @@ export const faq = [
   {
     question: "How do I verify a webhook signature?",
     answer:
-      "New endpoints use Standard Webhooks. Verify webhook-id, webhook-timestamp, webhook-signature and the exact raw body with the standardwebhooks library, then deduplicate the verified webhook-id. Existing legacy endpoints use X-Webhook-Signature until switched.",
+      "Endpoints use Standard Webhooks. Verify webhook-id, webhook-timestamp, webhook-signature and the exact raw body with the standardwebhooks library, then deduplicate the verified webhook-id.",
   },
   {
     question: "Can I work from my terminal?",
     answer:
-      "Install hooka-relay-cli from npm, run hooka login, then use hooka send, hooka tail and hooka replay. The CLI uses your Application API key.",
+      "Install hooka-relay-cli from npm, run hooka login, then use hooka customers list, hooka send --customer-id ID, hooka tail and hooka replay. The CLI uses your Application API key.",
   },
   {
     question: "Which cookies does Hooka Relay use?",

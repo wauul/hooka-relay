@@ -38,7 +38,7 @@ MEMBER can view applications, endpoints and delivery history, and send test even
 
 ## What can a customer portal visitor access?
 
-Each browser gets a separate private visitor credential. Visitors can manage only the endpoints they created through that application portal and see those endpoints' recent delivery results. Sharing the application portal URL does not share another visitor's endpoints. Clearing cookies loses visitor access; a workspace admin can still manage the endpoints. The portal is not a per-customer payload filter: use separate applications when customers must receive different private data.
+A customer portal link grants access to that customer's endpoints, signing secrets, recent attempts, backlog, replay and recovery. The link works across devices and can be rotated or revoked by an application administrator. Every endpoint and webhook source belongs to a customer, and direct API events must include that customer's `customerId`. A wildcard subscription matches only events for its own customer. Treat the portal link as a private bearer credential; anyone with an active link can access that customer's portal.
 
 ## Does the public status page measure platform uptime?
 

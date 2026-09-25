@@ -42,6 +42,8 @@ class HookaRelay:
 
     def send_event(self, event: EventInput) -> EventResponse:
         """Send once. For retries, reuse an explicit idempotencyKey."""
+        if not isinstance(event.get("customerId"), str) or not event["customerId"]:
+            raise ValueError("customerId is required to send an event")
         request = Request(self._url, data=json.dumps(event, allow_nan=False).encode(), method="POST", headers={
             "Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json",
         })

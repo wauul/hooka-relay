@@ -4,6 +4,8 @@ POST /api/v1/events accepts Authorization: Bearer API_KEY (or X-API-Key). JSON f
 
 The producer can create customers with `POST /api/v1/applications/:id/customers` (`externalId`, `name`) and list them with `GET` at the same path. `POST /api/v1/endpoints` requires customerId for an isolated application. Dashboard administrators can issue, rotate or revoke a customer's private portal link at `POST /api/applications/:id/customers/:customerId/portal` with `action` set to `issue`, `rotate` or `revoke`. Portal links are bearer credentials; the customer portal scopes endpoints, signing secrets, attempts, event backlog, replay and recovery to that customer. The producer's application API key remains application-wide and must be kept by the producer.
 
+The dashboard customer detail page reads `GET /api/applications/:id/activity?customerId=:customerId` for customer-scoped counts, 14-day event volume and delivery outcomes, and recent events/connections. Omitting `customerId` returns application-wide activity. Workspace membership is required; a customer from another application returns 404.
+
 Completed event payloads, inbound request bodies and delivery logs are normally retained for 30 days. Pending delivery and recovery work delays deletion. Once a row expires, its event ID can no longer be replayed or used for idempotency lookup. Monthly workspace usage totals survive event cleanup. See [pilot operations](pilot-operations.md).
 
 GET /api/v1/me validates an API key and identifies its application. Keys are stored as SHA-256 digests and shown once at creation or rotation. Previous keys remain accepted until their configured grace expiry.

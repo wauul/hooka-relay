@@ -13,8 +13,8 @@ type Language = "node" | "python";
 
 const examples = {
   send: {
-    node: ['import { HookaRelay } from "hooka-relay-node";', 'const relay = new HookaRelay(process.env.HOOKA_API_KEY);', '', 'const event = await relay.sendEvent({', '  type: "order.shipped",', '  payload: { orderId: "ord_1042" },', '  idempotencyKey: "order-1042-shipped",', '});', 'console.log(event.id);'].join("\n"),
-    python: ['import os', 'from hooka_relay import HookaRelay', '', 'relay = HookaRelay(os.environ["HOOKA_API_KEY"])', 'event = relay.send_event({', '    "type": "order.shipped",', '    "payload": {"orderId": "ord_1042"},', '    "idempotencyKey": "order-1042-shipped",', '})', 'print(event["id"])'].join("\n"),
+    node: ['import { HookaRelay } from "hooka-relay-node";', 'const relay = new HookaRelay(process.env.HOOKA_API_KEY);', '', 'const event = await relay.sendEvent({', '  customerId: "cus_123",', '  type: "order.shipped",', '  payload: { orderId: "ord_1042" },', '  idempotencyKey: "order-1042-shipped",', '});', 'console.log(event.id);'].join("\n"),
+    python: ['import os', 'from hooka_relay import HookaRelay', '', 'relay = HookaRelay(os.environ["HOOKA_API_KEY"])', 'event = relay.send_event({', '    "customerId": "cus_123",', '    "type": "order.shipped",', '    "payload": {"orderId": "ord_1042"},', '    "idempotencyKey": "order-1042-shipped",', '})', 'print(event["id"])'].join("\n"),
   },
   verify: {
     node: ['import { verifyWebhook } from "hooka-relay-node";', '', '// rawBody is the exact request body, before JSON parsing.', 'const payload = verifyWebhook(rawBody, {', '  "webhook-id": request.headers["webhook-id"],', '  "webhook-timestamp": request.headers["webhook-timestamp"],', '  "webhook-signature": request.headers["webhook-signature"],', '}, process.env.HOOKA_SIGNING_SECRET);', '', '// Persist the verified webhook-id with your business change.', 'console.log(payload);'].join("\n"),
@@ -42,15 +42,15 @@ export default function Page() {
   return <Shell><article className="docs">
     <div className="docs-intro"><div className="eyebrow">DEVELOPER DOCUMENTATION</div><Link href="/status">View service status</Link></div>
     <h1>Your first webhook, delivered.</h1>
-    <p className="docs-lead">Create an application, connect an HTTPS endpoint, then send an event. Hooka Relay stores it durably and delivers it in the background.</p>
+    <p className="docs-lead">Create an application and customer, connect that customer’s HTTPS endpoint, then send an event with its customer ID. Hooka Relay stores it durably and delivers it in the background.</p>
     <SectionNav active={section} items={[{ id: "send", label: "Getting started" }, { id: "signatures", label: "Security" }, { id: "retries", label: "Delivery" }, { id: "sources", label: "Inbound sources" }, { id: "api-reference", label: "API reference" }, { id: "tooling", label: "CLI & SDKs" }, { id: "faq", label: "FAQ" }]} />
 
     <Section active={section} name="send">
       <div className="docs-section-head"><span className="docs-icon"><Webhook size={20} /></span><div><div className="eyebrow">GETTING STARTED</div><h2 id="send">Send your first event</h2><p>Copy the Application API key from your application page and keep it on your server.</p></div></div>
-      <div className="docs-steps"><div><span>01</span><strong>Create an application</strong><p>It holds your key, endpoints, and event history.</p></div><div><span>02</span><strong>Add an HTTPS endpoint</strong><p>Subscribe it to <code>order.shipped</code> or <code>*</code>.</p></div><div><span>03</span><strong>Send an event</strong><p>The API accepts it with <code>202 Accepted</code>; delivery runs asynchronously.</p></div></div>
+      <div className="docs-steps"><div><span>01</span><strong>Create an application and customer</strong><p>The app holds your key. Each customer owns its endpoints and events.</p></div><div><span>02</span><strong>Add a customer endpoint</strong><p>Subscribe it to <code>order.shipped</code> or <code>*</code>.</p></div><div><span>03</span><strong>Send an event</strong><p>The API accepts it with <code>202 Accepted</code>; delivery runs asynchronously.</p></div></div>
       <LanguageCode label="Send an event" code={examples.send} language={language} onLanguageChange={setLanguage} />
       <div className="docs-callout"><CheckCircle2 size={19} /><p>Use the same <code>idempotencyKey</code> when retrying an uncertain send. A repeated key returns the original event, even if the new payload differs.</p></div>
-      <p>Payloads can be up to 256 KB. An endpoint receives an event when it subscribes to the event&apos;s exact type or <code>*</code>.</p>
+      <p>Payloads can be up to 256 KB. An endpoint receives an event only when it belongs to the specified customer and subscribes to the event&apos;s exact type or <code>*</code>.</p>
     </Section>
 
     <Section active={section} name="signatures">
@@ -89,7 +89,7 @@ export default function Page() {
 
     <Section active={section} name="api-reference">
       <div className="docs-section-head"><span className="docs-icon"><BookOpen size={20} /></span><div><div className="eyebrow">API REFERENCE</div><h2>Explore the HTTP API</h2><p>Use your Application API key for ingestion; dashboard routes use your signed-in session.</p></div></div>
-      <div className="docs-route-list"><div><code>POST /api/v1/events</code><span>Accept a new event</span></div><div><code>POST /api/inbound/:ingestionToken</code><span>Accept a signed provider webhook</span></div><div><code>GET /api/sources/:id/routing</code><span>Read ordered destination groups</span></div><div><code>PUT /api/sources/:id/routing</code><span>Save groups and conditions</span></div><div><code>GET /api/v1/applications/:id/events</code><span>Read an event backlog</span></div><div><code>GET /api/endpoints/:id/attempts</code><span>Inspect delivery attempts</span></div><div><code>POST /api/events/:id/replay</code><span>Replay an event</span></div></div>
+      <div className="docs-route-list"><div><code>GET/POST /api/v1/applications/:id/customers</code><span>List or create customers</span></div><div><code>POST /api/v1/events</code><span>Accept a new event</span></div><div><code>POST /api/inbound/:ingestionToken</code><span>Accept a signed provider webhook</span></div><div><code>GET /api/sources/:id/routing</code><span>Read ordered destination groups</span></div><div><code>PUT /api/sources/:id/routing</code><span>Save groups and conditions</span></div><div><code>GET /api/v1/applications/:id/events</code><span>Read an event backlog</span></div><div><code>GET /api/endpoints/:id/attempts</code><span>Inspect delivery attempts</span></div><div><code>POST /api/events/:id/replay</code><span>Replay an event</span></div></div>
       <div className="docs-callout"><KeyRound size={19} /><p>Use the interactive explorer with a test application key. “Try it out” sends real requests to this deployment. Authorization stays in this page&apos;s memory and clears on reload.</p></div>
       <p>Endpoint registration accepts public HTTPS URLs. Private addresses, redirects, and embedded credentials are rejected.</p>
       {section === "api-reference" && <ApiExplorer />}
@@ -98,12 +98,12 @@ export default function Page() {
     <Section active={section} name="tooling">
       <div className="docs-section-head"><span className="docs-icon"><Terminal size={20} /></span><div><div className="eyebrow">CLI & SDKs</div><h2>Build with the tools you prefer</h2><p>Use a server SDK in your application, or work from the terminal with the CLI.</p></div></div>
       <h3 className="docs-subhead">Node.js and Python SDKs</h3>
-      <p>The SDKs send events and verify Standard Webhooks. They make one request per send, with no automatic retries; reuse an explicit idempotency key if a network result is uncertain.</p>
+      <p>The SDKs send customer-scoped events and verify Standard Webhooks. They make one request per send, with no automatic retries; reuse an explicit idempotency key if a network result is uncertain.</p>
       <LanguageCode label="Install the SDK" code={examples.install} language={language} onLanguageChange={setLanguage} />
       <div className="docs-link-row"><OutboundLink href="https://www.npmjs.com/package/hooka-relay-node" target="_blank">Node.js package ↗</OutboundLink><OutboundLink href="https://pypi.org/project/hooka-relay-python/" target="_blank">Python package ↗</OutboundLink></div>
       <h3 className="docs-subhead">Command-line companion</h3>
-      <p>Install <code>hooka-relay-cli</code>, then authenticate with an Application API key. The CLI can send, tail, inspect endpoints, replay deliveries, and forward inbound requests to localhost.</p>
-      <CodeBlock>{'npm install -g hooka-relay-cli\nhooka login\nhooka send --type order.shipped --payload-file payload.json\nhooka tail\nhooka replay EVENT_ID\nhooka listen --source SOURCE_ID --forward-to http://localhost:3000/webhooks'}</CodeBlock>
+      <p>Install <code>hooka-relay-cli</code>, then authenticate with an Application API key. The CLI can send, tail, inspect endpoints, replay deliveries, and forward inbound requests to localhost. Use <code>--customer-id</code> when sending or adding an endpoint.</p>
+      <CodeBlock>{'npm install -g hooka-relay-cli\nhooka login\nhooka customers list\nhooka customers add --external-id demo --name "Demo customer"\nhooka send --customer-id CUSTOMER_ID --type order.shipped --payload-file payload.json\nhooka tail\nhooka replay EVENT_ID\nhooka listen --source SOURCE_ID --forward-to http://localhost:3000/webhooks'}</CodeBlock>
       <div className="docs-callout"><Terminal size={19} /><p><code>hooka login</code> saves your key locally. Run <code>hooka logout</code> to remove it. An ingest-only key can send with <code>--no-wait</code>; inspection and replay require broader key access.</p></div>
       <div className="docs-link-row"><OutboundLink href="https://www.npmjs.com/package/hooka-relay-cli" target="_blank">CLI package ↗</OutboundLink><OutboundLink href="https://github.com/wauul/hooka-cli" target="_blank">CLI command reference ↗</OutboundLink></div>
     </Section>

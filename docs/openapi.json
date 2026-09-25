@@ -3104,7 +3104,7 @@
         "properties": {
           "customerId": {
             "type": "string",
-            "description": "Required when the authenticated application is customer-isolated."
+            "description": "Required for customer-isolated applications, including all new applications."
           },
           "type": {
             "type": "string",
@@ -3394,7 +3394,7 @@
             "properties": {
               "customerId": {
                 "type": "string",
-                "description": "Required for isolated applications."
+                "description": "Required for customer-isolated applications, including all new applications."
               },
               "url": {
                 "type": "string",

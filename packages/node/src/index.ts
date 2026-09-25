@@ -31,7 +31,7 @@ export class HookaRelay {
     this.timeoutMs = options.timeoutMs ?? 30_000;
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs <= 0) throw new TypeError("Invalid timeout");
   }
-  async sendEvent(input: EventInput): Promise<EventResponse> {
+  async sendEvent(input: EventInput & { customerId: string }): Promise<EventResponse> {
     const response = await this.transport(this.url, {
       method: "POST", redirect: "error", signal: AbortSignal.timeout(this.timeoutMs),
       headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
