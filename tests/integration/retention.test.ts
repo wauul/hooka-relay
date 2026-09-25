@@ -21,6 +21,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
     const source = await db.webhookSource.create({ data: { applicationId: app.id, name: "Test", provider: "STRIPE", ingestionToken: randomBytes(32).toString("hex") } });
     const makeEvent = (applicationId: string, createdAt: Date) => db.event.create({ data: { applicationId, webhookSourceId: applicationId === app.id ? source.id : undefined, type: "test", payload: { private: "payload" }, idempotencyKey: randomUUID(), createdAt } });
     const terminal = await makeEvent(app.id, old);
+    const boundary = await makeEvent(app.id, new Date("2026-08-25T12:00:00Z"));
     const pending = await makeEvent(app.id, old);
     const routed = await makeEvent(app.id, old);
     const current = await makeEvent(app.id, recent);
@@ -44,7 +45,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
     expect(await db.inboundReceipt.findUnique({ where: { id: receipt.id } })).toBeNull();
     expect(await db.inboundReplay.count({ where: { receiptId: receipt.id } })).toBe(0);
     expect(await db.inboundReceipt.findUnique({ where: { id: rejected.id } })).toBeNull();
-    for (const id of [pending.id, routed.id, current.id, held.id])
+    for (const id of [pending.id, routed.id, current.id, held.id, boundary.id])
       expect(await db.event.findUnique({ where: { id } })).not.toBeNull();
     expect(await db.inboundReceipt.findUnique({ where: { id: live.id } })).not.toBeNull();
 
@@ -56,6 +57,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
     expect(second).toMatchObject({ events: 3, receipts: 1 });
     expect(await db.event.findUnique({ where: { id: current.id } })).not.toBeNull();
     expect(await db.inboundReceipt.findUnique({ where: { id: live.id } })).toBeNull();
+    expect(await db.event.findUnique({ where: { id: boundary.id } })).not.toBeNull();
   } finally {
     await db.workspace.delete({ where: { id: workspaceId } });
     await db.user.delete({ where: { id: user.id } });
