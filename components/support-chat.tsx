@@ -9,7 +9,7 @@ export function SupportChat() {
   const [open, setOpen] = useState(false), [question, setQuestion] = useState(""), [history, setHistory] = useState<Exchange[]>([]);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [cached, setCached] = useState<boolean>();
   const messages = useRef<HTMLDivElement>(null), input = useRef<HTMLTextAreaElement>(null), launcher = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (open) input.current?.focus(); }, [open]);
+  useEffect(() => { if (open) input.current?.focus({ preventScroll: true }); }, [open]);
   useEffect(() => { if (open) messages.current?.scrollTo({ top: history.length || busy ? messages.current.scrollHeight : 0 }); }, [open, history, busy]);
   function close() { setOpen(false); requestAnimationFrame(() => launcher.current?.focus()); }
   async function send(event: React.FormEvent) {
