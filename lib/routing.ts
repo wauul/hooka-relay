@@ -15,8 +15,14 @@ export function shouldRun(condition: RoutingTriggerCondition, previous: RoutingR
 // A route is snapshotted when an event is accepted. Editing the builder cannot
 // change an in-flight event's remaining destinations or conditions.
 export async function createRoutingExecution(tx: Prisma.TransactionClient, eventId: string, sourceId: string, generation = 0) {
-  const groups = await tx.destinationGroup.findMany({ where: { webhookSourceId: sourceId }, orderBy: { order: "asc" }, include: { destinations: { include: { endpoint: { select: { id: true, url: true } } } } } });
+  const [event, source] = await Promise.all([
+    tx.event.findUnique({ where: { id: eventId }, select: { applicationId: true, customerId: true } }),
+    tx.webhookSource.findUnique({ where: { id: sourceId }, select: { applicationId: true, customerId: true } }),
+  ]);
+  if (!event || !source || event.applicationId !== source.applicationId || event.customerId !== source.customerId) throw new Error("Source event customer mismatch");
+  const groups = await tx.destinationGroup.findMany({ where: { webhookSourceId: sourceId }, orderBy: { order: "asc" }, include: { destinations: { include: { endpoint: { select: { id: true, url: true, applicationId: true, customerId: true } } } } } });
   if (!groups.length) return false;
+  if (groups.some(group => group.destinations.some(destination => destination.endpoint.applicationId !== source.applicationId || destination.endpoint.customerId !== source.customerId))) throw new Error("Source destination customer mismatch");
   const execution = await tx.routingExecution.create({ data: { eventId, webhookSourceId: sourceId, generation,
     groups: { create: groups.map((group, index) => ({ order: index, triggerCondition: group.triggerCondition, successPolicy: group.successPolicy,
       destinations: { create: group.destinations.map(destination => ({ endpointId: destination.endpointId, url: destination.endpoint.url })) },

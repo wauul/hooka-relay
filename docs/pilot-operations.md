@@ -1,8 +1,12 @@
 # Paid pilot operations
 
+## Migration status
+
+On 25 September 2026, migration `202609240005_pilot_customers_usage` was rehearsed on Neon branch `preview/codex/pilot-readiness` and applied to `production`. A non-expiring manual Neon snapshot of production was created first at 2026-09-25 00:22:09 UTC. The SQL was applied in Neon's editor and its SHA-256 checksum was recorded in `_prisma_migrations` on each branch. Production verification found 9 existing test applications, 48 backfilled accepted events, 8 excluded events, 47 destination deliveries, 51 retry attempts, three metering triggers, and runtime role access. The production web app remained on the rollback code while the customer-only conversion was prepared. The snapshot is a rollback point, not a substitute for the offsite backup and restore drill below.
+
 ## Customer migration
 
-New applications can select **Customer isolated**. Existing applications remain `LEGACY`; the migration does not assign old events or endpoints to a customer, and existing portal links keep their prior behavior. There is no in-place mode switch. To move an existing producer, create a new isolated application, create each customer with a stable external ID, register customer endpoints, issue their private portal links, and move the producer to the new application API key and `customerId` field. Confirm routing with one test event per customer, including wildcard subscriptions, before stopping the old application. Keep old history in the old application until its retention period ends. A customer portal link is a bearer credential: share it privately, rotate it after suspected exposure, and revoke it when access ends. Producer API keys are application-wide.
+Migration `202609250001_customer_only_sources` converts each existing test application in place. It creates a `Test customer` for each former shared application and assigns its endpoints, events, recovery jobs, and webhook sources to that customer. Application IDs, API keys, endpoint URLs, source ingestion URLs, signing secrets, and historical events stay in place. Existing application-wide portal links are revoked; issue new customer portal links when needed. New applications start in customer-isolated mode and every new endpoint and webhook source needs a customer. A customer portal link is a bearer credential: share it privately, rotate it after suspected exposure, and revoke it when access ends. Producer API keys are application-wide, so producers must send the correct `customerId` for direct events.
 
 ## Operating envelope and indicators
 
@@ -40,9 +44,9 @@ Current protection: Neon point-in-time history was observed at six hours on 24 S
 
 ## Rollout review gate
 
-1. Review migration `202609240005_pilot_customers_usage`: additive nullable customer foreign keys, new mode defaulting to `LEGACY`, customer portal tokens and durable usage totals. It marks historical synthetic/operational events nonbillable, backfills retained event/delivery/retry counts and installs insert triggers under a writer lock. The migration scans existing history and temporarily blocks event/delivery writes; estimate its duration on a production-sized clone and schedule an appropriate window.
-2. Apply migration to a disposable branch; run integration, retention and restore tests, then inspect legacy apps and reconcile a sample month of usage counts. Set `OPERATOR_EMAILS` only for vetted operators.
-3. Deploy web and worker built from the same commit after the migration succeeds. Verify a legacy application, a new two-customer app, cross-customer denial, metering, worker readiness, broker failure recovery and Grafana alert notifications.
+1. Review migrations `202609240005_pilot_customers_usage` and `202609250001_customer_only_sources`. The first adds customer and usage records and scans historical usage; the second assigns existing test data to customers and revokes application-wide portal links. Estimate lock and scan time on a production-sized clone and schedule an appropriate window.
+2. Apply both migrations to a disposable branch; run integration, retention and restore tests, then confirm every existing endpoint, event, source, and recovery job has the expected customer. Reconcile a sample month of usage counts. Set `OPERATOR_EMAILS` only for vetted operators.
+3. Deploy web and worker built from the same commit after the migrations succeed. Verify an existing converted application and source, a new two-customer app, cross-customer denial, metering, worker readiness, broker failure recovery and Grafana alert notifications.
 4. Only then enable scheduled cleanup after comparing counts of eligible versus held old rows and ensuring a reviewed backup/restore path. Never manually delete production historical rows to make rollout easier.
 
-Production migration, deployment, cleanup and alert installation require a separate review. No production action is performed by this branch.
+The first production migration was applied after the pre-migration snapshot and preview rehearsal. Offsite backup, restore rehearsal, alert installation, and any irreversible cleanup remain separate rollout work.

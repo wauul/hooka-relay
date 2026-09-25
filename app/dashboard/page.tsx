@@ -74,7 +74,6 @@ export default function Page() {
             try {
               const created = await api("/api/applications", {
                 name: new FormData(e.currentTarget).get("name"),
-                customerMode: new FormData(e.currentTarget).get("customerMode"),
               });
               setNewKey(created.currentApiKey);
               setCreating(false);
@@ -98,7 +97,6 @@ export default function Page() {
                 required
               />
             </div>
-            <div className="field"><label htmlFor="customerMode">Customer routing</label><select id="customerMode" name="customerMode" defaultValue="LEGACY"><option value="LEGACY">Legacy application</option><option value="ISOLATED">Isolated customers</option></select></div>
             <button className="btn" disabled={busy}><T text={"Create application"} /><ArrowRight size={14} />
             </button>
           </div>

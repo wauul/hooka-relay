@@ -50,9 +50,11 @@ export async function ingest(
       await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${applicationId} FOR UPDATE`;
       const targetEndpoint = target?.endpointId ? await tx.endpoint.findFirst({ where: { id: target.endpointId, applicationId }, select: { customerId: true } }) : null;
       if (target?.endpointId && !targetEndpoint) throw new WorkspaceError(404, "Endpoint not found");
-      const customerId = await validateCustomer(tx, applicationId, targetEndpoint ? targetEndpoint.customerId || undefined : input.customerId);
+      const source = target?.webhookSourceId ? await tx.webhookSource.findFirst({ where: { id: target.webhookSourceId, applicationId }, select: { customerId: true } }) : null;
+      if (target?.webhookSourceId && !source) throw new WorkspaceError(404, "Source not found");
+      if (source && targetEndpoint && source.customerId !== targetEndpoint.customerId) throw new WorkspaceError(404, "Endpoint not found");
+      const customerId = await validateCustomer(tx, applicationId, source?.customerId || targetEndpoint?.customerId || input.customerId);
       expectedCustomerId = customerId;
-      if (target?.webhookSourceId && customerId) throw new WorkspaceError(409, "Inbound sources are not available in customer-isolated applications");
       const existing = await tx.event.findUnique({ where: { applicationId_idempotencyKey: { applicationId, idempotencyKey } } });
       if (existing) {
         if (existing.customerId !== customerId) throw new WorkspaceError(409, "Idempotency key already used");

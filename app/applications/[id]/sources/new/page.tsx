@@ -6,9 +6,10 @@ import { Shell } from "@/components/shell";
 import { api, CopyButton, ErrorBox, useData } from "@/components/ui";
 import { ProviderIcon } from "@/components/provider-icon";
 import { useConfirm } from "@/components/site-tools";
+import { CustomerSelect } from "@/components/application-customers";
 
 type Provider = { name: string; displayName: string; icon: string; docsUrl: string; setupInstructions: string[]; testEventSupport: boolean };
-type SourceDetail = { id: string; name: string; status: string; setupStep: number; ingestionUrl: string; destinationUrl: string | null; hasProviderSecret: boolean; hasVerificationToken: boolean; manualConfig: Record<string, string> | null; provider: Provider; lastVerifiedAt: string | null; attempts: { status: string; event: { id: string } }[] };
+type SourceDetail = { id: string; name: string; customerId: string | null; status: string; setupStep: number; ingestionUrl: string; destinationUrl: string | null; hasProviderSecret: boolean; hasVerificationToken: boolean; manualConfig: Record<string, string> | null; provider: Provider; lastVerifiedAt: string | null; attempts: { status: string; event: { id: string } }[] };
 const titles = ["Choose provider", "Name source", "Ingestion URL", "Signing secret", "Destination", "Test", "Done"];
 
 function GitHubRegistration({ sourceId, onConnected }: { sourceId: string; onConnected: () => void }) {
@@ -50,6 +51,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const { data: catalog, error: catalogError } = useData<Provider[]>("/api/webhook-providers");
   const [step, setStep] = useState(0), [search, setSearch] = useState(""), [provider, setProvider] = useState<Provider>();
   const [name, setName] = useState(""), [sourceId, setSourceId] = useState(""), [ingestionUrl, setIngestionUrl] = useState("");
+  const [customerId, setCustomerId] = useState("");
   const [secret, setSecret] = useState(""), [hasSecret, setHasSecret] = useState(false), [destinationUrl, setDestinationUrl] = useState("");
   const [verificationToken, setVerificationToken] = useState(""), [hasVerificationToken, setHasVerificationToken] = useState(false);
   const [signatureHeader, setSignatureHeader] = useState(""), [algorithm, setAlgorithm] = useState("sha256"), [encoding, setEncoding] = useState("hex");
@@ -64,7 +66,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     api<SourceDetail>(`/api/sources/${id}`).then(source => {
       if (!active) return;
       if (source.status !== "SETUP_IN_PROGRESS" || source.id !== id || !source.ingestionUrl) throw new Error("This setup draft is unavailable");
-      setSourceId(id); setName(source.name); setProvider(source.provider); setIngestionUrl(source.ingestionUrl);
+      setSourceId(id); setName(source.name); setCustomerId(source.customerId || ""); setProvider(source.provider); setIngestionUrl(source.ingestionUrl);
       setDestinationUrl(source.destinationUrl || ""); setHasSecret(source.hasProviderSecret); setHasVerificationToken(source.hasVerificationToken);
       if (source.manualConfig) {
         setSignatureHeader(source.manualConfig.signatureHeader || ""); setAlgorithm(source.manualConfig.algorithm || "sha256");
@@ -103,8 +105,8 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
     {step === 0 && <div className="wizard-card"><h2>Choose a provider</h2><p>Every listed provider has signature verification. Use Custom / Manual for another provider.</p><label className="wizard-search"><Search size={17} /><input aria-label="Search providers" placeholder="Search providers" value={search} onChange={event => setSearch(event.target.value)} /></label><div className="provider-grid">{catalog?.filter(item => item.displayName.toLowerCase().includes(search.toLowerCase())).map(item => <button type="button" className={`provider-choice ${item.name === "CUSTOM" ? "manual" : ""}`} key={item.name} onClick={() => void choose(item).catch(cause => setFailure((cause as Error).message))}><ProviderIcon provider={item.name} /><strong>{item.displayName}</strong><small>Verified signatures</small></button>)}</div></div>}
     {step === 1 && provider && <form className="wizard-card" onSubmit={event => { event.preventDefault(); void proceed(async () => {
       if (sourceId) await api(`/api/sources/${sourceId}`, { name: name.trim() }, "PATCH");
-      else { const created = await api<{id:string;ingestionUrl:string}>(`/api/applications/${applicationId}/sources`, { provider: provider.name, name: name.trim() }); setSourceId(created.id); setIngestionUrl(created.ingestionUrl); window.history.replaceState(null, "", `?source=${created.id}`); }
-    }, 2); }}><h2>Name this source</h2><p>Use a label you will recognize in event logs, such as “{provider.displayName} — production.”</p><label>Source name<input value={name} onChange={event => setName(event.target.value)} maxLength={100} required /></label><div className="wizard-actions"><button type="button" className="btn quiet" onClick={() => void goTo(0)}>Back</button><button className="btn" disabled={busy}>Continue <ArrowRight size={16} /></button></div></form>}
+      else { const created = await api<{id:string;ingestionUrl:string}>(`/api/applications/${applicationId}/sources`, { provider: provider.name, name: name.trim(), customerId }); setSourceId(created.id); setIngestionUrl(created.ingestionUrl); window.history.replaceState(null, "", `?source=${created.id}`); }
+    }, 2); }}><h2>Name this source</h2><p>Use a label you will recognize in event logs, such as “{provider.displayName} — production.”</p><label>Source name<input value={name} onChange={event => setName(event.target.value)} maxLength={100} required /></label>{sourceId ? <p className="muted">Customer assignment is fixed after this source is created.</p> : <CustomerSelect applicationId={applicationId} value={customerId} onChange={setCustomerId} />}<div className="wizard-actions"><button type="button" className="btn quiet" onClick={() => void goTo(0)}>Back</button><button className="btn" disabled={busy || (!sourceId && !customerId)}>Continue <ArrowRight size={16} /></button></div></form>}
     {step === 2 && provider && <div className="wizard-card"><h2>Get your {provider.displayName} ingestion URL</h2><p>This URL is unique to this source. Keep it private. Configure the provider after saving the signing secret and destination.</p><div className="secret-row"><code>{ingestionUrl}</code><CopyButton value={ingestionUrl} /></div><ol className="wizard-instructions">{provider.setupInstructions.map(instruction => <li key={instruction}>{instruction}</li>)}</ol><a href={provider.docsUrl} target="_blank" rel="noopener noreferrer">Open {provider.displayName} setup docs ↗</a>{provider.name === "GITHUB" && <p>Want automatic registration? Continue through the destination step, then enter a one time GitHub token on the test step.</p>}<div className="wizard-actions"><button type="button" className="btn quiet" onClick={() => void goTo(1)}>Back</button><button className="btn" onClick={() => void goTo(3)}>Continue <ArrowRight size={16} /></button></div></div>}
     {step === 3 && provider && <form className="wizard-card" onSubmit={event => { event.preventDefault(); void proceed(async () => {
       if (secret || verificationToken || provider.name === "CUSTOM") await api(`/api/sources/${sourceId}`, { ...(secret ? { providerSecret: secret } : {}), ...(verificationToken ? { verificationToken } : {}), ...(provider.name === "CUSTOM" ? { manualConfig: { signatureHeader, algorithm, encoding, signaturePrefix, signedPayload, ...(signedPayload === "timestamp-body" ? { timestampHeader, timestampFormat } : {}) } } : {}) }, "PATCH");

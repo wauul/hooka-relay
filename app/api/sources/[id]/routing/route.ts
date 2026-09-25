@@ -41,6 +41,7 @@ export async function PUT(req: Request, { params }: Context) {
       const old = await tx.destinationGroup.findMany({ where: { webhookSourceId: source.id }, include: { destinations: true } });
       const existing = new Map(old.flatMap(group => group.destinations.map(destination => [destination.id, destination.endpointId] as const)));
       if (ids.some(id => !existing.has(id))) throw new Error("Unknown destination");
+      if (!source.customerId || await tx.endpoint.count({ where: { id: { in: [...existing.values()] }, applicationId: source.applicationId, customerId: source.customerId } }) !== new Set(existing.values()).size) throw new Error("Source destinations must belong to its customer");
       await tx.destinationGroup.deleteMany({ where: { webhookSourceId: source.id } });
       let firstEndpointId: string | null = null;
       for (let order = 0; order < input.groups.length; order++) {
@@ -48,7 +49,7 @@ export async function PUT(req: Request, { params }: Context) {
         const group = await tx.destinationGroup.create({ data: { webhookSourceId: source.id, order, triggerCondition: groupInput.triggerCondition, successPolicy: groupInput.successPolicy } });
         for (let index = 0; index < groupInput.destinations.length; index++) {
           const destination = groupInput.destinations[index];
-          const endpointId = destination.id ? existing.get(destination.id)! : (await tx.endpoint.create({ data: { ...prepared[order][index], kind: "INBOUND", retryPolicy: destination.retryPolicy, status: destination.status } })).id;
+          const endpointId = destination.id ? existing.get(destination.id)! : (await tx.endpoint.create({ data: { ...prepared[order][index], customerId: source.customerId, kind: "INBOUND", retryPolicy: destination.retryPolicy, status: destination.status } })).id;
           if (destination.id) await tx.endpoint.update({ where: { id: endpointId }, data: { url: destination.url, retryPolicy: destination.retryPolicy, status: destination.status } });
           await tx.routingDestination.create({ data: { destinationGroupId: group.id, endpointId } });
           firstEndpointId ??= endpointId;

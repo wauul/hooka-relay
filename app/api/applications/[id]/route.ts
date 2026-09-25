@@ -1,5 +1,4 @@
 import { publicEndpoint } from "@/lib/endpoint-config";
-import { decryptSecret } from "@/lib/secrets";
 import { db } from "@/lib/db";
 import { ownApplication, apiError, sameOrigin, userId } from "@/lib/access";
 import { rotateKey, keyGraceHours } from "@/lib/api-keys";
@@ -8,9 +7,9 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, { params }: Context) {
   try {
     const app = await ownApplication((await params).id);
-    const { currentApiKey: _current, previousApiKey: _previous, portalTokenHash: _portalHash, portalTokenEncrypted, ...safe } = app;
+    const { currentApiKey: _current, previousApiKey: _previous, portalTokenHash: _portalHash, portalTokenEncrypted: _portalEncrypted, ...safe } = app;
     const endpoints = await db.endpoint.findMany({ where: { applicationId: app.id, kind: { not: "INBOUND" } }, orderBy: { createdAt: "desc" } });
-    return Response.json({ ...safe, portalPath: app.customerMode === "LEGACY" && app.role !== "MEMBER" && portalTokenEncrypted ? `/portal/${decryptSecret(portalTokenEncrypted, app.id)}` : undefined, keyGraceHours: keyGraceHours(), endpoints: endpoints.map(publicEndpoint) });
+    return Response.json({ ...safe, keyGraceHours: keyGraceHours(), endpoints: endpoints.map(publicEndpoint) });
   } catch (e) { return apiError(e); }
 }
 export async function POST(req: Request, { params }: Context) {

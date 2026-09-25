@@ -46,6 +46,19 @@ it("migrates realistic legacy owners and all application data without orphaning 
   ).toMatchObject({ calls: 2 });
 });
 
+it("converts existing test applications and history to customer isolation", async () => {
+  const apps = await db.application.findMany({ where: { id: { startsWith: "migration-app" } }, select: { id: true, customerMode: true, customers: { select: { id: true, externalId: true } } } });
+  expect(apps).toHaveLength(3);
+  for (const app of apps) {
+    expect(app.customerMode).toBe("ISOLATED");
+    expect(app.customers).toHaveLength(1);
+    expect(app.customers[0].externalId).toBe("test");
+  }
+  const customerId = apps.find(app => app.id === "migration-app")!.customers[0].id;
+  expect((await db.endpoint.findUniqueOrThrow({ where: { id: "migration-endpoint" } })).customerId).toBe(customerId);
+  expect((await db.event.findUniqueOrThrow({ where: { id: "migration-event" } })).customerId).toBe(customerId);
+});
+
 it("backfills readable display names without changing account identifiers", async () => {
   expect(
     await db.user.findUnique({ where: { id: "migration-owner" } }),

@@ -7,7 +7,7 @@ const array = items => ({ type: "array", items });
 const date = { type: "string", format: "date-time" };
 const nullable = schema => ({ ...schema, nullable: true });
 const schemas = {
-  EventInput: object({ customerId: { ...string, description: "Required for isolated applications; forbidden for legacy applications." }, type: { ...string, minLength: 1, maxLength: 120, pattern: "^[A-Za-z0-9_.:-]+$" }, payload: {}, idempotencyKey: { ...string, minLength: 1, maxLength: 200, pattern: "^[!-~]+$" } }, ["type", "payload"]),
+  EventInput: object({ customerId: { ...string, description: "Required when the authenticated application is customer-isolated." }, type: { ...string, minLength: 1, maxLength: 120, pattern: "^[A-Za-z0-9_.:-]+$" }, payload: {}, idempotencyKey: { ...string, minLength: 1, maxLength: 200, pattern: "^[!-~]+$" } }, ["type", "payload"]),
   EventResponse: object({ id: string, applicationId: string, customerId: nullable(string), type: string, payload: {}, idempotencyKey: string, operational: { type: "boolean" }, createdAt: date }),
   Customer: object({ id: string, externalId: string, name: string, createdAt: date }),
   CustomerInput: object({ externalId: string, name: string }),
@@ -31,9 +31,9 @@ const schemas = {
   Attempts: object({ attempts: array(ref("Attempt")), nextCursor: nullable(string), hasMore: { type: "boolean" } }),
   Delivery: object({ id: string, eventId: string, endpointId: string, generation: integer, attemptNumber: integer, status: string, dueAt: date, endpoint: { type: "object", description: "Endpoint selection with stored ACTIVE/PAUSED status and circuitState." }, attempts: integer, lastAttempt: { type: "object", nullable: true } }),
   EventDetails: object({ event: ref("EventResponse"), generation: integer, deliveries: array(ref("Delivery")) }),
-  WebhookSourceCreate: object({ name: { ...string, maxLength: 100 }, provider: { type: "string", enum: ["STRIPE", "GITHUB", "SLACK", "SHOPIFY", "TWILIO", "CUSTOM"] } }),
+  WebhookSourceCreate: object({ name: { ...string, maxLength: 100 }, customerId: string, provider: { type: "string", enum: ["STRIPE", "GITHUB", "SLACK", "SHOPIFY", "TWILIO", "CUSTOM"] } }),
   WebhookSourceUpdate: object({ name: string, providerSecret: string, destinationUrl: { ...string, format: "uri" }, manualConfig: { type: "object", description: "CUSTOM only: signatureHeader, algorithm (sha256/sha1), encoding (hex/base64), optional signaturePrefix, signedPayload (body/timestamp-body), timestampHeader and timestampFormat." }, status: { type: "string", enum: ["ACTIVE", "PAUSED"] } }, []),
-  WebhookSource: object({ id: string, applicationId: string, name: string, provider: string, status: string, destinationUrl: nullable(string), endpointId: nullable(string), lastEventReceivedAt: nullable(date), lastVerifiedAt: nullable(date) }),
+  WebhookSource: object({ id: string, applicationId: string, customerId: string, name: string, provider: string, status: string, destinationUrl: nullable(string), endpointId: nullable(string), lastEventReceivedAt: nullable(date), lastVerifiedAt: nullable(date) }),
   InboundAck: object({ id: string }),
 };
 const paths = {};

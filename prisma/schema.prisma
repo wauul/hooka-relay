@@ -43,7 +43,7 @@ model Application {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name String
   // SHA-256 digests; legacy column name retained to avoid a structural migration.
-  customerMode CustomerMode @default(LEGACY)
+  customerMode CustomerMode @default(ISOLATED)
   currentApiKey String @unique @map("apiKey")
   previousApiKey String? @unique
   previousApiKeyExpiresAt DateTime?
@@ -76,6 +76,7 @@ model Customer {
   recoveryAvailableAt DateTime?
   events Event[]
   recoveries RecoveryJob[]
+  sources WebhookSource[]
   @@unique([applicationId, externalId])
   @@unique([applicationId, id])
 }
@@ -150,6 +151,8 @@ model WebhookSource {
   id String @id @default(cuid())
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer Customer? @relation(fields: [applicationId, customerId], references: [applicationId, id], onDelete: NoAction)
   endpointId String? @unique
   endpoint Endpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
   name String
@@ -172,6 +175,7 @@ model WebhookSource {
     receipts InboundReceipt[]
     liveSessions InboundLiveSession[]
   @@index([applicationId, createdAt])
+  @@index([applicationId, customerId])
 }
 enum RoutingTriggerCondition {
   ALWAYS

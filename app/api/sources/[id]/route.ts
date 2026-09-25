@@ -50,6 +50,8 @@ export async function PATCH(req: Request, { params }: Context) {
     const endpointData = input.destinationUrl ? await newEndpointData(app.id, input.destinationUrl, ["*"]) : null;
     const result = await workspaceTransaction(app.workspaceId, await userId(), "manage", async tx => {
       const current = await tx.webhookSource.findUniqueOrThrow({ where: { id: source.id } });
+      if (!current.customerId) throw new Error("Source customer is missing");
+      if (current.endpointId && !await tx.endpoint.findFirst({ where: { id: current.endpointId, applicationId: current.applicationId, customerId: current.customerId }, select: { id: true } })) throw new Error("Source destination must belong to its customer");
       if (input.provider && input.provider !== current.provider && (current.status !== "SETUP_IN_PROGRESS" || current.lastVerifiedAt)) throw new Error("Provider cannot be changed after verification");
       let endpointId = current.endpointId;
       if (input.status === "ACTIVE") {
@@ -60,7 +62,7 @@ export async function PATCH(req: Request, { params }: Context) {
       if (input.destinationUrl) {
         if (endpointId) await tx.endpoint.update({ where: { id: endpointId }, data: { url: input.destinationUrl } });
         else {
-          const endpoint = await tx.endpoint.create({ data: { ...endpointData!, kind: "INBOUND" } });
+          const endpoint = await tx.endpoint.create({ data: { ...endpointData!, customerId: current.customerId, kind: "INBOUND" } });
           endpointId = endpoint.id;
         }
         if (!await tx.destinationGroup.count({ where: { webhookSourceId: source.id } })) {

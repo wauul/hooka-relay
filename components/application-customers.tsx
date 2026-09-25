@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { api, useData, ErrorBox, CopyButton } from "./ui";
 
 type Customer = { id: string; externalId: string; name: string; portalEnabled: boolean; _count: { endpoints: number } };
-export function CustomerSelect({ applicationId }: { applicationId: string }) {
+export function CustomerSelect({ applicationId, value, onChange }: { applicationId: string; value?: string; onChange?: (id: string) => void }) {
   const { data } = useData<Customer[]>(`/api/applications/${applicationId}/customers`);
-  return <div className="field"><label htmlFor="customerId">Customer</label><select id="customerId" name="customerId" required defaultValue=""><option value="" disabled>Select customer</option>{data?.map(customer => <option value={customer.id} key={customer.id}>{customer.name} ({customer.externalId})</option>)}</select></div>;
+  return <div className="field"><label htmlFor="customerId">Customer</label><select id="customerId" name="customerId" required {...(value === undefined ? { defaultValue: "" } : { value, onChange: (event: ChangeEvent<HTMLSelectElement>) => onChange?.(event.target.value) })}><option value="" disabled>Select customer</option>{data?.map(customer => <option value={customer.id} key={customer.id}>{customer.name} ({customer.externalId})</option>)}</select></div>;
 }
 export function ApplicationCustomers({ applicationId, canManage }: { applicationId: string; canManage: boolean }) {
   const { data, error, reload } = useData<Customer[]>(`/api/applications/${applicationId}/customers`);

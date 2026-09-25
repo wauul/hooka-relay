@@ -3104,7 +3104,7 @@
         "properties": {
           "customerId": {
             "type": "string",
-            "description": "Required for isolated applications; forbidden for legacy applications."
+            "description": "Required when the authenticated application is customer-isolated."
           },
           "type": {
             "type": "string",
@@ -3860,6 +3860,9 @@
             "type": "string",
             "maxLength": 100
           },
+          "customerId": {
+            "type": "string"
+          },
           "provider": {
             "type": "string",
             "enum": [
@@ -3874,6 +3877,7 @@
         },
         "required": [
           "name",
+          "customerId",
           "provider"
         ]
       },
@@ -3913,6 +3917,9 @@
           "applicationId": {
             "type": "string"
           },
+          "customerId": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -3944,6 +3951,7 @@
         "required": [
           "id",
           "applicationId",
+          "customerId",
           "name",
           "provider",
           "status",

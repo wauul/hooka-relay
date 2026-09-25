@@ -57,6 +57,24 @@ it("routes wildcard events to their own customer and rejects guessed IDs and ide
   await expect(ingest(other.id, { customerId: a.id, type: "order.paid", payload: {} })).rejects.toMatchObject({ status: 404 });
 });
 
+it("binds inbound sources and their routing destinations to one customer", async () => {
+  const [a, b] = customers;
+  const [own, foreign] = await Promise.all([a, b].map(customer => db.endpoint.create({ data: {
+    applicationId: appId, customerId: customer.id, url: `https://example.com/inbound/${customer.id}`,
+    secret: "test-secret", eventTypes: ["*"], kind: "INBOUND",
+  } })));
+  const source = await db.webhookSource.create({ data: {
+    applicationId: appId, customerId: a.id, endpointId: own.id,
+    name: "Test source", provider: "STRIPE", ingestionToken: randomUUID().replaceAll("-", "").repeat(2),
+  } });
+  const accepted = await ingest(appId, { type: "payment.succeeded", payload: {}, idempotencyKey: randomUUID() }, { endpointId: own.id, webhookSourceId: source.id });
+  expect(accepted.customerId).toBe(a.id);
+  expect((await db.delivery.findMany({ where: { eventId: accepted.id } })).map(row => row.endpointId)).toEqual([own.id]);
+  await expect(ingest(appId, { type: "payment.succeeded", payload: {}, idempotencyKey: randomUUID() }, { endpointId: foreign.id, webhookSourceId: source.id })).rejects.toMatchObject({ status: 404 });
+  await db.destinationGroup.create({ data: { webhookSourceId: source.id, order: 0, destinations: { create: { endpointId: foreign.id } } } });
+  await expect(ingest(appId, { type: "payment.succeeded", payload: {}, idempotencyKey: randomUUID() }, { webhookSourceId: source.id })).rejects.toThrow("Source destination customer mismatch");
+});
+
 it("scopes portal logs, secrets, mutations, replay, backlog and recovery", async () => {
   const [a, b] = customers;
   const endpointIds = await Promise.all([a, b].map(async customer => {
