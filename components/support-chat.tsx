@@ -4,7 +4,7 @@ import { Bot, ExternalLink, MessageCircle, RotateCcw, Send, X } from "lucide-rea
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 type Exchange = { question: string; answer: string };
-const suggestions = ["How do I add a customer?", "How do retries work?", "How do I verify a delivery?"];
+const suggestions = ["How do I add a customer in Hooka Relay?", "How does Hooka Relay retry deliveries?", "How do I verify a Hooka Relay delivery?"];
 export function SupportChat() {
   const [open, setOpen] = useState(false), [question, setQuestion] = useState(""), [history, setHistory] = useState<Exchange[]>([]);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [cached, setCached] = useState<boolean>();
