@@ -7,14 +7,11 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, FlaskConical } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { api, ErrorBox } from "@/components/ui";
-import { useData } from "@/components/ui";
-import { CustomerSelect } from "@/components/application-customers";
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const { data: app } = useData<{ customerMode: string }>(`/api/applications/${resolvedParams.id}`);
   async function create(body: unknown) {
     setBusy(true);
     setError("");
@@ -46,7 +43,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             const f = new FormData(e.currentTarget);
             create({
               url: f.get("url"),
-              ...(app?.customerMode === "ISOLATED" ? { customerId: f.get("customerId") } : {}),
               eventTypes: String(f.get("types"))
                 .split(",")
                 .map((s) => s.trim())
@@ -54,7 +50,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
             });
           }}
         >
-          {app?.customerMode === "ISOLATED" && <CustomerSelect applicationId={resolvedParams.id} />}
           <div className="field">
             <label htmlFor="url"><T text={"Endpoint URL"} /></label>
             <input
@@ -114,7 +109,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   marginTop: 12,
                   padding: 15,
                 }}
-                onClick={() => create({ mode, eventTypes: ["*"], ...(app?.customerMode === "ISOLATED" ? { customerId: (document.getElementById("customerId") as HTMLSelectElement | null)?.value } : {}) })}
+                onClick={() => create({ mode, eventTypes: ["*"] })}
               >
                 <span>
                   <strong style={{ display: "block" }}>{title}</strong>

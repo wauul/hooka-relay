@@ -5,7 +5,6 @@ JsonValue = Union[None, bool, int, float, str, list["JsonValue"], dict[str, "Jso
 
 
 class EventInput(TypedDict):
-    customerId: NotRequired[str]
     type: str
     payload: JsonValue
     idempotencyKey: NotRequired[str]
@@ -14,7 +13,6 @@ class EventInput(TypedDict):
 class EventResponse(TypedDict):
     id: str
     applicationId: str
-    customerId: str
     type: str
     payload: JsonValue
     idempotencyKey: str

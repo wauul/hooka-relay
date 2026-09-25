@@ -9,11 +9,9 @@ import { newEndpointData } from "./endpoint-config";
 import { revealSigningSecret } from "./signing-secrets";
 import { decryptSecret, encryptSecret, hashApiKey } from "./secrets";
 import { workspaceTransaction } from "./workspaces";
-import { customerPortalRequest } from "./customer-portal";
 
 export async function enablePortal(applicationId: string, userId: string) {
   const app = await db.application.findUniqueOrThrow({ where: { id: applicationId } });
-  if (app.customerMode !== "LEGACY") throw new Error("NOT_FOUND");
   return workspaceTransaction(app.workspaceId, userId, "manage", async tx => {
     await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${app.id} FOR UPDATE`;
     const fresh = await tx.application.findUniqueOrThrow({ where: { id: app.id } });
@@ -29,14 +27,8 @@ export async function portalRequest(req: Request, token: string) {
     const limited = await ipRateLimit(req, "portal");
     if (limited) return limited;
     if (!/^[a-f0-9]{64}$/.test(token)) return json({ error: "Portal not found" }, 404);
-    const customer = await db.customer.findUnique({ where: { portalTokenHash: hashApiKey(token) }, select: { id: true, applicationId: true, name: true, application: { select: { name: true, customerMode: true } } } });
-    if (customer) {
-      if (customer.application.customerMode !== "ISOLATED") return json({ error: "Portal not found" }, 404);
-      return await customerPortalRequest(req, customer);
-    }
     const app = await db.application.findUnique({ where: { portalTokenHash: hashApiKey(token) }, select: { id: true, name: true } });
     if (!app) return json({ error: "Portal not found" }, 404);
-    if ((await db.application.findUnique({ where: { id: app.id }, select: { customerMode: true } }))?.customerMode !== "LEGACY") return json({ error: "Portal not found" }, 404);
     const secure = new URL(req.url).protocol === "https:";
     const cookieName = (secure ? "__Host-" : "") + "hr_portal_" + app.id;
     const existing = (req.headers.get("cookie") || "").split(";").map(p => p.trim()).find(p => p.startsWith(cookieName + "="))?.slice(cookieName.length + 1);

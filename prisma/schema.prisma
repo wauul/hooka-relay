@@ -17,10 +17,6 @@ enum AttemptStatus {
   SKIPPED_CIRCUIT_OPEN
   DEAD_LETTERED
 }
-enum CustomerMode {
-  LEGACY
-  ISOLATED
-}
 model User {
   id String @id @default(cuid())
   email String @unique
@@ -43,7 +39,6 @@ model Application {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name String
   // SHA-256 digests; legacy column name retained to avoid a structural migration.
-  customerMode CustomerMode @default(LEGACY)
   currentApiKey String @unique @map("apiKey")
   previousApiKey String? @unique
   previousApiKeyExpiresAt DateTime?
@@ -61,23 +56,6 @@ model Application {
   endpoints Endpoint[]
   events Event[]
   webhookSources WebhookSource[]
-  customers Customer[]
-}
-model Customer {
-  id String @id @default(cuid())
-  applicationId String
-  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  externalId String
-  name String
-  portalTokenHash String? @unique
-  portalTokenEncrypted String?
-  createdAt DateTime @default(now())
-  endpoints Endpoint[]
-  recoveryAvailableAt DateTime?
-  events Event[]
-  recoveries RecoveryJob[]
-  @@unique([applicationId, externalId])
-  @@unique([applicationId, id])
 }
 model Endpoint {
   id String @id @default(cuid())
@@ -85,10 +63,7 @@ model Endpoint {
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   url String
   portalOwnerHash String?
-  customerId String?
-  customer Customer? @relation(fields: [applicationId, customerId], references: [applicationId, id], onDelete: NoAction)
   @@index([applicationId, portalOwnerHash])
-  @@index([applicationId, customerId])
   // Versioned AES-256-GCM ciphertext, bound to applicationId.
   secret String
   secretVersion Int @default(0)
@@ -249,9 +224,6 @@ model Event {
   traceparent String?
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  customerId String?
-  customer Customer? @relation(fields: [applicationId, customerId], references: [applicationId, id], onDelete: NoAction)
-  billable Boolean @default(true)
   webhookSourceId String?
   webhookSource WebhookSource? @relation(fields: [webhookSourceId], references: [id], onDelete: SetNull)
   idempotencyKey String
@@ -265,7 +237,6 @@ model Event {
     inboundReceipt InboundReceipt?
   @@unique([applicationId, idempotencyKey])
   @@index([applicationId, createdAt, id])
-  @@index([applicationId, customerId, createdAt])
   @@index([createdAt, id])
   @@index([webhookSourceId, createdAt])
 }
@@ -342,17 +313,6 @@ model Workspace {
   members WorkspaceMember[]
   applications Application[]
   invites WorkspaceInvite[]
-  usageMonths WorkspaceUsageMonth[]
-}
-model WorkspaceUsageMonth {
-  workspaceId String
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  month DateTime @db.Date
-  acceptedEvents BigInt @default(0)
-  destinationDeliveries BigInt @default(0)
-  retryAttempts BigInt @default(0)
-  @@id([workspaceId, month])
-  @@index([month])
 }
 model WorkspaceMember {
   id String @id @default(cuid())
@@ -549,8 +509,6 @@ model RecoveryJob {
   id String @id @default(cuid())
   applicationId String
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  customerId String?
-  customer Customer? @relation(fields: [applicationId, customerId], references: [applicationId, id], onDelete: NoAction)
   endpointId String?
   since DateTime
   until DateTime @default(now())

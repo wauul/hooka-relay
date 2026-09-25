@@ -12,7 +12,6 @@ const broker = vi.hoisted(() => ({ publish: vi.fn() }));
 vi.mock("../../lib/queue/client", () => ({ publish: broker.publish }));
 import { db } from "../../lib/db";
 import { POST } from "../../app/api/v1/events/route";
-import { ingest } from "../../lib/events";
 
 let user: User;
 let app: Application;
@@ -101,15 +100,6 @@ describe("POST /api/v1/events with migrated disposable Postgres", () => {
       expect(delivery.publishedAt).toBeInstanceOf(Date);
       expect(delivery.status).toBe("PENDING");
     }
-  });
-  it("excludes synthetic endpoint tests from accepted-event and destination metering", async () => {
-    const ep = await endpoint(["*"]);
-    const synthetic = await ingest(app.id, { type: "hooka.test", payload: {}, idempotencyKey: `synthetic-${randomUUID()}` }, { endpointId: ep.id, synthetic: true });
-    expect(synthetic.billable).toBe(false);
-    expect(await db.workspaceUsageMonth.count({ where: { workspaceId: app.workspaceId } })).toBe(0);
-    expect((await POST(request({ ...body, idempotencyKey: randomUUID() }))).status).toBe(202);
-    const row = await db.workspaceUsageMonth.findFirstOrThrow({ where: { workspaceId: app.workspaceId } });
-    expect(row).toMatchObject({ acceptedEvents: 1n, destinationDeliveries: 1n });
   });
   it("keeps the durable outbox intent when publishing fails", async () => {
     await endpoint(["*"]); broker.publish.mockRejectedValueOnce(new Error("broker offline"));

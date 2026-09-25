@@ -11,7 +11,7 @@ function sources(dir: string): string[] {
     .flatMap(e => e.isDirectory() ? sources(join(dir, e.name)) : e.name.endsWith(".ts") ? [join(dir, e.name).replaceAll("\\", "/")] : []);
 }
 it("requires every production endpoint creator to use the shared validation/encryption factory", () => {
-  const creators = ["app/api/applications/[id]/endpoints/route.ts", "app/api/sources/[id]/route.ts", "app/api/sources/[id]/routing/route.ts", "lib/cli-api.ts", "lib/customer-portal.ts", "lib/portal.ts"];
+  const creators = ["app/api/applications/[id]/endpoints/route.ts", "app/api/sources/[id]/route.ts", "app/api/sources/[id]/routing/route.ts", "lib/cli-api.ts", "lib/portal.ts"];
   const actual = [...sources("app"), ...sources("lib"), ...sources("worker")].filter(file => /\.endpoint\.(create|createMany|upsert)\(/.test(readFileSync(file, "utf8")));
   expect(actual.sort()).toEqual(creators.sort());
   for (const file of actual) expect(readFileSync(file, "utf8")).toMatch(/await newEndpointData\(/);
@@ -31,6 +31,6 @@ it("requires review of every new endpoint write path", () => {
     "app/api/applications/[id]/endpoints/route.ts", "app/api/endpoints/[id]/pause/route.ts",
     "app/api/endpoints/[id]/resume/route.ts", "app/api/endpoints/[id]/retry-policy/route.ts",
     "app/api/endpoints/[id]/configuration/route.ts", "app/api/sources/[id]/route.ts", "app/api/sources/[id]/routing/route.ts", "lib/cli-api.ts", "lib/diagnosis.ts",
-    "lib/migrate-endpoint-secrets.ts", "lib/migrate-secrets.ts", "lib/customer-portal.ts", "lib/portal.ts", "lib/signing-secrets.ts", "worker/index.ts", "worker/process-job.ts",
+    "lib/migrate-endpoint-secrets.ts", "lib/migrate-secrets.ts", "lib/portal.ts", "lib/signing-secrets.ts", "worker/index.ts", "worker/process-job.ts",
   ].sort());
 });

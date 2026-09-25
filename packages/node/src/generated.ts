@@ -2,7 +2,6 @@
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
 export interface EventInput {
-  customerId?: string;
   type: string;
   payload: JsonValue;
   idempotencyKey?: string;
@@ -11,7 +10,6 @@ export interface EventInput {
 export interface EventResponse {
   id: string;
   applicationId: string;
-  customerId: string;
   type: string;
   payload: JsonValue;
   idempotencyKey: string;

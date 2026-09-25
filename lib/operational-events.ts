@@ -2,12 +2,12 @@ import { sendTransactionalEmail } from "./transactional-email";
 import { randomUUID } from "node:crypto";
 import type { Prisma, Endpoint } from "@prisma/client";
 import { db } from "./db";
-export async function operationalEvent(tx: Prisma.TransactionClient, endpoint: Pick<Endpoint, "id" | "applicationId" | "customerId" | "kind">, type: "endpoint.disabled" | "endpoint.re-enabled" | "message.failed", detail: Record<string, string>) {
+export async function operationalEvent(tx: Prisma.TransactionClient, endpoint: Pick<Endpoint, "id" | "applicationId" | "kind">, type: "endpoint.disabled" | "endpoint.re-enabled" | "message.failed", detail: Record<string, string>) {
   // Operational receivers never produce more operational events on failure:
   // this prevents self-referential subscriptions from amplifying indefinitely.
   if (endpoint.kind === "OPERATIONAL") return;
-  const event = await tx.event.create({ data: { applicationId: endpoint.applicationId, customerId: endpoint.customerId, billable: false, idempotencyKey: "operational-" + randomUUID(), operational: true, type, payload: { endpointId: endpoint.id, ...detail } } });
-  const targets = await tx.endpoint.findMany({ where: { applicationId: endpoint.applicationId, customerId: endpoint.customerId, kind: "OPERATIONAL", status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: type } }] }, select: { id: true } });
+  const event = await tx.event.create({ data: { applicationId: endpoint.applicationId, idempotencyKey: "operational-" + randomUUID(), operational: true, type, payload: { endpointId: endpoint.id, ...detail } } });
+  const targets = await tx.endpoint.findMany({ where: { applicationId: endpoint.applicationId, kind: "OPERATIONAL", status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: type } }] }, select: { id: true } });
   await tx.delivery.createMany({ data: targets.map(target => ({ eventId: event.id, endpointId: target.id })) });
   if (type === "endpoint.disabled") {
     const oldest = await tx.event.findFirst({ where: { applicationId: endpoint.applicationId, deliveries: { some: { endpointId: endpoint.id, status: { in: ["PENDING", "DEAD_LETTERED"] } } } }, orderBy: { createdAt: "asc" }, select: { createdAt: true } });

@@ -37,7 +37,7 @@ it("rejects absent and invalid keys", async () => {
 it("returns identity without key or user information, without caching", async () => {
   const res = await call("me");
   expect(res.headers.get("cache-control")).toBe("no-store");
-  expect(await res.json()).toEqual({ application: { id: app.id, name: "CLI app", customerMode: "LEGACY", createdAt: expect.any(String) } });
+  expect(await res.json()).toEqual({ application: { id: app.id, name: "CLI app", createdAt: expect.any(String) } });
 });
 it("lists only the key's endpoints and never discloses existing secrets", async () => {
   const own = await fixture(); await fixture(other.id);

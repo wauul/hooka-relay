@@ -24,15 +24,6 @@ export function traced<T>(name: string, attributes: Attributes, run: (span: Span
 export function count(name: string, attributes: Attributes = {}) {
   metrics.getMeter(scope).createCounter(name).add(1, attributes);
 }
-export function addCount(name: string, value: number, attributes: Attributes = {}) {
-  if (value > 0) metrics.getMeter(scope).createCounter(name).add(value, attributes);
-}
-export function gauge(name: string, value: number, attributes: Attributes = {}) {
-  metrics.getMeter(scope).createGauge(name).record(value, attributes);
-}
-export function observe(name: string, value: number, unit = "s", attributes: Attributes = {}) {
-  metrics.getMeter(scope).createHistogram(name, { unit }).record(value, attributes);
-}
 export function deliveryMetric(duration: number, outcome: "success" | "failure") {
   const meter = metrics.getMeter(scope);
   meter.createCounter("hooka.delivery.attempts").add(1, { outcome });

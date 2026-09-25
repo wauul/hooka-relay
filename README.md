@@ -17,10 +17,6 @@ Hooka Relay is a webhook delivery service for teams. Create an application, regi
 
 Deliveries are at least once. Webhook consumers should verify signatures and use the idempotency key to make processing safe to retry.
 
-For multi-customer producers, create a **customer-isolated** application, add customers, then attach each endpoint to one customer. Send the authenticated `customerId` field alongside each event; wildcards match only within that customer. Existing applications stay in **legacy** mode. Customer portal links can be used across devices and rotated or revoked by an application administrator. See [pilot operations](docs/pilot-operations.md) for migration and operating procedures.
-
-The default history retention is 30 days. Completed event payloads and delivery logs expire; unfinished work is kept. Replay and idempotency lookup end when an event expires. Monthly workspace usage totals persist for manual invoicing; one accepted production event is the billable unit, while destinations and retries are separate informational counts. No prices or uptime SLA are published.
-
 ## Requirements
 
 - Node.js 22 or newer

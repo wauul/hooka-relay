@@ -1,6 +1,7 @@
 import { db } from "./db";
 
 const DAY_MS = 86_400_000;
+const ACTIVE_LIVE_MS = 3_600_000;
 const BATCH_SIZE = 100;
 
 export function eventRetentionDays() {
@@ -16,6 +17,7 @@ export async function pruneEventHistory(now = new Date(), batchSize = BATCH_SIZE
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 1000)
     throw new Error("Invalid retention batch size");
   const cutoff = new Date(now.getTime() - eventRetentionDays() * DAY_MS);
+  const activeLiveSince = new Date(now.getTime() - ACTIVE_LIVE_MS);
   return db.$transaction(async tx => {
     const events = await tx.$queryRaw<{ id: string }[]>`
       SELECT e.id FROM "Event" e
@@ -32,7 +34,7 @@ export async function pruneEventHistory(now = new Date(), batchSize = BATCH_SIZE
         )
         AND NOT EXISTS (
           SELECT 1 FROM "InboundReceipt" r JOIN "InboundLiveAttempt" l ON l."receiptId" = r.id
-          WHERE r."eventId" = e.id AND l.status = 'SENT'
+          WHERE r."eventId" = e.id AND l.status = 'SENT' AND l."createdAt" >= ${activeLiveSince}
         )
       ORDER BY e."createdAt", e.id
       LIMIT ${batchSize}
@@ -50,7 +52,7 @@ export async function pruneEventHistory(now = new Date(), batchSize = BATCH_SIZE
       WHERE r."eventId" IS NULL AND r."receivedAt" < ${cutoff}
         AND NOT EXISTS (
           SELECT 1 FROM "InboundLiveAttempt" l WHERE l."receiptId" = r.id
-            AND l.status = 'SENT'
+            AND l.status = 'SENT' AND l."createdAt" >= ${activeLiveSince}
         )
       ORDER BY r."receivedAt", r.id
       LIMIT ${batchSize}

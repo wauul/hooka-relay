@@ -12,10 +12,9 @@ import { revealSigningSecret } from "./signing-secrets";
 import { applicationForKey } from "./api-keys";
 import { z } from "zod";
 import { db } from "./db";
-import { validateCustomer } from "./customer-scope";
 
 
-const endpointFields = { id: true, customerId: true, url: true, eventTypes: true, circuitState: true, status: true, environment: true, kind: true, deliveryRatePerMinute: true, signatureFormat: true, createdAt: true } as const;
+const endpointFields = { id: true, url: true, eventTypes: true, circuitState: true, status: true, environment: true, kind: true, deliveryRatePerMinute: true, signatureFormat: true, createdAt: true } as const;
 class ApiFailure extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -32,19 +31,12 @@ export async function cliApi(req: Request, path: string[]) {
     const key = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || req.headers.get("x-api-key");
     if (!key) throw new ApiFailure(401, "API key required");
     const authenticated = await applicationForKey(key, req.method === "GET" ? "READ" : "MANAGE");
-    const app = authenticated ? { id: authenticated.id, name: authenticated.name, customerMode: authenticated.customerMode, createdAt: authenticated.createdAt } : null;
+    const app = authenticated ? { id: authenticated.id, name: authenticated.name, createdAt: authenticated.createdAt } : null;
     if (!app) throw new ApiFailure(401, "Invalid API key");
     const url = new URL(req.url);
     const route = path.join("/");
     if (path[0] === "applications" && path.length === 3) {
       if (path[1] !== app.id) throw new ApiFailure(404, "Application not found");
-      if (path[2] === "customers" && req.method === "GET") return json(await db.customer.findMany({ where: { applicationId: app.id }, select: { id: true, externalId: true, name: true, createdAt: true }, orderBy: { createdAt: "asc" } }));
-      if (path[2] === "customers" && req.method === "POST") {
-        if (app.customerMode !== "ISOLATED") throw new ApiFailure(409, "Customers require an isolated application");
-        const input = z.object({ externalId: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9_.:-]+$/), name: z.string().trim().min(1).max(100) }).parse(await boundedJson(req, 4096));
-        const customer = await db.customer.create({ data: { ...input, applicationId: app.id }, select: { id: true, externalId: true, name: true, createdAt: true } });
-        return json(customer, 201);
-      }
       if (path[2] === "events" && req.method === "GET") return json(await eventBacklog(app.id, url));
       if (path[2] === "event-types" && req.method === "GET") return json(await listEventTypes(app.id));
       if (path[2] === "event-types" && req.method === "POST") { const input = catalogInput.parse(await boundedJson(req, 20000)); return json(await db.$transaction(tx => publishEventType(tx, app.id, input)), 201); }
@@ -87,14 +79,11 @@ export async function cliApi(req: Request, path: string[]) {
       const body = await req.text();
       if (Buffer.byteLength(body) > 16384) throw new ApiFailure(413, "Endpoint request is too large");
       const parsed = JSON.parse(body);
-      const input = z.object({ url: z.string().url().max(2000), customerId: z.string().min(1).max(100).optional(), eventTypes: z.array(z.string().min(1).max(120).regex(/^(\*|[A-Za-z0-9_.:-]+)$/)).min(1).max(50).default(["*"]) }).parse(parsed);
+      const input = z.object({ url: z.string().url().max(2000), eventTypes: z.array(z.string().min(1).max(120).regex(/^(\*|[A-Za-z0-9_.:-]+)$/)).min(1).max(50).default(["*"]) }).parse(parsed);
       const data = await newEndpointData(app.id, input.url, input.eventTypes);
-      const endpoint = await db.$transaction(async tx => {
-        const customerId = await validateCustomer(tx, app.id, input.customerId);
-        return tx.endpoint.create({ data: { ...data, customerId, ...endpointOptionData(data, endpointOptions.parse(parsed)) } });
-      });
+      const endpoint = await db.endpoint.create({ data: { ...data, ...endpointOptionData(data, endpointOptions.parse(parsed)) } });
       const secret = await revealSigningSecret(endpoint, "api-key:" + hashApiKey(key));
-      return json({ endpoint: { id: endpoint.id, customerId: endpoint.customerId, url: endpoint.url, eventTypes: endpoint.eventTypes, signatureFormat: endpoint.signatureFormat, environment: endpoint.environment, status: effectiveEndpointStatus(endpoint), secret } }, 201);
+      return json({ endpoint: { id: endpoint.id, url: endpoint.url, eventTypes: endpoint.eventTypes, signatureFormat: endpoint.signatureFormat, environment: endpoint.environment, status: effectiveEndpointStatus(endpoint), secret } }, 201);
     }
     if (path[0] === "endpoints" && path[1] && path.length === 3 && path[2] === "rotate-secret") {
       const ep = await db.endpoint.findFirst({ where: { id: path[1], applicationId: app.id } });

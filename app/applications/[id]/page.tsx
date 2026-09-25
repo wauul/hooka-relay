@@ -6,7 +6,6 @@ import { use } from "react";
 import { ApplicationLifecycle } from "@/components/application-lifecycle";
 import { EventSchemas } from "@/components/event-schemas";
 import { WebhookSources } from "@/components/webhook-sources";
-import { ApplicationCustomers, CustomerSelect } from "@/components/application-customers";
 import { useConfirm } from "@/components/site-tools";
 import { useState } from "react";
 import Link from "next/link";
@@ -23,7 +22,7 @@ import { Shell } from "@/components/shell";
 import { api, useData, Badge, CopyButton, ErrorBox } from "@/components/ui";
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const section = useSection(["overview", "customers", "endpoints", "sources", "events", "security", "settings"]);
+  const section = useSection(["overview", "endpoints", "sources", "events", "security", "settings"]);
   const { data, error, reload } = useData<any>(
     `/api/applications/${resolvedParams.id}`,
     true,
@@ -55,8 +54,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
       {!data && !error && <LoadingState />}
       {data && (
         <>
-          <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, ...(data.customerMode === "ISOLATED" ? [{ id: "customers", label: "Customers" }] : []), { id: "endpoints", label: "Endpoints" }, ...(data.customerMode === "LEGACY" ? [{ id: "sources", label: "Webhook Sources" }] : []), { id: "events", label: "Events & Logs" }, { id: "security", label: "API Keys & Security" }, { id: "settings", label: "Settings" }]} />
-          {data.customerMode === "ISOLATED" && <Section active={section} name="customers"><ApplicationCustomers applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} /></Section>}
+          <SectionNav active={section} items={[{ id: "overview", label: "Overview" }, { id: "endpoints", label: "Endpoints" }, { id: "sources", label: "Webhook Sources" }, { id: "events", label: "Events & Logs" }, { id: "security", label: "API Keys & Security" }, { id: "settings", label: "Settings" }]} />
           <Section active={section} name="overview"><div className="stats"><div className="stat"><div className="stat-label"><T text={"Endpoints"} /></div><div className="stat-value">{data.endpoints.length}</div><p className="muted"><T text={"Connected delivery destinations"} /></p></div><div className="stat"><div className="stat-label"><T text={"Active endpoints"} /></div><div className="stat-value">{data.endpoints.filter((endpoint: any) => endpoint.status === "ACTIVE").length}</div><p className="muted"><T text={"Ready for matching events"} /></p></div></div><section className="panel panel-body"><h2><T text={"Start delivering"} /></h2><p className="muted">Connect a destination, send a test event, then follow its delivery attempts.</p><div className="action-row"><a className="btn secondary" href="#endpoints"><Radio size={16} /><T text={"View endpoints"} /></a><a className="btn" href="#events"><Send size={16} /><T text={"Send a test event"} /></a></div></section></Section>
           <Section active={section} name="security">
           <section className="panel">
@@ -114,7 +112,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               your integration before then.
             </p>
           )}
-          {data.customerMode === "LEGACY" && data.role !== "MEMBER" && <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
+          {data.role !== "MEMBER" && <section className="panel panel-body" style={{ marginTop: 24, marginBottom: 24 }}>
             <h2><T text={"Customer portal"} /></h2><p className="muted">Share this private link with customers who may receive events from this application. Each visitor manages only the endpoints created in their browser.</p>
             {data.portalPath ? <div className="secret-row"><code>{window.location.origin + data.portalPath}</code><CopyButton value={window.location.origin + data.portalPath} /></div> : <button className="btn secondary" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/api/applications/${resolvedParams.id}/portal`, {}); await reload(); } catch (e) { setFailure((e as Error).message); } finally { setBusy(false); } }}><T text={"Enable customer portal"} /></button>}
           </section>}
@@ -163,7 +161,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
               )}
             </section>
           </Section>
-          {data.customerMode === "LEGACY" && <Section active={section} name="sources"><WebhookSources applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} /></Section>}
+          <Section active={section} name="sources"><WebhookSources applicationId={resolvedParams.id} canManage={data.role !== "MEMBER"} /></Section>
           <Section active={section} name="events">
             <section className="panel">
               <div className="panel-head">
@@ -183,7 +181,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                       `/api/applications/${resolvedParams.id}/events`,
                       {
                         type: f.get("type"),
-                        ...(data.customerMode === "ISOLATED" ? { customerId: f.get("customerId") } : {}),
                         payload: JSON.parse(String(f.get("payload"))),
                       },
                     );
@@ -197,7 +194,6 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                   }
                 }}
               >
-                {data.customerMode === "ISOLATED" && <CustomerSelect applicationId={resolvedParams.id} />}
                 <div className="field">
                   <label htmlFor="type"><T text={"Event type"} /></label>
                   <input

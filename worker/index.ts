@@ -2,7 +2,7 @@ import { drainNotices } from "../lib/operational-events";
 import { drainRecovery } from "../lib/recovery";
 import "dotenv/config";
 import { startObservability, stopObservability } from "../lib/observability-runtime";
-import { queueDepth, count, addCount, gauge } from "../lib/observability";
+import { queueDepth } from "../lib/observability";
 startObservability("worker");
 import { createServer } from "node:http";
 import { db } from "../lib/db";
@@ -51,9 +51,6 @@ async function drain() {
     take: 50,
   });
   for (const d of pending) await flushDelivery(d.id);
-  const oldest = await db.delivery.findFirst({ where: { status: "PENDING" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } });
-  gauge("hooka.delivery.pending_age_seconds", oldest ? Math.max(0, (Date.now() - oldest.createdAt.getTime()) / 1000) : 0);
-  gauge("hooka.delivery.pending_count", await db.delivery.count({ where: { status: "PENDING" } }));
 }
 const server = createServer((_req, res) => {
   res.writeHead(ready ? 200 : 503);
@@ -72,7 +69,6 @@ async function main() {
           DELAYS.map((d) => d.name).join(", "),
       );
       ready = true;
-      gauge("hooka.worker.ready", 1);
       const closed = new Promise<void>((resolve) => ch.once("close", resolve));
       await ch.consume(QUEUE, async (msg) => {
         if (!msg) return;
@@ -88,7 +84,6 @@ async function main() {
           await processJob(job);
           ch.ack(msg);
         } catch {
-          count("hooka.worker.delivery_system_errors");
           console.error(
             "Delivery processing interrupted; durable outbox will recover",
           );
@@ -102,7 +97,7 @@ async function main() {
         if (draining) return;
         draining = true;
         drain()
-          .catch(() => { count("hooka.worker.database_errors"); console.error("Outbox temporarily unavailable"); })
+          .catch(() => console.error("Outbox temporarily unavailable"))
           .finally(() => {
             draining = false;
           });
@@ -123,11 +118,7 @@ async function main() {
       const retentionTimer = setInterval(() => {
         if (pruning) return;
         pruning = true;
-        pruneEventHistory().then(result => {
-          addCount("hooka.retention.events_deleted", result.events);
-          addCount("hooka.retention.receipts_deleted", result.receipts);
-          if (result.events || result.receipts) console.log(JSON.stringify({ maintenance: "retention", deletedEvents: result.events, deletedReceipts: result.receipts, cutoff: result.cutoff.toISOString() }));
-        }).catch(() => { count("hooka.worker.database_errors"); console.error("Event retention pending; retrying on next interval"); }).finally(() => { pruning = false; });
+        pruneEventHistory().catch(() => console.error("Event retention pending; retrying on next interval")).finally(() => { pruning = false; });
       }, 60000);
       await drain().catch(() =>
         console.error("Initial outbox drain unavailable; retrying on interval"),
@@ -139,11 +130,8 @@ async function main() {
       clearInterval(retentionTimer);
       clearInterval(telemetryTimer);
       ready = false;
-      gauge("hooka.worker.ready", 0);
     } catch {
       ready = false;
-      gauge("hooka.worker.ready", 0);
-      count("hooka.worker.broker_connection_errors");
       console.error("Worker connection unavailable; retrying in 5s");
     }
     if (!stopping) await new Promise((r) => setTimeout(r, 5000));

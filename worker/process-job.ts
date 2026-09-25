@@ -1,7 +1,7 @@
 import { endpointAvailability, outboundCustomHeaders, redactedDeliveryHeaders } from "../lib/endpoint-options";
 import { transformPayload } from "../lib/payload-transform";
 import { operationalEvent } from "../lib/operational-events";
-import { traced, deliveryMetric, count, observe } from "../lib/observability";
+import { traced, deliveryMetric, count } from "../lib/observability";
 import { randomUUID } from "node:crypto";
 import { db } from "../lib/db";
 import { retryPlan } from "../lib/retry-policy";
@@ -164,9 +164,6 @@ export async function processJob(job: { id: string; attemptNumber: number }) {
       if (!delivery.event.operational && dead) await operationalEvent(tx, endpoint, "message.failed", { eventId: delivery.eventId, deliveryId: delivery.id });
     });
     span.setAttributes({ "hooka.outcome": success ? "delivered" : dead ? "dead_lettered" : "retry", "hooka.circuit": next.circuitState, "hooka.delay_ms": success || dead ? 0 : delay.ms });
-    if (delivery.attemptNumber === 1 && delivery.generation === 0)
-      observe("hooka.delivery.acceptance_to_first_attempt", Math.max(0, (Date.now() - delivery.event.createdAt.getTime()) / 1000));
-    if (!success) count(result.code === null ? "hooka.delivery.transport_errors" : "hooka.delivery.receiver_errors");
     if (!success && !dead) count("hooka.delivery.retries", { delay: delay.name });
     if (success || dead) count("hooka.delivery.terminal", { outcome: success ? "delivered" : "dead_lettered" });
     if (gate.state.circuitState !== next.circuitState) count("hooka.circuit.transitions", { from: gate.state.circuitState, to: next.circuitState, endpoint_id: endpoint.id });
