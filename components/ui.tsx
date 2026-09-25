@@ -38,7 +38,7 @@ export function useData<T>(url: string, poll = false) {
 export function Badge({ value }: { value: string }) {
   return (
     <span
-      className={`badge ${["OPEN", "FAILED", "TIMEOUT", "DEAD_LETTERED"].includes(value) ? "red" : ["HALF_OPEN", "SKIPPED_CIRCUIT_OPEN", "PENDING"].includes(value) ? "amber" : ""}`}
+      className={`badge ${["OPEN", "FAILED", "TIMEOUT", "DEAD_LETTERED"].includes(value) ? "red" : ["HALF_OPEN", "SKIPPED_CIRCUIT_OPEN", "PENDING", "PAUSED"].includes(value) ? "amber" : ""}`}
     >
       <span className="dot" style={{ background: "currentColor" }} />
       {value.replaceAll("_", " ")}
