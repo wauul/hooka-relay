@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Plus,
-  ArrowUpRight,
   Layers3,
   Radio,
   Send,
@@ -30,23 +29,23 @@ export default function Page() {
     <Shell>
       <div className="page-head">
         <div>
-          <div className="eyebrow">YOUR DELIVERY CONTROL CENTER</div>
+          <div className="eyebrow"><T text="YOUR DELIVERY CONTROL CENTER" /></div>
           <h1><T text={"Applications"} /></h1>
           <div className="muted">
-            Your events, endpoints, and everything in between.
+            <T text="Your events, endpoints, and everything in between." />
           </div>
         </div>
         <button className="btn" onClick={() => setCreating(!creating)}>
           <Plus size={15} /><T text={"New application"} /></button>
       </div>
       <ErrorBox error={error || failure} />
-      {newKey && <section className="panel panel-body" role="status"><h2>Save your API key</h2><p>This key is shown only now. Copy it before leaving this page.</p><div className="secret-row"><code>{newKey}</code><CopyButton value={newKey} /><button className="btn quiet" onClick={() => setNewKey(null)}>I saved it</button></div></section>}
+      {newKey && <section className="panel panel-body" role="status"><h2><T text="Save your API key" /></h2><p><T text="This key is shown only now. Copy it before leaving this page." /></p><div className="secret-row"><code>{newKey}</code><CopyButton value={newKey} /><button className="btn quiet" onClick={() => setNewKey(null)}><T text="I saved it" /></button></div></section>}
       <div className="stats">
         <div className="stat">
           <div className="stat-label"><T text={"Applications"} /><Layers3 size={16} />
           </div>
           <div className="stat-value">{data?.length ?? "—"}</div>
-          <div className="stat-note">Independent webhook workspaces</div>
+          <div className="stat-note"><T text="Independent webhook workspaces" /></div>
         </div>
         <div className="stat">
           <div className="stat-label"><T text={"Registered endpoints"} /><Radio size={16} />
@@ -62,7 +61,7 @@ export default function Page() {
           <div className="stat-value">
             {data?.reduce((n, a) => n + a._count.events, 0) ?? "—"}
           </div>
-          <div className="stat-note">Durably stored, ready for delivery</div>
+          <div className="stat-note"><T text="Durably stored, ready for delivery" /></div>
         </div>
       </div>
       {creating && (
@@ -106,7 +105,7 @@ export default function Page() {
         <h2><T text={"All applications"} /><span className="count">{data?.length ?? 0}</span>
         </h2>
         <span className="muted" style={{ fontSize: 11 }}>
-          Updates every 5 seconds
+          <T text="Updates every 5 seconds" />
         </span>
       </div>
       {!data && !error ? (
@@ -123,13 +122,12 @@ export default function Page() {
                 <div className="app-icon">
                   <Layers3 size={20} />
                 </div>
-                <ArrowUpRight size={17} color="#718092" />
               </div>
               <h3>{a.name}</h3>
 
               <div className="app-meta">
-                <span>◉ {a._count.endpoints} endpoints</span>
-                <span>↗ {a._count.events} events</span>
+                <span>◉ {a._count.endpoints} <T text="endpoints" /></span>
+                <span>{a._count.events} <T text="events" /></span>
               </div>
             </Link>
           ))}
@@ -137,14 +135,11 @@ export default function Page() {
       ) : (
         <div className="panel empty">
           <Layers3 size={30} />
-          <h3>A home for your webhooks</h3>
-          <p>
-            Create your first application to get an API key, connect an
-            endpoint, and send your first event.
-          </p>
+          <h3><T text="A home for your webhooks" /></h3>
+          <p><T text="Create your first application to get an API key, connect an endpoint, and send your first event." /></p>
           <button className="btn" onClick={() => setCreating(true)}>
             <Plus size={14} />
-            Create your first application
+            <T text="Create your first application" />
           </button>
         </div>
       )}
@@ -152,15 +147,14 @@ export default function Page() {
         <div>
           <div className="eyebrow">
             <Terminal size={12} style={{ display: "inline", marginRight: 7 }} />{" "}
-            A FEW LINES. RELIABLE DELIVERY.
+            <T text="A FEW LINES. RELIABLE DELIVERY." />
           </div>
-          <h3>Send it. We’ll take it from here.</h3>
+          <h3><T text="Send it. We’ll take it from here." /></h3>
           <p className="muted" style={{ fontSize: 12 }}>
-            One API call. Automatic retries, signed payloads, and a complete
-            delivery trail, built in.
+            <T text="One API call. Automatic retries, signed payloads, and a complete delivery trail, built in." />
           </p>
           <Link href="/docs" className="auth-link" style={{ fontSize: 12 }}>
-            Read the quickstart{" "}
+            <T text="Read the quickstart" />{" "}
             <ArrowRight size={12} style={{ display: "inline" }} />
           </Link>
         </div>
@@ -172,7 +166,7 @@ export default function Page() {
         </CodeBlock>
       </div>
       <div className="footer-note">
-        A little less infrastructure. A lot more peace of mind.
+        <T text="A little less infrastructure. A lot more peace of mind." />
       </div>
     </Shell>
   );

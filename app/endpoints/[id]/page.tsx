@@ -127,7 +127,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                           >
                             <strong>{a.event.type}</strong>
                             <div className="mono muted">
-                              {a.eventId.slice(-12)} ↗
+                              {a.eventId.slice(-12)}
                             </div>
                           </Link>
                           {ep.status === "ACTIVE" && ep.role !== "MEMBER" && <button type="button" className="replay-icon" title="Replay to this endpoint" aria-label={`Replay ${a.event.type} to this endpoint`} disabled={busy} onClick={async () => {

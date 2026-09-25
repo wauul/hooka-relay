@@ -163,7 +163,7 @@ export function Select({
       >
         {workspace && <Layers size={16} className="select-leading" />}
         <span className="select-value">
-          {chosen?.label || "Choose a workspace"}
+          {workspace ? chosen?.label || "Choose a workspace" : <T text={chosen?.label || "Choose a workspace"} />}
         </span>
         <ChevronDown
           size={15}

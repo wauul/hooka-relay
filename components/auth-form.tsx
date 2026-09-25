@@ -199,7 +199,7 @@ export function AuthForm({
           )}
           <p className="legal-links"><Link href="/terms"><T text={"Terms of Use"} /></Link><Link href="/privacy"><T text={"Privacy"} /></Link></p>
           <p className="muted" style={{ textAlign: "center", fontSize: 11 }}>
-            <Link href="/docs"><T text={"Read the documentation ↗"} /></Link>
+            <Link href="/docs"><T text={"Read the documentation"} /></Link>
           </p>
         </form>
       </main>

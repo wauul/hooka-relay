@@ -1,5 +1,5 @@
 "use client";
-import { T } from "@/components/preferences";
+import { T, useTranslation } from "@/components/preferences";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw } from "lucide-react";
@@ -36,12 +36,13 @@ export function useData<T>(url: string, poll = false) {
   return { data, error, reload: load };
 }
 export function Badge({ value }: { value: string }) {
+  const t = useTranslation();
   return (
     <span
       className={`badge ${["OPEN", "FAILED", "TIMEOUT", "DEAD_LETTERED"].includes(value) ? "red" : ["HALF_OPEN", "SKIPPED_CIRCUIT_OPEN", "PENDING", "PAUSED"].includes(value) ? "amber" : ""}`}
     >
       <span className="dot" style={{ background: "currentColor" }} />
-      {value.replaceAll("_", " ")}
+      {t(value.replaceAll("_", " "))}
     </span>
   );
 }

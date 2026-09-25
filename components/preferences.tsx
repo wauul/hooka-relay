@@ -12,6 +12,7 @@ export function PreferencesProvider({ children, initialLanguage, initialTheme }:
   return <Preferences.Provider value={{ language, theme, setLanguage, setTheme }}>{children}</Preferences.Provider>;
 }
 export function useTranslation() { const { language } = useContext(Preferences); return (text: string) => translate(text, language); }
+export function usePreferences() { return useContext(Preferences); }
 export function T({ text }: { text: string }) { const t = useTranslation(); return <>{t(text)}</>; }
 export function PreferencesMenu() {
   const { language, theme, setLanguage, setTheme } = useContext(Preferences);

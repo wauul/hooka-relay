@@ -1,5 +1,5 @@
 "use client";
-import { T } from "@/components/preferences";
+import { T, useTranslation } from "@/components/preferences";
 import {
   createContext,
   useCallback,
@@ -15,7 +15,6 @@ import {
   X,
   ArrowUp,
   MessageCircle,
-  ArrowUpRight,
   ShieldCheck,
   Loader2,
 } from "lucide-react";
@@ -208,6 +207,7 @@ function SiteSearch({ close }: { close: () => void }) {
   );
 }
 export function SiteTools({ children, signedIn = false }: { children: React.ReactNode; signedIn?: boolean }) {
+  const t = useTranslation();
   const [contactHidden, setContactHidden] = useState(false);
   useEffect(() => { try { setContactHidden(localStorage.getItem("hooka-contact-hidden") === "1"); } catch {} }, []);
   const [overlay, setOverlay] = useState<"search" | "contact" | null>(null);
@@ -329,7 +329,7 @@ export function SiteTools({ children, signedIn = false }: { children: React.Reac
           <button
             className="icon-button back-top"
             type="button"
-            aria-label="Back to top"
+            aria-label={t("Back to top")}
             onClick={() => {
               window.scrollTo({
                 top: 0,
@@ -347,24 +347,23 @@ export function SiteTools({ children, signedIn = false }: { children: React.Reac
         )}
         {!contactHidden && <div className="contact-control"><button
           className="contact-button"
-          aria-label="Get in touch"
+          aria-label={t("Get in touch")}
           type="button"
           onClick={() => setOverlay("contact")}
         >
           <MessageCircle size={18} />
           <span><T text={"Get in touch"} /></span>
-        </button><button className="contact-dismiss icon-button" aria-label="Hide Get in touch" onClick={() => { setContactHidden(true); try { localStorage.setItem("hooka-contact-hidden", "1"); } catch {} }}><X size={14} aria-hidden="true" /></button></div>}
+        </button><button className="contact-dismiss icon-button" aria-label={t("Hide Get in touch")} onClick={() => { setContactHidden(true); try { localStorage.setItem("hooka-contact-hidden", "1"); } catch {} }}><X size={14} aria-hidden="true" /></button></div>}
       </div>
       {cookie && (
-        <section className="cookie-banner" aria-label="Cookie notice">
+        <section className="cookie-banner" aria-label={t("Cookie notice")}>
           <ShieldCheck size={22} />
           <div>
-            <strong>Just the essentials.</strong>
+            <strong>{t("Just the essentials.")}</strong>
             <p>
-              We use cookies to keep you signed in and protect your session. No
-              advertising or optional analytics cookies.
+              {t("We use cookies to keep you signed in and protect your session. No advertising or optional analytics cookies.")}
             </p>
-            <Link href="/docs#faq-5">Cookie details</Link>
+            <Link href="/docs#faq-5">{t("Cookie details")}</Link>
           </div>
           <button
             className="btn secondary"
@@ -380,30 +379,28 @@ export function SiteTools({ children, signedIn = false }: { children: React.Reac
       {signedIn && overlay === "search" && <SiteSearch close={() => setOverlay(null)} />}
       {overlay === "contact" && (
         <Modal
-          title="Let’s make delivery better."
+          title={t("Let’s make delivery better.")}
           onClose={() => setOverlay(null)}
         >
           <p className="muted">
-            Found a bug or have a feature in mind? Open an issue in the Hooka
-            Relay project.
+            {t("Found a bug or have a feature in mind? Open an issue in the Hooka Relay project.")}
           </p>
           <OutboundLink
             className="btn"
             href="https://github.com/wauul/hooka-relay/issues/new"
             target="_blank"
           >
-            Contact the project <ArrowUpRight size={16} />
+            {t("Contact the project")}
           </OutboundLink>
           <p className="muted small">
-            GitHub issues are public. Keep API keys, signing secrets and private
-            payloads out of your report.
+            {t("GitHub issues are public. Keep API keys, signing secrets and private payloads out of your report.")}
           </p>
           <Link
             className="back"
             href="/docs#faq"
             onClick={() => setOverlay(null)}
           >
-            Browse frequently asked questions →
+            {t("Browse frequently asked questions")} →
           </Link>
         </Modal>
       )}

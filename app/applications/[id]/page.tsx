@@ -139,7 +139,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                     <tbody>
                       {data.endpoints.map((ep: any) => (
                         <tr key={ep.id}>
-                          <td><Link className="resource-main" href={`/endpoints/${ep.id}`}><span className="resource-symbol"><Radio size={17} /></span><span className="resource-text"><strong title={ep.url}>{ep.url}</strong><small>{ep.eventTypes.join(", ") || "All events"}</small></span><span className="resource-arrow">↗</span></Link></td>
+                          <td><Link className="resource-main" href={`/endpoints/${ep.id}`}><span className="resource-symbol"><Radio size={17} /></span><span className="resource-text"><strong title={ep.url}>{ep.url}</strong><small>{ep.eventTypes.join(", ") || "All events"}</small></span></Link></td>
                           <td><span className="resource-environment">{ep.environment}</span></td>
                           <td><div className="resource-status"><Badge value={ep.status} /><Badge value={ep.circuitState} /></div></td>
                         </tr>
