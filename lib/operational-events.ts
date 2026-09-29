@@ -21,8 +21,9 @@ export async function sendOperationalNotice(notice: { id: string; applicationId:
   await sendTransactionalEmail({ id: `endpoint-disabled-${notice.id}`, to: email, subject: "Hooka Relay: endpoint delivery temporarily disabled", title: "Your endpoint needs attention", body: `Endpoint ${notice.endpointId} reached the circuit-breaker threshold. Automatic recovery probes remain enabled. Review the missed-event range and recovery tools.`, action: "Review delivery activity", url: link.toString(), footer: "This operational alert is sent to the workspace owner because delivery needs attention. No marketing subscription is involved." });
 }
 export async function drainNotices() {
-  const notices = await db.operationalNotice.findMany({ where: { sentAt: null, nextAttemptAt: { lte: new Date() }, attempts: { lt: 5 } }, take: 5 });
+  const notices = await db.operationalNotice.findMany({ where: { sentAt: null, attempts: { lt: 5 } }, orderBy: { nextAttemptAt: "asc" }, take: 5 });
   for (const notice of notices) {
+    if (notice.nextAttemptAt > new Date()) continue;
     // Atomic claim prevents multiple worker replicas spending duplicate email calls.
     const claim = await db.operationalNotice.updateMany({ where: { id: notice.id, sentAt: null, nextAttemptAt: notice.nextAttemptAt }, data: { attempts: { increment: 1 }, nextAttemptAt: new Date(Date.now() + 300000) } });
     if (!claim.count) continue;
@@ -31,4 +32,5 @@ export async function drainNotices() {
     try { await sendOperationalNotice(notice, owner.user.email); await db.operationalNotice.update({ where: { id: notice.id }, data: { sentAt: new Date() } }); }
     catch { console.warn("Endpoint notification pending; dashboard circuit banner remains available"); }
   }
+  return notices.length > 0;
 }

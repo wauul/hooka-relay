@@ -1,4 +1,5 @@
 import { eventBacklog } from "./event-backlog";
+import { wakeWorker } from "./worker-wakeup";
 import { startRecovery } from "./recovery";
 import { catalogInput, listEventTypes, publishEventType } from "./event-catalog";
 import { endpointOptions, endpointOptionData, effectiveEndpointStatus } from "./endpoint-options";
@@ -59,6 +60,7 @@ export async function cliApi(req: Request, path: string[]) {
       if (!endpoint || endpoint.kind === "INBOUND") throw new ApiFailure(404, "Endpoint not found");
       const data = path[2] === "configuration" ? endpointOptionData(endpoint, endpointOptions.parse(await boundedJson(req, 16384))) : { status: path[2] === "pause" ? "PAUSED" as const : "ACTIVE" as const };
       const updated = await db.endpoint.update({ where: { id: endpoint.id }, data });
+      if (path[2] !== "pause") await wakeWorker();
       return json({ id: updated.id, status: effectiveEndpointStatus(updated), environment: updated.environment });
     }
     if (req.method === "GET" && route === "me") return json({ application: app });
@@ -126,6 +128,7 @@ export async function cliApi(req: Request, path: string[]) {
         if (requestedEndpoint && !await db.endpoint.findFirst({ where: { id: requestedEndpoint, applicationId: app.id, kind: event.operational ? "OPERATIONAL" : "BUSINESS", status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] } })) throw new ApiFailure(404, "Active matching endpoint not found");
         // Same row lock and durable-outbox semantics as dashboard replay.
         const result = await db.$transaction(tx => replayEvent(tx, event.id, requestedEndpoint ? [requestedEndpoint] : undefined));
+        await wakeWorker();
         return json(result, 202);
       }
       if (req.method === "GET" && path.length === 2) {

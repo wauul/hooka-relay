@@ -14,17 +14,14 @@ import { advanceRoutingExecution } from "../lib/routing";
 import { createLiveRelay } from "./live-relay";
 import { processJob } from "./process-job";
 import { pruneEventHistory } from "../lib/retention";
+import { maintenanceLoop } from "./maintenance-loop";
+import { WORKER_WAKE_EXCHANGE } from "../lib/worker-wakeup";
 encryptionKey(); // Refuse to advertise a ready worker without its required key.
 let stopping = false,
   ready = false;
 async function drain() {
   const routes = await db.routingExecution.findMany({ where: { status: "RUNNING" }, select: { id: true }, take: 50 });
   for (const route of routes) await advanceRoutingExecution(route.id);
-  await db.inboundLiveSession.deleteMany({ where: { lastSeenAt: { lt: new Date(Date.now() - 60000) } } });
-  await db.endpoint.updateMany({ where: { previousSecretExpiresAt: { lte: new Date() } }, data: { previousSecret: null, previousSecretVersion: null, previousSecretExpiresAt: null } });
-  await db.application.updateMany({ where: { previousApiKeyExpiresAt: { lte: new Date() } }, data: { previousApiKey: null, previousApiKeyExpiresAt: null } });
-  await db.$executeRaw`DELETE FROM "IpRateBucket" WHERE "expiresAt" < NOW()`;
-    await db.eventAdmission.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 60000) } } });
   // Recover jobs lost between DB commit and broker confirm, or during classic
   // queue dead-lettering. Old duplicate wakeups are harmless under the lease.
   const overdue = await db.delivery.findMany({
@@ -53,8 +50,47 @@ async function drain() {
   for (const d of pending) await flushDelivery(d.id);
   const oldest = await db.delivery.findFirst({ where: { status: "PENDING" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } });
   gauge("hooka.delivery.pending_age_seconds", oldest ? Math.max(0, (Date.now() - oldest.createdAt.getTime()) / 1000) : 0);
+  const activePending = await db.delivery.count({ where: { status: "PENDING", endpoint: { status: "ACTIVE" } } });
   gauge("hooka.delivery.pending_count", await db.delivery.count({ where: { status: "PENDING" } }));
+  // A route blocked entirely on paused deliveries must not hold Neon awake.
+  // Routes whose current group has finished (or had no active destination)
+  // still need a quick pass to advance the next group or finish the execution.
+  const runnableRoutes = await db.routingExecution.count({ where: {
+    status: "RUNNING",
+    groups: { none: { status: "RUNNING", destinations: { some: { delivery: { status: "PENDING" } } } } },
+  } });
+  return activePending > 0 || runnableRoutes > 0;
 }
+let nextCleanupAt = 0;
+async function cleanup() {
+    // On a failure, do not let active deliveries turn cleanup into a retry storm.
+    nextCleanupAt = Date.now() + 30 * 60_000;
+    await db.inboundLiveSession.deleteMany({ where: { lastSeenAt: { lt: new Date(Date.now() - 60000) } } });
+    await db.endpoint.updateMany({ where: { previousSecretExpiresAt: { lte: new Date() } }, data: { previousSecret: null, previousSecretVersion: null, previousSecretExpiresAt: null } });
+    await db.application.updateMany({ where: { previousApiKeyExpiresAt: { lte: new Date() } }, data: { previousApiKey: null, previousApiKeyExpiresAt: null } });
+    await db.$executeRaw`DELETE FROM "IpRateBucket" WHERE "expiresAt" < NOW()`;
+    await db.eventAdmission.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 60000) } } });
+    const result = await pruneEventHistory();
+    addCount("hooka.retention.events_deleted", result.events);
+    addCount("hooka.retention.receipts_deleted", result.receipts);
+    // Keep draining full batches; otherwise check retention at most hourly.
+    const full = result.events >= 100 || result.receipts >= 100;
+    nextCleanupAt = full ? 0 : Date.now() + 60 * 60_000;
+    return full;
+}
+async function maintain() {
+  // Cleanup shares the worker's wake window, rather than waking Neon by itself.
+  const results = await Promise.allSettled([
+    drain(), drainRecovery(), drainNotices(),
+    ...(Date.now() >= nextCleanupAt ? [cleanup()] : []),
+  ]);
+  if (results.some(result => result.status === "rejected")) {
+    count("hooka.worker.database_errors");
+    console.error("Lifecycle maintenance pending; durable work will be retried");
+  }
+  return results.some(result => result.status === "fulfilled" && result.value);
+}
+let maintenance: ReturnType<typeof maintenanceLoop> | undefined;
 const server = createServer((_req, res) => {
   res.writeHead(ready ? 200 : 503);
   res.end(ready ? "worker ready" : "worker reconnecting");
@@ -74,6 +110,14 @@ async function main() {
       ready = true;
       gauge("hooka.worker.ready", 1);
       const closed = new Promise<void>((resolve) => ch.once("close", resolve));
+      maintenance = maintenanceLoop(maintain, () => {
+        count("hooka.worker.database_errors");
+        console.error("Database maintenance unavailable; retrying on the idle safety sweep");
+      });
+      await ch.assertExchange(WORKER_WAKE_EXCHANGE, "fanout", { durable: true });
+      const wakeQueue = (await ch.assertQueue("", { durable: false, exclusive: true, autoDelete: true })).queue;
+      await ch.bindQueue(wakeQueue, WORKER_WAKE_EXCHANGE, "");
+      await ch.consume(wakeQueue, msg => { if (msg) { maintenance?.wake(); ch.ack(msg); } });
       await ch.consume(QUEUE, async (msg) => {
         if (!msg) return;
         try {
@@ -86,8 +130,10 @@ async function main() {
             return;
           }
           await processJob(job);
+          maintenance?.wake();
           ch.ack(msg);
         } catch {
+          maintenance?.wake();
           count("hooka.worker.delivery_system_errors");
           console.error(
             "Delivery processing interrupted; durable outbox will recover",
@@ -97,50 +143,20 @@ async function main() {
           } catch {}
         }
       });
-      let draining = false;
-      const timer = setInterval(() => {
-        if (draining) return;
-        draining = true;
-        drain()
-          .catch(() => { count("hooka.worker.database_errors"); console.error("Outbox temporarily unavailable"); })
-          .finally(() => {
-            draining = false;
-          });
-      }, 5000);
       let inspecting = false;
       const telemetryTimer = setInterval(() => {
         if (inspecting || !process.env.OTEL_EXPORTER_OTLP_ENDPOINT) return;
         inspecting = true;
         ch.checkQueue(QUEUE).then(q => queueDepth(q.messageCount)).catch(() => {}).finally(() => { inspecting = false; });
       }, 60000);
-      let maintaining = false;
-      const maintenance = setInterval(() => {
-        if (maintaining) return;
-        maintaining = true;
-        Promise.allSettled([drainRecovery(), drainNotices()]).then(results => { if (results.some(r => r.status === "rejected")) console.error("Lifecycle maintenance pending; delivery processing continues"); }).finally(() => { maintaining = false; });
-      }, 5000);
-      let pruning = false;
-      const retentionTimer = setInterval(() => {
-        if (pruning) return;
-        pruning = true;
-        pruneEventHistory().then(result => {
-          addCount("hooka.retention.events_deleted", result.events);
-          addCount("hooka.retention.receipts_deleted", result.receipts);
-          if (result.events || result.receipts) console.log(JSON.stringify({ maintenance: "retention", deletedEvents: result.events, deletedReceipts: result.receipts, cutoff: result.cutoff.toISOString() }));
-        }).catch(() => { count("hooka.worker.database_errors"); console.error("Event retention pending; retrying on next interval"); }).finally(() => { pruning = false; });
-      }, 60000);
-      await drain().catch(() =>
-        console.error("Initial outbox drain unavailable; retrying on interval"),
-      );
       await closed;
       liveRelay.detach();
-      clearInterval(timer);
-      clearInterval(maintenance);
-      clearInterval(retentionTimer);
+      await maintenance.stop();
       clearInterval(telemetryTimer);
       ready = false;
       gauge("hooka.worker.ready", 0);
     } catch {
+      await maintenance?.stop();
       ready = false;
       gauge("hooka.worker.ready", 0);
       count("hooka.worker.broker_connection_errors");
@@ -152,6 +168,7 @@ async function main() {
 process.on("SIGTERM", async () => {
   stopping = true;
   ready = false;
+  await maintenance?.stop();
   await stopObservability();
   liveRelay.close();
   await closeQueue();

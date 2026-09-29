@@ -3,8 +3,9 @@ import { db } from "./db";
 import { WorkspaceError } from "./workspaces";
 import { replayEvent } from "./replay";
 import { observe } from "./observability";
+import { wakeWorker } from "./worker-wakeup";
 export async function startRecovery(applicationId: string, since: Date, endpointId?: string, customerId?: string) {
-  return db.$transaction(async tx => {
+  const job = await db.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Application" WHERE id = ${applicationId} FOR UPDATE`;
     if (endpointId && !await tx.endpoint.findFirst({ where: { id: endpointId, applicationId, ...(customerId ? { customerId } : {}) } })) throw new WorkspaceError(404, "Endpoint not found");
     if (await tx.recoveryJob.findFirst({ where: { applicationId, customerId: customerId || null, status: "PENDING" } })) throw new WorkspaceError(409, "A recovery is already running");
@@ -17,6 +18,8 @@ export async function startRecovery(applicationId: string, since: Date, endpoint
     else await tx.application.update({ where: { id: applicationId }, data: { recoveryAvailableAt: new Date(Date.now() + 60000) } });
     return tx.recoveryJob.create({ data: { applicationId, customerId, endpointId, since } });
   });
+  await wakeWorker();
+  return job;
 }
 export async function drainRecovery() {
   const jobs = await db.recoveryJob.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "asc" }, take: 10 });
@@ -45,4 +48,5 @@ export async function drainRecovery() {
   });
     if (completed) observe("hooka.recovery.duration", Math.max(0, (Date.now() - job.createdAt.getTime()) / 1000));
   }
+  return jobs.length > 0;
 }
