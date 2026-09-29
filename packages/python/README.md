@@ -1,6 +1,6 @@
 # hooka-relay-python
 
-Python 3.11+ client for [Hooka Relay](https://hooka-relay.vercel.app/docs#api-reference).
+Python 3.11+ client for [Hooka Relay](https://hooka-relay.com/docs#api-reference).
 
 ```sh
 pip install hooka-relay-python
@@ -90,4 +90,4 @@ The queue is **volatile**: a crash loses already acknowledged work. For producti
 
 Ordering is **not guaranteed across retries or replay generations**. The queue-and-drain example above separates acknowledgement from slow processing and isolates failures. It cannot restore producer order; apply per-entity sequence/version checks if required.
 
-[Interactive API reference](https://hooka-relay.vercel.app/docs#api-reference) · [Security and migration](https://github.com/wauul/hooka-relay/blob/master/SECURITY.md)
+[Interactive API reference](https://hooka-relay.com/docs#api-reference) · [Security and migration](https://github.com/wauul/hooka-relay/blob/master/SECURITY.md)

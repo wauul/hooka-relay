@@ -249,7 +249,7 @@ export const providers: Record<ProviderName, WebhookProviderAdapter> = {
     eventId: payload => jsonField(payload, "event_id"), eventType: payload => `paddle.${jsonField(payload, "event_type") || "event"}`,
   },
   CUSTOM: {
-    name: "CUSTOM", displayName: "Custom / Manual", icon: "+", docsUrl: "https://hooka-relay.vercel.app/docs#signatures",
+    name: "CUSTOM", displayName: "Custom / Manual", icon: "+", docsUrl: "https://hooka-relay.com/docs#signatures",
     setupInstructions: ["Find your provider's webhook settings and create a new destination.", "Paste the Hooka Relay ingestion URL.", "Configure the signature header and algorithm exactly as the provider documents.", "Paste the provider signing secret and send a real test event."], testEventSupport: false,
     verifySignature: verifyManual,
     eventId: () => null, eventType: () => "custom.event",

@@ -1,6 +1,13 @@
 import { expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { proxy } from "../../proxy";
+it("moves public navigation while preserving existing API clients and preview hosts", () => {
+  const r = proxy(new NextRequest("https://hooka-relay.vercel.app/docs?section=signatures"));
+  expect(r.status).toBe(308);
+  expect(r.headers.get("location")).toBe("https://hooka-relay.com/docs?section=signatures");
+  for (const url of ["https://hooka-relay.vercel.app/api/v1/events", "https://preview.example.com/docs", "https://hooka-relay.com/docs"])
+    expect(proxy(new NextRequest(url)).headers.get("location")).toBeNull();
+});
 it("adds independent CSP nonces and hardening headers in production", () => {
   vi.stubEnv("NODE_ENV", "production");
   try {

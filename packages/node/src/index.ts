@@ -23,7 +23,7 @@ export class HookaRelay {
   private readonly timeoutMs: number;
   constructor(private readonly apiKey: string, options: ClientOptions = {}) {
     if (!apiKey || /[\r\n]/.test(apiKey)) throw new TypeError("An API key is required");
-    const base = new URL(options.baseUrl ?? "https://hooka-relay.vercel.app");
+    const base = new URL(options.baseUrl ?? "https://hooka-relay.com");
     if (base.username || base.password || !["https:", "http:"].includes(base.protocol)) throw new TypeError("Invalid base URL");
     if (base.protocol === "http:" && !["localhost", "127.0.0.1", "[::1]"].includes(base.hostname)) throw new TypeError("Use HTTPS outside localhost");
     this.url = new URL("/api/v1/events", base).href;

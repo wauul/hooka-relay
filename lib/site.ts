@@ -125,7 +125,7 @@ export function searchSite(query: string) {
 export function outboundUrl(href: string) {
   if (!/^https?:\/\//i.test(href)) return href;
   const url = new URL(href);
-  if (url.origin === "https://hooka-relay.vercel.app") return href;
+  if (url.origin === "https://hooka-relay.com") return href;
   for (const [key, value] of Object.entries({
     utm_source: "hooka_relay",
     utm_medium: "website",

@@ -1,6 +1,6 @@
 # hooka-relay-node
 
-Server-side Node.js 20.9+ client for [Hooka Relay](https://hooka-relay.vercel.app/docs#api-reference).
+Server-side Node.js 20.9+ client for [Hooka Relay](https://hooka-relay.com/docs#api-reference).
 
 ```sh
 npm install hooka-relay-node
@@ -65,4 +65,4 @@ This example's queue is **volatile**: a process crash loses acknowledged work. F
 
 Ordering is **not guaranteed across retries or replay generations**. The queue-and-drain example above keeps slow or failing handlers from blocking acknowledgement. It does not restore producer ordering: use per-entity sequence/version checks when your business logic needs that guarantee.
 
-[Interactive API reference](https://hooka-relay.vercel.app/docs#api-reference) · [Security and migration](https://github.com/wauul/hooka-relay/blob/master/SECURITY.md)
+[Interactive API reference](https://hooka-relay.com/docs#api-reference) · [Security and migration](https://github.com/wauul/hooka-relay/blob/master/SECURITY.md)

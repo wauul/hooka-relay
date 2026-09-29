@@ -25,7 +25,7 @@ class _NoRedirect(HTTPRedirectHandler):
 
 
 class HookaRelay:
-    def __init__(self, api_key: str, *, base_url: str = "https://hooka-relay.vercel.app", timeout: float = 30):
+    def __init__(self, api_key: str, *, base_url: str = "https://hooka-relay.com", timeout: float = 30):
         if not api_key or "\r" in api_key or "\n" in api_key:
             raise ValueError("An API key is required")
         url = urlparse(base_url)

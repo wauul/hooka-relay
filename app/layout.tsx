@@ -7,8 +7,9 @@ import { Telemetry } from "@/components/telemetry";
 import "./globals.css";
 import "./inbound.css";
 import { SiteTools } from "@/components/site-tools";
+import { SITE_ORIGIN } from "@/lib/site-url";
 export const metadata: Metadata = {
-  metadataBase: new URL("https://hooka-relay.vercel.app"),
+  metadataBase: new URL(SITE_ORIGIN),
   title: "Hooka Relay",
   description: "Webhook delivery for SaaS teams.",
 };

@@ -4,7 +4,7 @@
 
 Hooka Relay is a webhook delivery service for teams. Create an application, register one or more HTTPS endpoints, and send events through the API. The dashboard keeps delivery history, endpoint health, and replay tools in one place.
 
-**Links:** [App](https://hooka-relay.vercel.app) · [Documentation](https://hooka-relay.vercel.app/docs) · [CLI](https://github.com/wauul/hooka-cli)
+**Links:** [App](https://hooka-relay.com) · [Documentation](https://hooka-relay.com/docs) · [CLI](https://github.com/wauul/hooka-cli)
 
 ## What it does
 
@@ -229,7 +229,7 @@ These presets reuse the exact existing durable TTL+DLX queues. No plugins, extra
 
 ## Public status
 
-[/status](https://hooka-relay.vercel.app/status) shows anonymized aggregate HTTP-attempt success over 24 hours, cached for 60 seconds. It detects an incident after two consecutive completed five-minute windows each have at least five attempts and success below 90%. Sparse/missing windows break the sequence. Circuit-open skips are excluded; failing customer receivers and intentionally failing demo receivers count. This is an observed delivery metric, not a platform-uptime SLA. No customer identities, URLs or payloads are exposed.
+[/status](https://hooka-relay.com/status) shows anonymized aggregate HTTP-attempt success over 24 hours, cached for 60 seconds. It detects an incident after two consecutive completed five-minute windows each have at least five attempts and success below 90%. Sparse/missing windows break the sequence. Circuit-open skips are excluded; failing customer receivers and intentionally failing demo receivers count. This is an observed delivery metric, not a platform-uptime SLA. No customer identities, URLs or payloads are exposed.
 
 
 
@@ -279,7 +279,7 @@ ADMIN/OWNER can create/list/revoke up to 20 extra keys through `/api/application
 
 The [Node SDK](packages/node/README.md) (`hooka-relay-node`) and [Python SDK](packages/python/README.md) (`hooka-relay-python`) provide typed event submission and Standard Webhooks reference verification. Both include queue-and-drain receiver examples, explicit idempotent retry guidance, and ordering limitations. They make no automatic retries. Keep publishing keys on your server.
 
-The integration API contract is [OpenAPI 3.0](docs/openapi.json), available at `/openapi.json` and in the [interactive documentation](https://hooka-relay.vercel.app/docs#api-reference). Try-it requests operate on the current deployment: use a test application key. Authorization is kept in page memory, not local storage. Run `npm run sdk:generate` after editing `scripts/openapi.mjs`; CI rejects generated model drift and tests independently built packages.
+The integration API contract is [OpenAPI 3.0](docs/openapi.json), available at `/openapi.json` and in the [interactive documentation](https://hooka-relay.com/docs#api-reference). Try-it requests operate on the current deployment: use a test application key. Authorization is kept in page memory, not local storage. Run `npm run sdk:generate` after editing `scripts/openapi.mjs`; CI rejects generated model drift and tests independently built packages.
 
 SDK releases use `.github/workflows/publish-sdks.yml` and require successful CI for the exact master commit. Temporary `NPM_TOKEN` and `PYPI_API_TOKEN` bootstrap secrets are used only with the explicit bootstrap option; normal releases use registry trusted publishing bound to this repository and workflow.
 
@@ -328,11 +328,11 @@ All transactional messages share branded React Email templates and a text fallba
 
 ### Interface and account pages
 
-The public [homepage](https://hooka-relay.vercel.app/) introduces the delivery flow; signed-in visitors go straight to their workspace. Application and endpoint pages separate Overview, Events & Logs, Security and Settings. Panels stay mounted when switching sections, so a newly revealed key or an unfinished form is not discarded. Workspace/team and profile settings remain available in the sidebar.
+The public [homepage](https://hooka-relay.com/) introduces the delivery flow; signed-in visitors go straight to their workspace. Application and endpoint pages separate Overview, Events & Logs, Security and Settings. Panels stay mounted when switching sections, so a newly revealed key or an unfinished form is not discarded. Workspace/team and profile settings remain available in the sidebar.
 
 The header includes persisted light/dark and English/French interface preferences. API identifiers, event payloads and copied code are not translated; the detailed technical reference and legal text remain in English. Search is available only after sign-in. The support assistant uses distinct question/answer bubbles, a waiting indicator and a responsive panel; its scope, limits and generation pipeline are unchanged. The contact control can be dismissed for later visits.
 
-[Terms of Use](https://hooka-relay.vercel.app/terms) and [Privacy & data use](https://hooka-relay.vercel.app/privacy) are public and linked from account pages and the homepage. See the [page-by-page UI audit](docs/ui-audit-2026-09-22.md) and [auth/email setup and deliverability findings](docs/auth-and-email.md).
+[Terms of Use](https://hooka-relay.com/terms) and [Privacy & data use](https://hooka-relay.com/privacy) are public and linked from account pages and the homepage. See the [page-by-page UI audit](docs/ui-audit-2026-09-22.md) and [auth/email setup and deliverability findings](docs/auth-and-email.md).
 
 ### Current interface
 

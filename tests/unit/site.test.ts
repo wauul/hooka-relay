@@ -23,7 +23,7 @@ it("attributes external links while preserving existing campaigns and fragments"
 });
 it.each([
   "/docs#faq",
-  "https://hooka-relay.vercel.app/dashboard",
+  "https://hooka-relay.com/dashboard",
   "mailto:person@example.com",
   "#content",
 ])("does not change internal or non-HTTP navigation %s", (href) =>
