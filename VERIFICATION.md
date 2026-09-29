@@ -1,6 +1,6 @@
 # Live verification — 2026-09-14
 
-Web: https://hooka-relay.vercel.app
+Web: https://hooka-relay.com
 
 GitHub: https://github.com/wauul/hooka-relay
 

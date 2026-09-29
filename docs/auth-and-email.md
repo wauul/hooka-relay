@@ -1,9 +1,9 @@
 # Authentication and transactional email
 
 ## OAuth setup
-GitHub: create an OAuth app at https://github.com/settings/developers, homepage `https://hooka-relay.vercel.app`, callback `https://hooka-relay.vercel.app/api/auth/callback/github`. Use a separate development OAuth app with `http://localhost:3000/api/auth/callback/github`. Set `GITHUB_ID` and `GITHUB_SECRET` in the server environment.
+GitHub: create an OAuth app at https://github.com/settings/developers, homepage `https://hooka-relay.com`, callback `https://hooka-relay.com/api/auth/callback/github`. Use a separate development OAuth app with `http://localhost:3000/api/auth/callback/github`. Set `GITHUB_ID` and `GITHUB_SECRET` in the server environment.
 
-Google: create a Web application OAuth client in Google Cloud Console. Register origins `https://hooka-relay.vercel.app` and `http://localhost:3000`; callbacks `https://hooka-relay.vercel.app/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/google`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. In Testing mode add test users; production sign-in requires publishing the consent configuration. Only identity/email/profile scopes are requested, with no billing requirement.
+Google: create a Web application OAuth client in Google Cloud Console. Register origins `https://hooka-relay.com` and `http://localhost:3000`; callbacks `https://hooka-relay.com/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/google`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. In Testing mode add test users; production sign-in requires publishing the consent configuration. Only identity/email/profile scopes are requested, with no billing requirement.
 
 NextAuth retains its standard account-linking protection. A logged-out OAuth identity sharing an existing account email receives `OAuthAccountNotLinked`. Sign in using the existing method, then select Link GitHub/Google under Your profile. No automatic email-based merging is enabled. Google must assert `email_verified`; GitHub must report a verified primary email via its email API. We store the provider/account identifier only, never OAuth access or refresh tokens.
 
@@ -31,4 +31,4 @@ No missing SPF/DKIM/DMARC record was found, so no registrar change is currently 
 
 ## Public branding links
 
-The deployed homepage, `/privacy`, and `/terms` are public. Google OAuth branding now has `https://hooka-relay.vercel.app/terms` saved as its Terms of Use URL. Branding review/verification status remains managed by Google; saving these URLs is not a claim of Google verification approval.
+The deployed homepage, `/privacy`, and `/terms` are public. Google OAuth branding now has `https://hooka-relay.com/terms` saved as its Terms of Use URL. Branding review/verification status remains managed by Google; saving these URLs is not a claim of Google verification approval.

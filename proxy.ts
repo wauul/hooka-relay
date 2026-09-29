@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SITE_ORIGIN } from "./lib/site-url";
 export function proxy(request: NextRequest) {
+  // Move public navigation to the canonical domain. Keep the old API host
+  // serving requests so existing clients do not lose auth across redirects.
+  if (request.nextUrl.hostname === "hooka-relay.vercel.app" &&
+      ["GET", "HEAD"].includes(request.method) &&
+      ["/", "/docs", "/privacy", "/terms", "/login", "/signup", "/robots.txt", "/sitemap.xml"].includes(request.nextUrl.pathname)) {
+    return NextResponse.redirect(new URL(request.nextUrl.pathname + request.nextUrl.search, SITE_ORIGIN), 308);
+  }
   const nonce = btoa(crypto.randomUUID());
   const development = process.env.NODE_ENV !== "production";
   // Fresh nonces prevent injected scripts from running; frame-ancestors blocks

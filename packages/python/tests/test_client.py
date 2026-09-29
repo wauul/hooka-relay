@@ -25,7 +25,7 @@ class ClientTests(unittest.TestCase):
         request = {"customerId": "cus_123", "type": "test", "payload": None, "idempotencyKey": "stable"}
         self.assertEqual(client.send_event(request), event)
         sent = client._opener.open.call_args.args[0]
-        self.assertEqual(sent.full_url, "https://hooka-relay.vercel.app/api/v1/events")
+        self.assertEqual(sent.full_url, "https://hooka-relay.com/api/v1/events")
         self.assertEqual(json.loads(sent.data), request)
         self.assertEqual(sent.get_header("Authorization"), "Bearer test-key")
         client._opener.open.assert_called_once()

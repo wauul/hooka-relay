@@ -7,7 +7,7 @@ test("sends exact payload/key once, returns actual 202 event", async () => {
   let calls = 0;
   const client = new HookaRelay("test-key", { fetch: async (url, init) => {
     calls++;
-    assert.equal(url, "https://hooka-relay.vercel.app/api/v1/events");
+    assert.equal(url, "https://hooka-relay.com/api/v1/events");
     assert.equal(init.headers.Authorization, "Bearer test-key");
     assert.equal(init.redirect, "error");
     assert.deepEqual(JSON.parse(init.body), { customerId: event.customerId, type: event.type, payload: event.payload, idempotencyKey: "order-1" });

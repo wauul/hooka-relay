@@ -12,7 +12,7 @@ license = "MIT"
 dependencies = ["standardwebhooks==1.1.0"]
 
 [project.urls]
-Documentation = "https://hooka-relay.vercel.app/docs"
+Documentation = "https://hooka-relay.com/docs"
 Source = "https://github.com/wauul/hooka-relay/tree/master/packages/python"
 
 [tool.setuptools.package-data]

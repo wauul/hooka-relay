@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Landing } from "@/components/landing";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { SITE_ORIGIN } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Webhook Delivery Service for SaaS Teams | Hooka Relay",
@@ -21,5 +23,9 @@ export const metadata: Metadata = {
 export default async function Page() {
   const session = await getServerSession(authOptions);
   if ((session?.user as { id?: string } | undefined)?.id) redirect("/dashboard");
-  return <Landing />;
+  return <><script type="application/ld+json" nonce={(await headers()).get("x-nonce") || undefined} dangerouslySetInnerHTML={{ __html: JSON.stringify({
+    "@context": "https://schema.org", "@type": "WebSite",
+    name: "Hooka Relay", url: SITE_ORIGIN,
+    description: "Webhook delivery service for SaaS teams with signed webhooks, retries, delivery logs and replay.",
+  }) }} /><Landing /></>;
 }
