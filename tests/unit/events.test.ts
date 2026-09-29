@@ -5,10 +5,11 @@ const mocks = vi.hoisted(() => ({
   event: { findUnique: vi.fn(), create: vi.fn(), findUniqueOrThrow: vi.fn() },
   endpoint: { findMany: vi.fn() },
   delivery: { createMany: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
-  transaction: vi.fn(), publish: vi.fn(),
+  transaction: vi.fn(), publish: vi.fn(), wake: vi.fn(),
 }));
 vi.mock("../../lib/db", () => ({ db: { event: mocks.event, endpoint: mocks.endpoint, delivery: mocks.delivery, $transaction: mocks.transaction } }));
 vi.mock("../../lib/queue/client", () => ({ publish: mocks.publish }));
+vi.mock("../../lib/worker-wakeup", () => ({ wakeWorker: mocks.wake }));
 import { eventInput, flushDelivery, ingest } from "../../lib/events";
 const input = { type: "order.shipped", idempotencyKey: "order-42", payload: { order: 42 } };
 const event = { id: "event-1", applicationId: "app-1", customerId: null, ...input };
@@ -20,12 +21,14 @@ beforeEach(() => {
   mocks.endpoint.findMany.mockResolvedValue([]);
   mocks.delivery.findMany.mockResolvedValue([]);
   mocks.publish.mockResolvedValue(undefined);
+  mocks.wake.mockResolvedValue(undefined);
 });
 describe("producer idempotency", () => {
   it("creates a new event for a new application-scoped key", async () => {
     expect(await ingest("app-1", input)).toEqual(event);
     expect(mocks.event.create).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({ applicationId: "app-1", customerId: null, billable: true, ...input }) });
     expect(mocks.event.findUniqueOrThrow).not.toHaveBeenCalled();
+    expect(mocks.wake).toHaveBeenCalledOnce();
   });
   it("returns the existing event on the database uniqueness conflict", async () => {
     mocks.event.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("duplicate", { code: "P2002", clientVersion: "6.19.0" }));
@@ -43,7 +46,22 @@ describe("producer idempotency", () => {
     expect(mocks.event.create.mock.calls[0][0].data.idempotencyKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
   it("stores JSON null using Prisma's JSON null sentinel", async () => { await ingest("app-1", { ...input, payload: null }); expect(mocks.event.create.mock.calls[0][0].data.payload).toBe(Prisma.JsonNull); });
-  it("propagates unrelated database errors", async () => { mocks.event.create.mockRejectedValue(new Error("database unavailable")); await expect(ingest("app-1", input)).rejects.toThrow("database unavailable"); });
+  it("propagates unrelated database errors without waking for uncommitted work", async () => { mocks.event.create.mockRejectedValue(new Error("database unavailable")); await expect(ingest("app-1", input)).rejects.toThrow("database unavailable"); expect(mocks.wake).not.toHaveBeenCalled(); });
+  it("does not wake the worker before the transaction commits", async () => {
+    let commit!: () => void;
+    const transaction = mocks.transaction.getMockImplementation()!;
+    mocks.transaction.mockImplementation(async callback => {
+      const value = await transaction(callback);
+      await new Promise<void>(resolve => { commit = resolve; });
+      return value;
+    });
+    const accepted = ingest("app-1", input);
+    await vi.waitFor(() => expect(commit).toBeTypeOf("function"));
+    expect(mocks.wake).not.toHaveBeenCalled();
+    commit();
+    await accepted;
+    expect(mocks.wake).toHaveBeenCalledOnce();
+  });
   it("creates one durable intent per matched endpoint and publishes its identity", async () => {
     mocks.endpoint.findMany.mockResolvedValue([{id:"ep-1"},{id:"ep-2"}]);
     mocks.delivery.findMany.mockResolvedValue([{id:"d-1"},{id:"d-2"}]);

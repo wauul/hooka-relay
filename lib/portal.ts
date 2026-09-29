@@ -1,4 +1,5 @@
 import { effectiveEndpointStatus } from "./endpoint-options";
+import { wakeWorker } from "./worker-wakeup";
 import { z } from "zod";
 import { db } from "./db";
 import { sameOrigin, apiError } from "./access";
@@ -76,6 +77,7 @@ export async function portalRequest(req: Request, token: string) {
     }
     if (req.method === "PATCH" && input.action) {
       const result = await db.endpoint.updateMany({ where: { id: input.endpointId, ...owned }, data: { status: input.action === "pause" ? "PAUSED" : "ACTIVE" } });
+      if (result.count && input.action === "resume") await wakeWorker();
       return result.count ? json({ ok: true }) : json({ error: "Endpoint not found" }, 404);
     }
     return json({ error: "Unsupported action" }, 400);

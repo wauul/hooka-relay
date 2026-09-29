@@ -3,12 +3,14 @@ import { db } from "@/lib/db";
 import { ownEndpoint, apiError, sameOrigin, userId } from "@/lib/access";
 import { endpointTransition } from "@/lib/endpoint-status";
 import { workspaceTransaction } from "@/lib/workspaces";
+import { wakeWorker } from "@/lib/worker-wakeup";
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     sameOrigin(req);
     const endpoint = await ownEndpoint((await params).id, "manage");
     const app = await db.application.findUniqueOrThrow({ where: { id: endpoint.applicationId } });
     const updated = await workspaceTransaction(app.workspaceId, await userId(), "manage", tx => tx.endpoint.update({ where: { id: endpoint.id }, data: { status: endpointTransition(endpoint.status, "resume") } }));
+    await wakeWorker();
     return Response.json(publicEndpoint(updated));
   } catch (e) { return apiError(e); }
 }

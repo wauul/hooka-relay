@@ -8,6 +8,7 @@ import { revealSigningSecret } from "./signing-secrets";
 import { replayEvent } from "./replay";
 import { startRecovery } from "./recovery";
 import { WorkspaceError } from "./workspaces";
+import { wakeWorker } from "./worker-wakeup";
 
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
 const endpointInput = z.object({ url: z.string().url().max(2000), eventTypes: z.array(z.string().min(1).max(120).regex(/^(\*|[A-Za-z0-9_.:-]+)$/)).min(1).max(50) });
@@ -34,7 +35,9 @@ export async function customerPortalRequest(req: Request, customer: { id: string
       const event = await db.event.findFirst({ where: { id: input.eventId, ...owned, operational: false }, select: { id: true, type: true } });
       const endpoint = event && await db.endpoint.findFirst({ where: { id: input.endpointId, ...owned, kind: "BUSINESS", status: "ACTIVE", OR: [{ eventTypes: { has: "*" } }, { eventTypes: { has: event.type } }] }, select: { id: true } });
       if (!event || !endpoint) throw new WorkspaceError(404, "Event or endpoint not found");
-      return json(await db.$transaction(tx => replayEvent(tx, event.id, [endpoint.id])), 202);
+      const result = await db.$transaction(tx => replayEvent(tx, event.id, [endpoint.id]));
+      await wakeWorker();
+      return json(result, 202);
     }
     if (typeof body === "object" && body !== null && "action" in body && body.action === "recover") {
       const input = z.object({ action: z.literal("recover"), since: z.string().datetime(), endpointId: z.string().min(1).max(100).optional() }).parse(body);
@@ -56,6 +59,7 @@ export async function customerPortalRequest(req: Request, customer: { id: string
   }
   if (req.method === "PATCH" && input.action) {
     const result = await db.endpoint.updateMany({ where: { id: input.endpointId, ...owned, kind: "BUSINESS" }, data: { status: input.action === "pause" ? "PAUSED" : "ACTIVE" } });
+    if (result.count && input.action === "resume") await wakeWorker();
     return result.count ? json({ ok: true }) : json({ error: "Endpoint not found" }, 404);
   }
   return json({ error: "Unsupported action" }, 400);

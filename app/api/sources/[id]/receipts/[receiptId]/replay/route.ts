@@ -4,6 +4,7 @@ import { replayEvent } from "@/lib/replay";
 import { flushDelivery } from "@/lib/events";
 import { publishInboundLive } from "@/lib/queue/client";
 import { createRoutingReplay } from "@/lib/routing";
+import { wakeWorker } from "@/lib/worker-wakeup";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string; receiptId: string }> }) {
   try {
@@ -25,6 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return { audit, delivery };
     });
     if (result.delivery) {
+      await wakeWorker();
       const pending = await db.delivery.findMany({ where: { eventId: receipt.eventId!, generation: result.delivery.generation }, select: { id: true } });
       await Promise.allSettled(pending.map(item => flushDelivery(item.id)));
     }

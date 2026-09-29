@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { wakeWorker } from "@/lib/worker-wakeup";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -81,6 +82,7 @@ export async function PATCH(req: Request, { params }: Context) {
         ...(input.status === "ACTIVE" ? { setupStep: 6 } : input.setupStep ? { setupStep: input.setupStep } : {}),
       } });
     });
+    if (input.status === "ACTIVE") await wakeWorker();
     return Response.json({ id: result.id, status: result.status, endpointId: result.endpointId, destinationUrl: result.destinationUrl, hasProviderSecret: !!result.encryptedProviderSecret }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return apiError(error); }
 }

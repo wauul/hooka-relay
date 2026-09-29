@@ -8,6 +8,7 @@ import { traced, traceparent, count } from "./observability";
 import { WorkspaceError } from "./workspaces";
 import { createRoutingExecution } from "./routing";
 import { validateCustomer } from "./customer-scope";
+import { wakeWorker } from "./worker-wakeup";
 export const eventInput = z.object({
   customerId: z.string().min(1).max(100).optional(),
   type: z
@@ -104,6 +105,7 @@ export async function ingest(
       select: { id: true },
     });
     await Promise.allSettled(jobs.map((j) => flushDelivery(j.id)));
+    if (accepted) await wakeWorker();
     if (accepted && !target?.endpointId) count("hooka.events.accepted");
     span.setAttribute("hooka.event.id", event.id);
     return event;
