@@ -5,7 +5,28 @@ GitHub: create an OAuth app at https://github.com/settings/developers, homepage 
 
 Google: create a Web application OAuth client in Google Cloud Console. Register origins `https://hooka-relay.com` and `http://localhost:3000`; callbacks `https://hooka-relay.com/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/google`. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. In Testing mode add test users; production sign-in requires publishing the consent configuration. Only identity/email/profile scopes are requested, with no billing requirement.
 
-NextAuth retains its standard account-linking protection. A logged-out OAuth identity sharing an existing account email receives `OAuthAccountNotLinked`. Sign in using the existing method, then select Link GitHub/Google under Your profile. No automatic email-based merging is enabled. Google must assert `email_verified`; GitHub must report a verified primary email via its email API. We store the provider/account identifier only, never OAuth access or refresh tokens.
+NextAuth retains its standard account-linking protection. A logged-out OAuth identity sharing an existing account email receives `OAuthAccountNotLinked`. Sign in using the existing method, then select Link GitHub/Google/Microsoft under Your profile. No automatic email-based merging is enabled. Google must assert `email_verified`; GitHub must report a verified primary email via its email API. We store the provider/account identifier only, never OAuth access or refresh tokens.
+
+### Microsoft / Entra ID
+
+Create a Microsoft Entra app registration with a **Web** platform. Choose organizational directories and personal Microsoft accounts if using the default `common` tenant. Register `https://hooka-relay.com/api/auth/callback/azure-ad` and, for development, `http://localhost:3000/api/auth/callback/azure-ad`. NextAuth 4 calls this provider `azure-ad`; the interface displays Microsoft.
+
+Set `MICROSOFT_CLIENT_ID` to the Application (client) ID and `MICROSOFT_CLIENT_SECRET` to the client secret **value**, not its ID. Set `MICROSOFT_TENANT_ID=common`, or a specific Directory (tenant) ID to restrict sign-in. Configure these on the web application only, using server environment variables. Microsoft remains disabled until both client credentials exist.
+
+In the app manifest, add `email` and `xms_edov` as optional **ID-token** claims:
+
+```json
+"optionalClaims": {
+  "idToken": [
+    { "name": "email", "essential": true },
+    { "name": "xms_edov", "essential": true }
+  ]
+}
+```
+
+The app requires a valid email and `xms_edov: true` from the validated ID token. Missing or false verification fails sign-in; it never falls back to `preferred_username`. Microsoft documents [email-domain verification and optional claims](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims-reference). Identity is persisted by provider and stable subject, with the existing explicit account-linking protection. Only `openid profile email` scopes are requested, with PKCE and state checks; no Graph/photo request or provider token storage is needed.
+
+After configuration, verify a fresh Microsoft signup, returning sign-in, an existing-email collision, and linking from Your profile. Also check an invitation callback. Local tests validate profile rejection, conditional provider configuration, shared controls and adapter persistence; they do not replace a live callback with real Entra credentials.
 
 ## Verification and recovery
 Existing accounts are grandfathered by the additive migration so current integrations and login access remain available. This is a compatibility allowance, not evidence that those historical addresses were verified by an email challenge. New credentials accounts start unverified. Verification links expire after 24 hours; password reset links after 30 minutes. Tokens are random 256-bit capabilities stored only as SHA-256 hashes, consumed atomically on POST. Opening a link does not consume it (email scanners cannot confirm/reset an account). Invite review destinations survive verification.

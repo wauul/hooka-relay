@@ -2,6 +2,7 @@ import { decode } from "next-auth/jwt";
 import type { NextAuthOptions } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import { microsoftProvider } from "./microsoft-oauth";
 import { oauthAdapter } from "./oauth-adapter";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
@@ -31,6 +32,7 @@ export const authOptions: NextAuthOptions = {
       } },
     })] : []),
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [Google({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET })] : []),
+    ...microsoftProvider(),
     Credentials({
       name: "Email and password",
       credentials: { email: { type: "email" }, password: { type: "password" } },

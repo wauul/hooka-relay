@@ -85,7 +85,7 @@ export default function Page() {
           </form>
         )}
       </section>
-      <section className="panel panel-body profile-panel" style={{ marginTop: 24 }}><h2><T text={"Connected sign-in methods"} /></h2><p className="muted">Link your GitHub or Google account while signed in. Use your existing sign-in method first if a provider says your email is already registered.</p><OAuthButtons callbackUrl="/profile" linking connected={data?.connectedProviders} /></section>
+      <section className="panel panel-body profile-panel" style={{ marginTop: 24 }}><h2><T text={"Connected sign-in methods"} /></h2><p className="muted">Link your GitHub, Google or Microsoft account while signed in. Use your existing sign-in method first if a provider says your email is already registered.</p><OAuthButtons callbackUrl="/profile" linking connected={data?.connectedProviders} /></section>
     </Shell>
   );
 }

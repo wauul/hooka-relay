@@ -321,7 +321,7 @@ The UI shows pass/fail when the first attempt completes, updates for 30 seconds,
 
 ### Account access and email
 
-GitHub and Google sign-in are available when their server credentials are configured, alongside email/password. New credentials accounts confirm their email before signing in; existing accounts retain access. Forgot-password uses a short-lived, single-use link and revokes previous sessions. Link an OAuth identity from Your profile after signing in with your existing method; matching email addresses alone never merge accounts.
+GitHub, Google and Microsoft sign-in are available when their server credentials are configured, alongside email/password. New credentials accounts confirm their email before signing in; existing accounts retain access. Forgot-password uses a short-lived, single-use link and revokes previous sessions. Link an OAuth identity from Your profile after signing in with your existing method; matching email addresses alone never merge accounts.
 
 All transactional messages share branded React Email templates and a text fallback. See [auth setup and deliverability findings](docs/auth-and-email.md) for exact local/production callbacks, account linking, limits and the sending-domain DNS audit.
 

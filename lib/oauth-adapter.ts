@@ -4,7 +4,7 @@ import { db } from "./db";
 import { userDisplayName } from "./display-name";
 const mapped = (u: User): AdapterUser => ({ id: u.id, email: u.email, emailVerified: u.emailVerified, name: u.displayName, image: null });
 // JWT sessions need identity persistence only. Provider bearer/refresh tokens are
-// deliberately not stored: signing in grants no background GitHub/Google access.
+// deliberately not stored: signing in grants no background provider access.
 export const oauthAdapter: Adapter = {
   async createUser(data: Omit<AdapterUser, "id">) {
     const email = data.email.toLowerCase().trim();

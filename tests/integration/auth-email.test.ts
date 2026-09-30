@@ -52,8 +52,8 @@ it("applies an address cooldown without replacing a valid link; email failure le
   email.mockRejectedValueOnce(new Error("outage")); await expect(issueAuthEmail(user.email, "RESET")).rejects.toThrow();
   expect(await db.authToken.count({ where: { userId: user.id, purpose: "RESET" } })).toBe(0);
 });
-it("persists OAuth identity without storing provider access tokens and does not overwrite credential identity", async () => {
-  await oauthAdapter.linkAccount!({ userId: user.id, type: "oauth", provider: "github", providerAccountId: randomUUID(), access_token: "never-store-me" });
+it.each(["github", "azure-ad"])("persists %s identity without storing provider access tokens and does not overwrite credential identity", async provider => {
+  await oauthAdapter.linkAccount!({ userId: user.id, type: "oauth", provider, providerAccountId: randomUUID(), access_token: "never-store-me" });
   const account = await db.oAuthAccount.findFirstOrThrow({ where: { userId: user.id } }); expect(JSON.stringify(account)).not.toContain("never-store-me");
   expect(await oauthAdapter.getUserByAccount!({ provider: account.provider, providerAccountId: account.providerAccountId })).toMatchObject({ id: user.id });
   expect((await oauthAdapter.getUserByEmail!(user.email))?.id).toBe(user.id);
