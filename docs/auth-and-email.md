@@ -34,7 +34,15 @@ Existing accounts are grandfathered by the additive migration so current integra
 Forgot-password and resend responses do not disclose account existence. Account email routes have a dedicated per-IP budget (`RECOVERY_IP_LIMIT_PER_MINUTE`, default 5), plus a shared per-address/purpose 60-second send cooldown. Resends do not revoke earlier unused links. Password reset revokes all account recovery links and previous JWT sessions, including their use for OAuth linking. NextAuth CSRF remains enabled; new POST routes require same-origin when an Origin header is present and bounded JSON input.
 
 ## Email templates
-`lib/transactional-email.ts` renders reusable React elements with React Email's renderer, using the app's charcoal/mint palette, a wordmark, one primary CTA and a text fallback. It is shared by verification, password reset, workspace invites and endpoint-disabled alerts. No marketing messages are sent; transactional footers explain why the message was received. `RESEND_REPLY_TO` should point to a monitored inbox; the verified From address remains `Hooka Relay <invites@waelfz.com>`.
+`lib/transactional-email.ts` renders reusable React elements with React Email's renderer, using the app's charcoal/mint palette, a wordmark, one primary CTA and a text fallback. It is shared by verification, password reset, workspace invites and endpoint-disabled alerts. No marketing messages are sent; transactional footers explain why the message was received. Configure `RESEND_FROM=Hooka Relay <no-reply@hooka-relay.com>` and `RESEND_REPLY_TO=contact@hooka-relay.com` on both Vercel and the Railway worker. Only activate a new From domain after Resend reports it verified.
+
+## Contact email — 2026-10-03
+
+Cloudflare Email Routing forwards `contact@hooka-relay.com` to the verified destination `waelfezari@gmail.com`. Read incoming contact mail in that Gmail inbox; no separate mailbox password is needed. The public privacy and terms pages use the contact address. App verification, recovery, invitation and alert messages share the no-reply sender and monitored Reply-To.
+
+Cloudflare manages the root MX records and the root SPF record for forwarding. Resend sending uses the `resend._domainkey` DKIM record, the `send` return-path MX/SPF records, and the DNS-only `rsend` CNAME on `hooka-relay.com`. DMARC is initially `p=none`. Keep the root forwarding records separate from the `send` records; do not add a second SPF record at either name. Incoming mail remains with Cloudflare; Resend receiving is disabled for this domain.
+
+The unused `portfolio.waelfz.com` domain was removed from Resend with the operator's authorization to free a domain slot. The older deliverability findings below describe the previous sender.
 
 ## Deliverability investigation — 2026-09-22
 Live DNS and Resend API checks found:
