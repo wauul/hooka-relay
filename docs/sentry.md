@@ -42,7 +42,7 @@ Default Sentry trace sampling is 5%; Grafana remains at its existing 10% default
 
 ## Source maps and deployment
 
-Web `withSentryConfig` uploads maps during a trusted build with `SENTRY_AUTH_TOKEN`, organization/project, and the deployed release SHA. Upload errors stop a credentialed build. Next emits additional server maps after the webpack hook. The final build step pairs debug IDs and uploads those exact server artifacts before removing server and browser maps. Credential-free builds also remove remaining maps.
+Web `withSentryConfig` uploads maps during a trusted build with `SENTRY_AUTH_TOKEN`, organization/project, and the deployed release SHA. Upload errors stop a credentialed build. Next emits additional server maps after the webpack hook. The final build step pairs debug IDs and uploads those exact server artifacts before removing browser maps. Server maps remain private function artifacts because Vercel packages files referenced by Next file traces; they are never served from the static asset directory. Credential-free builds also remove browser maps.
 
 Both worker Dockerfiles are identical. Build with a BuildKit secret:
 

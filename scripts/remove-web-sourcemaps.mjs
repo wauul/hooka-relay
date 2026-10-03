@@ -46,4 +46,5 @@ function clean(dir) {
   }
 }
 if (existsSync(".next/static")) clean(".next/static");
-if (existsSync(".next/server")) clean(".next/server");
+// Server maps are private build/function artifacts, never Next static assets.
+// Keep them: Next's file traces reference them and Vercel packages those traces.
