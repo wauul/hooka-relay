@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "prisma generate && next build --webpack",
+    "build": "prisma generate && next build --webpack && node scripts/remove-web-sourcemaps.mjs",
     "start": "next start",
-    "worker": "tsx worker/index.ts",
+    "worker": "tsx worker/bootstrap.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate deploy",
@@ -20,7 +20,10 @@
     "support:ingest": "tsx scripts/ingest-support.ts",
     "db:migrate-endpoint-secrets": "tsx scripts/migrate-endpoint-secrets.ts",
     "sdk:generate": "node scripts/openapi.mjs && node scripts/generate-sdk-types.mjs",
-    "sdk:test": "tsc -p packages/node/tsconfig.json && node --test packages/node/tests/*.test.mjs"
+    "sdk:test": "tsc -p packages/node/tsconfig.json && node --test packages/node/tests/*.test.mjs",
+    "start:worker": "node dist/worker/bootstrap.js",
+    "sentry:worker:sourcemaps": "node scripts/sentry-worker-sourcemaps.mjs",
+    "audit:security": "node --test scripts/security-audit.test.mjs && node scripts/security-audit.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "1.9.1",
@@ -33,6 +36,10 @@
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@react-email/render": "2.1.0",
+    "@sentry/core": "10.76.0",
+    "@sentry/nextjs": "10.76.0",
+    "@sentry/node": "10.76.0",
+    "@sentry/opentelemetry": "10.76.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "@xenova/transformers": "2.17.2",
@@ -54,6 +61,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@sentry/cli": "3.8.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testcontainers/postgresql": "^12.1.0",
     "@types/node": "^26.6.2",

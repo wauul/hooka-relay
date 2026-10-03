@@ -1,4 +1,5 @@
 import { context, trace, metrics, ROOT_CONTEXT, SpanStatusCode, isSpanContextValid, type Attributes, type Span } from "@opentelemetry/api";
+import { reportUnexpected } from "./sentry-reporting";
 
 const scope = "hooka-relay";
 export function traceparent() {
@@ -11,12 +12,13 @@ export function storedContext(value?: string | null) {
   const span = { traceId: match[1], spanId: match[2], traceFlags: Number.parseInt(match[3], 16), isRemote: true };
   return isSpanContextValid(span) ? trace.setSpanContext(ROOT_CONTEXT, span) : ROOT_CONTEXT;
 }
-export function traced<T>(name: string, attributes: Attributes, run: (span: Span) => Promise<T>, parent?: string | null): Promise<T> {
+export function traced<T>(name: string, attributes: Attributes, run: (span: Span) => Promise<T>, parent?: string | null, capture = true): Promise<T> {
   return trace.getTracer(scope).startActiveSpan(name, { attributes }, parent === undefined ? context.active() : storedContext(parent), async span => {
     try { return await run(span); }
     catch (error) {
       // Error text/stack can contain receiver URLs, tokens or payloads. Never export it.
       span.setStatus({ code: SpanStatusCode.ERROR });
+      if (capture) reportUnexpected(error, name, {}, name.startsWith("worker."));
       throw error;
     } finally { span.end(); }
   });

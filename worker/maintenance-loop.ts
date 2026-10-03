@@ -3,7 +3,7 @@ export const IDLE_POLL_MS = 30 * 60_000;
 
 // One timer owns all database maintenance. Independent timers would prevent
 // Neon from suspending even if the outbox itself backed off.
-export function maintenanceLoop(run: () => Promise<boolean>, onError: () => void) {
+export function maintenanceLoop(run: () => Promise<boolean>, onError: (error: unknown) => void) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let running = false;
   let stopped = false;
@@ -19,7 +19,7 @@ export function maintenanceLoop(run: () => Promise<boolean>, onError: () => void
     woken = false;
     let busy = false;
     try { busy = await run(); }
-    catch { onError(); }
+    catch (error) { onError(error); }
     finally {
       running = false;
       if (!stopped) schedule(busy || woken ? ACTIVE_POLL_MS : IDLE_POLL_MS);

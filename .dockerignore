@@ -5,6 +5,10 @@ node_modules
 .env.*
 .vercel
 .tools
+.companions
+public
+packages
+docs
 test-results
 coverage
 dist

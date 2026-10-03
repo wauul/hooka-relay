@@ -9,7 +9,7 @@ import { apiError } from "@/lib/access";
 import { admitEvent } from "@/lib/rate-limit";
 export const maxDuration = 30;
 export async function POST(req: Request) {
-  if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) after(flushObservability);
+  if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.SENTRY_DSN) after(flushObservability);
   return traced("api.events", { "http.request.method": "POST" }, async span => {
     const response = await handlePost(req);
     span.setAttribute("http.response.status_code", response.status);

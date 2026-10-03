@@ -14,6 +14,7 @@ import { applicationForKey } from "./api-keys";
 import { z } from "zod";
 import { db } from "./db";
 import { validateCustomer } from "./customer-scope";
+import { reportUnexpected } from "./sentry-reporting";
 
 
 const endpointFields = { id: true, customerId: true, url: true, eventTypes: true, circuitState: true, status: true, environment: true, kind: true, deliveryRatePerMinute: true, signatureFormat: true, createdAt: true } as const;
@@ -147,6 +148,7 @@ export async function cliApi(req: Request, path: string[]) {
     if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "Invalid request parameters" }, 400);
     if (error instanceof Error && /public HTTPS|Private|URL/.test(error.message)) return json({ error: "Endpoint must use a public HTTPS URL on port 443" }, 400);
     console.error("CLI API request failed", { name: error instanceof Error ? error.name : "Unknown" });
+    reportUnexpected(error, "cli.request", { service: "web" });
     return json({ error: "Service temporarily unavailable" }, 503);
   }
 }

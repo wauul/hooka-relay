@@ -5,6 +5,7 @@ import type { Action } from "./permissions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
 import { db } from "./db";
+import { reportUnexpected } from "./sentry-reporting";
 export async function userId() {
   const session = await getServerSession(authOptions);
   const id = (session?.user as { id?: string } | undefined)?.id;
@@ -38,6 +39,7 @@ export function sameOrigin(request: Request) {
     throw new Error("FORBIDDEN");
 }
 export function apiError(e: unknown) {
+  reportUnexpected(e, "api.request", { service: "web" });
   if (e instanceof PayloadSchemaError) return Response.json({ error: e.message, failures: e.failures }, { status: 400 });
   if (e instanceof InputLimitError) return Response.json({ error: e.message }, { status: e.status });
   if (e instanceof WorkspaceError) return Response.json({ error: e.message }, { status: e.status });

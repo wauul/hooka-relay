@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SITE_ORIGIN } from "./lib/site-url";
+import { sensitiveRoute } from "./lib/sentry-privacy";
 export function proxy(request: NextRequest) {
   // Move public navigation to the canonical domain. Keep the old API host
   // serving requests so existing clients do not lose auth across redirects.
@@ -10,6 +11,11 @@ export function proxy(request: NextRequest) {
   }
   const nonce = btoa(crypto.randomUUID());
   const development = process.env.NODE_ENV !== "production";
+  let sentryOrigin = "";
+  try {
+    const dsn = new URL(process.env.NEXT_PUBLIC_SENTRY_DSN || "");
+    if (dsn.protocol === "https:" && /(?:^|\.)sentry\.io$/.test(dsn.hostname)) sentryOrigin = ` ${dsn.origin}`;
+  } catch { /* Sentry is optional. */ }
   // Fresh nonces prevent injected scripts from running; frame-ancestors blocks
   // clickjacking and base-uri prevents injected <base> URL hijacking.
   const csp = [
@@ -18,7 +24,7 @@ export function proxy(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    `connect-src 'self' https://vitals.vercel-insights.com${development ? " ws: wss:" : ""}`,
+    `connect-src 'self' https://vitals.vercel-insights.com${sentryOrigin}${development ? " ws: wss:" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -26,7 +32,7 @@ export function proxy(request: NextRequest) {
     ...(development ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
   const headers = new Headers(request.headers);
-  const privatePage = request.nextUrl.pathname.startsWith("/portal/") || request.nextUrl.pathname.startsWith("/invites/") || ["/verify-email", "/reset-password"].includes(request.nextUrl.pathname);
+  const privatePage = sensitiveRoute(request.nextUrl.pathname);
   headers.set("x-hooka-private-page", privatePage ? "1" : "0");
   headers.set("x-nonce", nonce);
   headers.set("Content-Security-Policy", csp);

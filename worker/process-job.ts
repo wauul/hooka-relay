@@ -12,7 +12,12 @@ import { flushDelivery } from "../lib/events";
 import { originalReplayPayload } from "../lib/inbound-replay-payload";
 import { advanceRoutingExecution } from "../lib/routing";
 import { diagnose } from "../lib/diagnosis";
+import { isolatedOperation, reportUnexpected } from "../lib/sentry-reporting";
+import { getIsolationScope } from "@sentry/core";
 export async function processJob(job: { id: string; attemptNumber: number }) {
+  return isolatedOperation("delivery.attempt", { service: "worker", delivery_id: job.id, attempt: job.attemptNumber }, () => processDelivery(job));
+}
+async function processDelivery(job: { id: string; attemptNumber: number }) {
   const delivery = await db.delivery.findUnique({
     where: { id: job.id },
     include: { event: { include: { inboundReceipt: true } } },
@@ -24,7 +29,8 @@ export async function processJob(job: { id: string; attemptNumber: number }) {
   )
     return;
   if (delivery.dueAt.getTime() > Date.now() + 1000) return;
-  return traced("delivery.attempt", { "hooka.event.id": delivery.eventId, "hooka.delivery.id": delivery.id, "hooka.endpoint.id": delivery.endpointId, "hooka.attempt": job.attemptNumber }, async span => {
+  getIsolationScope().setTags({ event_id: delivery.eventId, endpoint_id: delivery.endpointId, generation: String(delivery.generation) });
+  return traced("delivery.attempt", { "hooka.event.id": delivery.eventId, "hooka.delivery.id": delivery.id, "hooka.endpoint.id": delivery.endpointId, "hooka.attempt": job.attemptNumber, "hooka.generation": delivery.generation }, async span => {
   const token = randomUUID();
   // Atomic endpoint lease serializes failures and enforces a single recovery probe.
   const locked = await db.endpoint.updateMany({
@@ -184,9 +190,10 @@ export async function processJob(job: { id: string; attemptNumber: number }) {
       if (execution) await advanceRoutingExecution(execution.id);
     }
     if (next.consecutiveFailures >= 3)
-      await diagnose(endpoint.id).catch(() =>
-        console.warn("AI diagnosis unavailable; delivery processing continues"),
-      );
+      await diagnose(endpoint.id).catch(error => {
+        reportUnexpected(error, "diagnosis", { service: "worker" }, true);
+        console.warn("AI diagnosis unavailable; delivery processing continues");
+      });
   } finally {
     await db.endpoint.updateMany({
       where: { id: delivery.endpointId, leaseToken: token },

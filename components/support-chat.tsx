@@ -3,6 +3,7 @@ import { T } from "@/components/preferences";
 import { Bot, MessageCircle, RotateCcw, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { api } from "./ui";
 type Exchange = { question: string; answer: string };
 const suggestions = ["How do I add a customer in Hooka Relay?", "How does Hooka Relay retry deliveries?", "How do I verify a Hooka Relay delivery?"];
 export function SupportChat() {
@@ -16,8 +17,7 @@ export function SupportChat() {
     event.preventDefault(); if (busy || !question.trim()) return;
     const text = question.trim(); setBusy(true); setError("");
     try {
-      const response = await fetch("/api/support-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text, history: history.slice(-3).map(e => ({ ...e, answer: e.answer.slice(0, 3000) })) }) });
-      const result = await response.json(); if (!response.ok) throw new Error(result.error || "Support unavailable");
+      const result = await api("/api/support-chat", { question: text, history: history.slice(-3).map(e => ({ ...e, answer: e.answer.slice(0, 3000) })) });
       setHistory(previous => [...previous.slice(-9), { question: text, answer: result.answer }]); setQuestion(""); setCached(result.cacheHit);
     } catch (e) { setError(e instanceof Error ? e.message : "Support unavailable"); } finally { setBusy(false); }
   }

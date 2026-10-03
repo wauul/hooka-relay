@@ -1,3 +1,4 @@
+import { isolatedOperation, reportUnexpected } from "../lib/sentry-reporting";
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
@@ -20,6 +21,9 @@ export function createLiveRelay(server: Server) {
   const sessions = new Map<WebSocket, Session>();
   let transport: Transport | null = null;
   async function receive(message: ConsumeMessage, channel: ConfirmChannel) {
+    return isolatedOperation("live.receive", { service: "worker" }, () => receiveMessage(message, channel));
+  }
+  async function receiveMessage(message: ConsumeMessage, channel: ConfirmChannel) {
     try {
       const { receiptId, replayId } = JSON.parse(message.content.toString("utf8")) as { receiptId?: string; replayId?: string };
       if (!receiptId || receiptId.length > 100) return;
@@ -33,6 +37,7 @@ export function createLiveRelay(server: Server) {
           headers: forwardableProviderHeaders(receipt.rawHeaders as Record<string, string>), bodyBase64: receipt.rawBody });
       }
     } catch (error) {
+      reportUnexpected(error, "live.receive", { service: "worker" }, true);
       console.error("Live inbound message failed", { name: error instanceof Error ? error.name : "Unknown" });
     } finally {
       try { channel.ack(message); } catch { /* The ephemeral queue vanished with the broker channel. */ }
@@ -49,21 +54,23 @@ export function createLiveRelay(server: Server) {
     send(socket, { type: "subscribed", sourceId: session.sourceId, sourceName: authorized.sourceName });
   }
   wss.on("connection", socket => {
+    const connectionId = randomUUID();
+    socket.on("error", error => reportUnexpected(error, "live.transport", { service: "worker", connection_id: connectionId }, true));
     const timeout = setTimeout(() => { if (!sessions.has(socket)) socket.close(4401, "Subscription timed out"); }, 10000);
     socket.on("pong", () => {
       const session = sessions.get(socket);
       if (session) {
         session.alive = true;
-        void db.inboundLiveSession.updateMany({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+        void db.inboundLiveSession.updateMany({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(error => reportUnexpected(error, "live.close", { service: "worker" }, true));
       }
     });
-    socket.on("message", data => { void (async () => {
+    socket.on("message", data => { void isolatedOperation("live.message", { service: "worker", connection_id: connectionId }, async () => {
       let input: WireMessage;
       try { input = JSON.parse(data.toString("utf8")) as WireMessage; } catch { socket.close(4400, "Invalid message"); return; }
       const session = sessions.get(socket);
       if (!session) {
         try { await subscribe(socket, input); clearTimeout(timeout); }
-        catch (error) { socket.close(error instanceof LiveAuthError ? error.code : 1011, error instanceof LiveAuthError ? error.message : "Subscription failed"); }
+        catch (error) { reportUnexpected(error, "live.subscribe", { service: "worker" }, true); socket.close(error instanceof LiveAuthError ? error.code : 1011, error instanceof LiveAuthError ? error.message : "Subscription failed"); }
         return;
       }
       if (input.type !== "ack" || typeof input.attemptId !== "string" || input.attemptId.length > 100) return;
@@ -74,14 +81,15 @@ export function createLiveRelay(server: Server) {
         httpStatusCode: code, durationMs: duration, responseBody: typeof input.responseBody === "string" ? input.responseBody.slice(0, 1024) : null,
         error: typeof input.error === "string" ? input.error.slice(0, 256) : null, completedAt: new Date(),
       } });
-    })().catch(() => socket.close(1011, "Relay error")); });
+    }).catch(error => { reportUnexpected(error, "live.message", { service: "worker", connection_id: connectionId }, true); socket.close(1011, "Relay error"); }); });
     socket.on("close", () => { clearTimeout(timeout); const session = sessions.get(socket); if (!session) return;
       sessions.delete(socket);
-      void db.inboundLiveSession.deleteMany({ where: { id: session.id } }).catch(() => {});
+      void db.inboundLiveSession.deleteMany({ where: { id: session.id } }).catch(error => reportUnexpected(error, "live.close", { service: "worker" }, true));
       if (transport && ![...sessions.values()].some(value => value.sourceId === session.sourceId))
-        void transport.channel.unbindQueue(transport.queue, LIVE_EXCHANGE, `inbound.live.${session.sourceId}`).catch(() => {});
+        void transport.channel.unbindQueue(transport.queue, LIVE_EXCHANGE, `inbound.live.${session.sourceId}`).catch(error => reportUnexpected(error, "live.close", { service: "worker" }, true));
     });
   });
+  wss.on("error", error => reportUnexpected(error, "live.transport", { service: "worker" }, true));
   const heartbeat = setInterval(() => {
     for (const [socket, session] of sessions) {
       if (!session.alive) { socket.terminate(); continue; }

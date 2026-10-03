@@ -1,3 +1,4 @@
+import { reportUnexpected } from "./sentry-reporting";
 import { createHash, randomBytes } from "node:crypto";
 import { hash } from "bcryptjs";
 import { db } from "./db";
@@ -20,7 +21,7 @@ export async function issueAuthEmail(email: string, purpose: "VERIFY" | "RESET",
   const link = new URL(purpose === "VERIFY" ? "/verify-email" : "/reset-password", process.env.NEXTAUTH_URL);
   link.searchParams.set("token", token);
   try { await sendTransactionalEmail({ id: `auth-${record.hash}`, to: user.email, subject: purpose === "VERIFY" ? "Confirm your Hooka Relay email" : "Reset your Hooka Relay password", title: purpose === "VERIFY" ? "Confirm your email address" : "Choose a new password", body: purpose === "VERIFY" ? "Confirm this email address to finish setting up your account. This link expires in 24 hours." : "We received a request to reset your password. This link expires in 30 minutes and can be used once.", action: purpose === "VERIFY" ? "Confirm email" : "Reset password", url: link.toString() }); }
-  catch { await db.authToken.deleteMany({ where: { hash: record.hash } }); throw new Error("Email unavailable"); }
+  catch (error) { reportUnexpected(error, "email.send", {}, true); await db.authToken.deleteMany({ where: { hash: record.hash } }); throw new Error("Email unavailable"); }
 }
 export async function consumeAuthToken(token: string, purpose: "VERIFY" | "RESET", password?: string) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw new InputLimitError(400, "This link is invalid or has expired. Request a new one.");

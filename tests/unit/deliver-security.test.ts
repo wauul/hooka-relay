@@ -33,7 +33,8 @@ it("revalidates every attempt, pins the public answer, and blocks DNS rebinding"
       },
     };
   }) as any);
-  expect((await deliver("https://example.com", "{}", {})).code).toBe(302);
+  expect((await deliver("https://example.com", "{}", { "Sentry-Trace": "secret", baggage: "private", traceparent: "private", tracestate: "private", "X-Hooka-Delivery": "delivery" })).code).toBe(302);
+  expect(options.headers).toEqual({ "X-Hooka-Delivery": "delivery" });
   const pinned = vi.fn();
   options.lookup("example.com", {}, pinned);
   expect(pinned).toHaveBeenCalledWith(null, "8.8.8.8", 4);

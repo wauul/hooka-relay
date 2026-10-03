@@ -1,3 +1,4 @@
+import { reportUnexpected } from "@/lib/sentry-reporting";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -82,7 +83,8 @@ export async function GET(request: Request) {
       );
     }
     return json({ results });
-  } catch {
+  } catch (error) {
+    reportUnexpected(error, "search.request", { service: "web" });
     return json({
       results,
       warning:

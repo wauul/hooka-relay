@@ -1,3 +1,4 @@
+import { reportUnexpected } from "./sentry-reporting";
 import { channel } from "./queue/client";
 
 export const WORKER_WAKE_EXCHANGE = "webhook-relay-worker-wake";
@@ -17,5 +18,5 @@ export async function wakeWorker() {
         });
       } catch (error) { clearTimeout(timeout); reject(error); }
     });
-  } catch { /* Committed work remains recoverable without the hint. */ }
+  } catch (error) { reportUnexpected(error, "broker.publish", {}, true); /* Durable recovery remains available. */ }
 }

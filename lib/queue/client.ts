@@ -1,5 +1,6 @@
 import amqp, { type ConfirmChannel, type ChannelModel } from "amqplib";
 import { declareTopology, EXCHANGE, LIVE_EXCHANGE } from "./topology";
+import { reportUnexpected } from "../sentry-reporting";
 let connection: ChannelModel | undefined;
 let pending: Promise<ConfirmChannel> | undefined;
 export function channel() {
@@ -9,14 +10,16 @@ export function channel() {
         timeout: 5000,
       });
       connection = conn;
-      conn.on("error", () => {
+      conn.on("error", error => {
+        reportUnexpected(error, "broker.connect", {}, true);
         pending = undefined;
       });
       conn.on("close", () => {
         pending = undefined;
       });
       const ch = await conn.createConfirmChannel();
-      ch.on("error", () => {
+      ch.on("error", error => {
+        reportUnexpected(error, "broker.channel", {}, true);
         pending = undefined;
       });
       await declareTopology(ch);

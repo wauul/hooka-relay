@@ -1,3 +1,4 @@
+import { reportUnexpected } from "@/lib/sentry-reporting";
 import { publicStatus } from "@/lib/public-status";
 import { StatusView } from "@/components/status-view";
 
@@ -5,6 +6,6 @@ export const metadata = { title: "Service status | Hooka Relay", description: "V
 
 export default async function StatusPage() {
   let data: Awaited<ReturnType<typeof publicStatus>> | null = null;
-  try { data = await publicStatus(); } catch { /* Render the unavailable state. */ }
+  try { data = await publicStatus(); } catch (error) { reportUnexpected(error, "status.request", { service: "web" }, true); }
   return <StatusView data={data} />;
 }

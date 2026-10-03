@@ -70,7 +70,10 @@ jobs:
         run: npm ci
       # Fail on known exploitable dependencies, including build-time tooling.
       - name: Dependency security audit
-        run: npm audit --audit-level=high
+        run: |
+          npm run audit:security
+          npm audit --omit=dev --audit-level=high
+          cd worker/runtime && npm audit --omit=dev --audit-level=high
       - name: ESLint
         run: npm run lint
       - name: Typecheck
@@ -109,10 +112,13 @@ jobs:
         run: |
           docker run --rm --entrypoint node hooka-relay-worker:ci -e '
             const fs = require("node:fs");
-            for (const path of ["dist/worker/index.js", "node_modules/.prisma/client/query_compiler_fast_bg.wasm"]) {
+            for (const path of ["dist/worker/bootstrap.js", "dist/worker/instrument.js", "dist/worker/index.js", "node_modules/.prisma/client/query_compiler_fast_bg.wasm"]) {
               if (!fs.existsSync(path)) throw new Error("Missing runtime file: " + path);
             }
-            for (const pkg of ["@prisma/client", "@prisma/adapter-pg", "amqplib"]) require(pkg);
+            for (const pkg of ["@prisma/client", "@prisma/adapter-pg", "amqplib", "@sentry/node", "@sentry/opentelemetry"]) require(pkg);
+            if (process.env.SENTRY_AUTH_TOKEN) throw new Error("Build credential leaked to runtime");
+            function checkMaps(dir) { for (const item of fs.readdirSync(dir, { withFileTypes: true })) { const path = dir + "/" + item.name; if (item.isDirectory()) checkMaps(path); else if (item.name.endsWith(".map")) throw new Error("Source map shipped: " + path); } }
+            checkMaps("dist");
             for (const pkg of ["next", "vitest", "typescript"]) {
               if (fs.existsSync("node_modules/" + pkg)) throw new Error("Unexpected runtime dependency: " + pkg);
             }

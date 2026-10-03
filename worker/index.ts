@@ -1,9 +1,10 @@
 import { drainNotices } from "../lib/operational-events";
 import { drainRecovery } from "../lib/recovery";
-import "dotenv/config";
-import { startObservability, stopObservability } from "../lib/observability-runtime";
+import { stopObservability } from "../lib/observability-runtime";
+import { isolatedOperation, reportUnexpected } from "../lib/sentry-reporting";
+import { traced } from "../lib/observability";
+import { captureCheckIn } from "@sentry/core";
 import { queueDepth, count, addCount, gauge } from "../lib/observability";
-startObservability("worker");
 import { createServer } from "node:http";
 import { db } from "../lib/db";
 import { channel, closeQueue } from "../lib/queue/client";
@@ -78,15 +79,29 @@ async function cleanup() {
     nextCleanupAt = full ? 0 : Date.now() + 60 * 60_000;
     return full;
 }
+let nextCheckInAt = 0;
 async function maintain() {
+  // Idle work shares one 30 minute sweep. Active work never floods Cron quotas.
+  const monitor = process.env.SENTRY_MAINTENANCE_MONITOR && Date.now() >= nextCheckInAt ? process.env.SENTRY_MAINTENANCE_MONITOR : undefined;
+  if (monitor) nextCheckInAt = Date.now() + 30 * 60_000;
+  const checkInId = (() => {
+    try { return monitor ? captureCheckIn({ monitorSlug: monitor, status: "in_progress" }, { schedule: { type: "interval", value: 30, unit: "minute" }, checkinMargin: 10, maxRuntime: 2, failureIssueThreshold: 2, recoveryThreshold: 1 }) : undefined; }
+    catch { return undefined; }
+  })();
   // Cleanup shares the worker's wake window, rather than waking Neon by itself.
   const results = await Promise.allSettled([
-    drain(), drainRecovery(), drainNotices(),
-    ...(Date.now() >= nextCleanupAt ? [cleanup()] : []),
+    isolatedOperation("worker.drain", { service: "worker" }, () => traced("worker.drain", {}, drain)),
+    isolatedOperation("worker.recovery", { service: "worker" }, () => traced("worker.recovery", {}, drainRecovery)),
+    isolatedOperation("worker.notices", { service: "worker" }, () => traced("worker.notices", {}, drainNotices)),
+    ...(Date.now() >= nextCleanupAt ? [isolatedOperation("worker.retention", { service: "worker" }, () => traced("worker.retention", {}, cleanup))] : []),
   ]);
   if (results.some(result => result.status === "rejected")) {
     count("hooka.worker.database_errors");
     console.error("Lifecycle maintenance pending; durable work will be retried");
+  }
+  if (monitor && checkInId) {
+    try { captureCheckIn({ checkInId, monitorSlug: monitor, status: results.some(result => result.status === "rejected") ? "error" : "ok" }); }
+    catch { /* Check-in transport must not affect durable maintenance. */ }
   }
   return results.some(result => result.status === "fulfilled" && result.value);
 }
@@ -110,7 +125,8 @@ async function main() {
       ready = true;
       gauge("hooka.worker.ready", 1);
       const closed = new Promise<void>((resolve) => ch.once("close", resolve));
-      maintenance = maintenanceLoop(maintain, () => {
+      maintenance = maintenanceLoop(maintain, error => {
+        reportUnexpected(error, "worker.maintenance", { service: "worker" }, true);
         count("hooka.worker.database_errors");
         console.error("Database maintenance unavailable; retrying on the idle safety sweep");
       });
@@ -132,7 +148,8 @@ async function main() {
           await processJob(job);
           maintenance?.wake();
           ch.ack(msg);
-        } catch {
+        } catch (error) {
+          reportUnexpected(error, "worker.consume", { service: "worker" }, true);
           maintenance?.wake();
           count("hooka.worker.delivery_system_errors");
           console.error(
@@ -140,14 +157,14 @@ async function main() {
           );
           try {
             ch.ack(msg);
-          } catch {}
+          } catch (error) { reportUnexpected(error, "broker.channel", { service: "worker" }, true); }
         }
       });
       let inspecting = false;
       const telemetryTimer = setInterval(() => {
         if (inspecting || !process.env.OTEL_EXPORTER_OTLP_ENDPOINT) return;
         inspecting = true;
-        ch.checkQueue(QUEUE).then(q => queueDepth(q.messageCount)).catch(() => {}).finally(() => { inspecting = false; });
+        ch.checkQueue(QUEUE).then(q => queueDepth(q.messageCount)).catch(error => reportUnexpected(error, "broker.inspect", { service: "worker" }, true)).finally(() => { inspecting = false; });
       }, 60000);
       await closed;
       liveRelay.detach();
@@ -155,7 +172,8 @@ async function main() {
       clearInterval(telemetryTimer);
       ready = false;
       gauge("hooka.worker.ready", 0);
-    } catch {
+    } catch (error) {
+      reportUnexpected(error, "broker.connect", { service: "worker" }, true);
       await maintenance?.stop();
       ready = false;
       gauge("hooka.worker.ready", 0);
@@ -165,16 +183,24 @@ async function main() {
     if (!stopping) await new Promise((r) => setTimeout(r, 5000));
   }
 }
-process.on("SIGTERM", async () => {
+async function shutdown(exitCode: number, error?: unknown) {
+  if (stopping) return;
+  if (error !== undefined) reportUnexpected(error, "worker.fatal", { service: "worker" });
   stopping = true;
   ready = false;
-  await maintenance?.stop();
-  await stopObservability();
-  liveRelay.close();
-  await closeQueue();
-  server.close();
-  await db.$disconnect();
-  process.exit(0);
-});
-main().catch(() => process.exit(1));
+  const deadline = setTimeout(() => process.exit(exitCode), 10_000);
+  try {
+    await maintenance?.stop();
+    liveRelay.close();
+    await closeQueue();
+    server.close();
+    await db.$disconnect();
+  } catch (error) { reportUnexpected(error, "worker.shutdown", { service: "worker" }); }
+  finally { await stopObservability().catch(() => {}); clearTimeout(deadline); process.exit(exitCode); }
+}
+process.on("SIGTERM", () => { void shutdown(0); });
+process.on("SIGINT", () => { void shutdown(0); });
+process.on("uncaughtException", error => { void shutdown(1, error); });
+process.on("unhandledRejection", error => { void shutdown(1, error); });
+main().catch(error => { void shutdown(1, error); });
 

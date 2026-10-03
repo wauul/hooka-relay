@@ -1,3 +1,6 @@
+import { reportUnexpected } from "@/lib/sentry-reporting";
+import { after } from "next/server";
+import { flushObservability } from "@/lib/observability-runtime";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secrets";
@@ -29,6 +32,7 @@ async function boundedRaw(req: Request) {
   return Buffer.concat(chunks);
 }
 export async function POST(req: Request, { params }: Context) {
+  if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || process.env.SENTRY_DSN) after(flushObservability);
   const token = (await params).ingestionToken;
   if (!/^[a-f0-9]{64}$/.test(token)) return Response.json({ error: "Webhook rejected" }, { status: 404 });
   try {
@@ -84,7 +88,7 @@ export async function POST(req: Request, { params }: Context) {
       rawBody: rawBody.toString("base64"), searchText: rawBody.toString("utf8"), rawHeaders, verified: true,
     }, update: {} });
     await db.webhookSource.update({ where: { id: source.id }, data: { lastEventReceivedAt: new Date(), lastVerifiedAt: new Date(), lastVerificationFailure: null, lastVerificationFailureAt: null } });
-    await publishInboundLive(source.id, receipt.id).catch(() => console.warn("Live forwarding unavailable; durable event delivery continues"));
+    await publishInboundLive(source.id, receipt.id).catch(error => { reportUnexpected(error, "live.transport", { service: "web" }, true); console.warn("Live forwarding unavailable; durable event delivery continues"); });
     // Slack's URL verification challenge must be returned after signature validation.
     if (source.provider === "SLACK" && payload && typeof payload === "object" && (payload as Record<string, unknown>).type === "url_verification") {
       const challenge = (payload as Record<string, unknown>).challenge;
@@ -92,6 +96,7 @@ export async function POST(req: Request, { params }: Context) {
     }
     return Response.json({ id: event.id }, { status: 202 });
   } catch (error) {
+    if (!(error instanceof SyntaxError) && !(error instanceof TypeError && error.message.includes("encoded data"))) reportUnexpected(error, "event.ingest", { service: "web" });
     console.error("Inbound webhook processing failed", { name: error instanceof Error ? error.name : "Unknown" });
     return Response.json({ error: "Webhook rejected" }, { status: error instanceof Error && (error.message === "body_limit") ? 413 : 400 });
   }

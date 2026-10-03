@@ -1,0 +1,36 @@
+name: Worker release with private source maps
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  image:
+    # Build credentials are never provided to pull requests or codex branches.
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Require source-map credential
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: test -n "$SENTRY_AUTH_TOKEN"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}-worker:${{ github.sha }}
+          build-args: |
+            SENTRY_RELEASE=${{ github.sha }}
+            SENTRY_ORG=hooka-relay
+            SENTRY_WORKER_PROJECT=hooka-relay-worker
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
+      - name: Deployment image
+        run: echo 'Use this immutable image in Railway with SENTRY_RELEASE=${{ github.sha }} and node dist/worker/bootstrap.js.'

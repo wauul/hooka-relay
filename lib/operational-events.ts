@@ -1,3 +1,4 @@
+import { reportUnexpected } from "./sentry-reporting";
 import { sendTransactionalEmail } from "./transactional-email";
 import { randomUUID } from "node:crypto";
 import type { Prisma, Endpoint } from "@prisma/client";
@@ -30,7 +31,7 @@ export async function drainNotices() {
     const owner = await db.workspaceMember.findFirst({ where: { role: "OWNER", workspace: { applications: { some: { id: notice.applicationId } } } }, include: { user: { select: { email: true } } } });
     if (!owner) continue;
     try { await sendOperationalNotice(notice, owner.user.email); await db.operationalNotice.update({ where: { id: notice.id }, data: { sentAt: new Date() } }); }
-    catch { console.warn("Endpoint notification pending; dashboard circuit banner remains available"); }
+    catch (error) { reportUnexpected(error, "notification", { service: "worker" }, true); console.warn("Endpoint notification pending; dashboard circuit banner remains available"); }
   }
   return notices.length > 0;
 }

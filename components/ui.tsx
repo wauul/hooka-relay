@@ -3,16 +3,25 @@ import { T, useTranslation } from "@/components/preferences";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw } from "lucide-react";
+import { reportUnexpected } from "@/lib/sentry-reporting";
 export async function api<T = any>(url: string, body?: unknown, method?: string): Promise<T> {
+  try {
   const res = await fetch(url, {
     method: method || (body === undefined ? "GET" : "POST"),
     headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(typeof window === "undefined" ? {} : { "X-Workspace-Id": localStorage.getItem("workspaceId") || "" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) throw new ApiResponseError(data.error || "Request failed");
   return data;
+  } catch (error) {
+    // HTTP responses are already reported at the server boundary; validation
+    // responses are expected. Only transport/decoding/client defects belong here.
+    if (!(error instanceof ApiResponseError)) reportUnexpected(error, "client.request", { service: "browser" });
+    throw error;
+  }
 }
+class ApiResponseError extends Error {}
 export function useData<T>(url: string, poll = false) {
   const [data, setData] = useState<T>();
   const [error, setError] = useState("");

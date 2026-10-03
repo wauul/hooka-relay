@@ -3,8 +3,8 @@
   "compilerOptions": {
     "module": "Node16", "moduleResolution": "Node16", "noEmit": false,
     "rootDir": ".", "outDir": "dist", "incremental": false,
-    "declaration": false, "sourceMap": true, "plugins": []
+    "declaration": false, "sourceMap": true, "inlineSources": true, "plugins": []
   },
-  "include": ["worker/index.ts"],
+  "include": ["worker/bootstrap.ts", "worker/index.ts"],
   "exclude": ["node_modules", "dist", "tests", ".next"]
 }

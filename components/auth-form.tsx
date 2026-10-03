@@ -9,6 +9,7 @@ import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Brand } from "./shell";
 import { OAuthButtons } from "./oauth-buttons";
 import { api, ErrorBox } from "./ui";
+import { reportUnexpected } from "@/lib/sentry-reporting";
 export function AuthForm({
   signup = false,
   invitation,
@@ -73,7 +74,7 @@ export function AuthForm({
                 email,
                 password,
                 redirect: false,
-              });
+              }).catch(error => { reportUnexpected(error, "client.request", { service: "browser" }); throw error; });
               if (result?.error)
                 throw new Error(result.error === "EMAIL_UNVERIFIED" ? "Please confirm your email before signing in. Use Resend confirmation below if needed." : "Email or password is incorrect.");
               const callback = new URLSearchParams(window.location.search).get(

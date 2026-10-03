@@ -12,6 +12,7 @@ export async function deliver(
   body: string | Buffer,
   headers: Record<string, string>,
 ): Promise<HttpResult> {
+  headers = Object.fromEntries(Object.entries(headers).filter(([key]) => !/^(sentry-trace|baggage|traceparent|tracestate)$/i.test(key)));
   const start = Date.now();
   try {
     let dnsTimer: NodeJS.Timeout | undefined;

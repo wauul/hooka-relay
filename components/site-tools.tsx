@@ -19,6 +19,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { outboundUrl, searchSite, type SearchResult } from "@/lib/site";
+import { reportUnexpected } from "@/lib/sentry-reporting";
 
 type Confirmation = { title: string; description: string; label?: string };
 const Tools = createContext({
@@ -139,8 +140,9 @@ function SiteSearch({ close }: { close: () => void }) {
           setResults(data.results);
           setNotice(data.warning || "");
         }
-      } catch {
+      } catch (error) {
         if (!controller.signal.aborted) {
+          reportUnexpected(error, "client.request", { service: "browser" });
           setResults(searchSite(text));
           setNotice(
             "Connection interrupted. Showing available documentation results.",

@@ -1,0 +1,9 @@
+# Dependency security decision — 2026-10-03
+
+Updated transitive `@grpc/grpc-js` to 1.14.5, vulnerable brace-expansion 2.x to 2.1.7, and DOMPurify to 3.4.16 through the locked compatible dependency ranges. npm and pnpm locks must agree on these fixes. Production audits have no exceptions.
+
+The remaining five npm high-severity entries are one advisory propagated through `braces` → `micromatch` → `fast-glob` → Next ESLint plugin/config. [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) has no published patched version. Downgrading the Next 16 lint configuration to npm's suggested Next 14 configuration would remove current framework checks and is not a compatible fix.
+
+The production application does not use this chain. Its usage is build-time ESLint filesystem globbing, with project-controlled paths; HTTP input, event bodies, customer endpoint URLs and stored application data never reach it. CI and local lint already execute repository-owned configuration/code, so this glob advisory does not create a new untrusted execution boundary in this usage. The worker's separately locked runtime excludes ESLint entirely.
+
+The security gate still audits the complete root dependency tree and fails for every new high/critical finding, an audit/network error, a production instance of the affected package, or an unexpected package version. The only exception is this exact advisory for the five named development-only packages with `braces` 3.0.3, expiring **2026-11-03 UTC**. The gate prints the exception; it does not claim a clean full audit. Node tests verify expiry and fail-closed behavior. The operational owner must remove the exception and update both lockfiles when an upstream patch becomes available, or review the decision before expiry. Root production and worker runtime audit steps remain enforced without this exception.
