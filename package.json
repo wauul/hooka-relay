@@ -70,7 +70,7 @@
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.3.8",
     "postcss": "8.5.28",
     "prisma": "7.10.0",
     "standardwebhooks": "1.1.1",
