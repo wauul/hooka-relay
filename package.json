@@ -38,7 +38,7 @@
     "@react-email/render": "2.1.0",
     "@sentry/core": "10.76.0",
     "@sentry/nextjs": "10.76.0",
-    "@sentry/node": "10.76.0",
+    "@sentry/node": "11.4.0",
     "@sentry/opentelemetry": "10.76.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
