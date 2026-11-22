@@ -5,10 +5,12 @@ import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import WebSocket, { WebSocketServer } from "ws";
 import { db } from "../lib/db";
 import { authorizeLiveSource, LiveAuthError } from "../lib/live-auth";
+import { applicationForKeyHash } from "../lib/api-keys";
+import { hashApiKey } from "../lib/secrets";
 import { forwardableProviderHeaders } from "../lib/inbound-headers";
 import { LIVE_EXCHANGE } from "../lib/queue/topology";
 
-type Session = { id: string; sourceId: string; alive: boolean };
+type Session = { id: string; sourceId: string; applicationId: string; keyHash: string; alive: boolean };
 type Transport = { channel: ConfirmChannel; queue: string };
 type WireMessage = { type?: string; apiKey?: string; source?: string; attemptId?: string; status?: number; durationMs?: number; responseBody?: string; error?: string };
 
@@ -27,10 +29,16 @@ export function createLiveRelay(server: Server) {
     try {
       const { receiptId, replayId } = JSON.parse(message.content.toString("utf8")) as { receiptId?: string; replayId?: string };
       if (!receiptId || receiptId.length > 100) return;
-      const receipt = await db.inboundReceipt.findUnique({ where: { id: receiptId } });
-      if (!receipt?.verified) return;
+      const receipt = await db.inboundReceipt.findUnique({ where: { id: receiptId }, include: { source: { select: { applicationId: true, status: true } } } });
+      if (!receipt?.verified || receipt.source.status === "PAUSED") return;
       for (const [socket, session] of sessions) {
         if (socket.readyState !== WebSocket.OPEN || session.sourceId !== receipt.sourceId) continue;
+        if (session.applicationId !== receipt.source.applicationId ||
+            (await applicationForKeyHash(session.keyHash, "READ", false))?.id !== session.applicationId) {
+          socket.close(4401, "API key no longer valid");
+          continue;
+        }
+        if (socket.readyState !== WebSocket.OPEN) continue;
         const attempt = await db.inboundLiveAttempt.create({ data: { receiptId, sessionId: session.id, replayId: replayId || null, status: "SENT" } });
         send(socket, { type: "event", attemptId: attempt.id, receiptId, replayId: replayId || null,
           eventType: receipt.eventType || "inbound.event", receivedAt: receipt.receivedAt.toISOString(),
@@ -47,7 +55,10 @@ export function createLiveRelay(server: Server) {
     if (input.type !== "subscribe" || typeof input.apiKey !== "string" || typeof input.source !== "string") throw new LiveAuthError("Subscription required");
     const authorized = await authorizeLiveSource(input.apiKey, input.source);
     if (!transport) throw new LiveAuthError("Live relay is reconnecting", 1012);
-    const session: Session = { id: randomUUID(), sourceId: authorized.sourceId, alive: true };
+    const session: Session = {
+      id: randomUUID(), sourceId: authorized.sourceId, applicationId: authorized.applicationId,
+      keyHash: hashApiKey(input.apiKey), alive: true,
+    };
     await transport.channel.bindQueue(transport.queue, LIVE_EXCHANGE, `inbound.live.${session.sourceId}`);
     await db.inboundLiveSession.create({ data: { id: session.id, sourceId: session.sourceId } });
     sessions.set(socket, session);
@@ -64,11 +75,14 @@ export function createLiveRelay(server: Server) {
         void db.inboundLiveSession.updateMany({ where: { id: session.id }, data: { lastSeenAt: new Date() } }).catch(error => reportUnexpected(error, "live.close", { service: "worker" }, true));
       }
     });
+    let subscribing = false;
     socket.on("message", data => { void isolatedOperation("live.message", { service: "worker", connection_id: connectionId }, async () => {
       let input: WireMessage;
       try { input = JSON.parse(data.toString("utf8")) as WireMessage; } catch { socket.close(4400, "Invalid message"); return; }
       const session = sessions.get(socket);
       if (!session) {
+        if (subscribing || socket.readyState !== WebSocket.OPEN) return;
+        subscribing = true;
         try { await subscribe(socket, input); clearTimeout(timeout); }
         catch (error) { reportUnexpected(error, "live.subscribe", { service: "worker" }, true); socket.close(error instanceof LiveAuthError ? error.code : 1011, error instanceof LiveAuthError ? error.message : "Subscription failed"); }
         return;

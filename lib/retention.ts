@@ -2,6 +2,7 @@ import { db } from "./db";
 
 const DAY_MS = 86_400_000;
 const BATCH_SIZE = 100;
+const LIVE_ACK_TIMEOUT_MS = 5 * 60_000;
 
 export function eventRetentionDays() {
   const days = Number(process.env.EVENT_RETENTION_DAYS ?? 30);
@@ -16,6 +17,9 @@ export async function pruneEventHistory(now = new Date(), batchSize = BATCH_SIZE
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 1000)
     throw new Error("Invalid retention batch size");
   const cutoff = new Date(now.getTime() - eventRetentionDays() * DAY_MS);
+  // A crashed listener can leave SENT attempts behind. Only recent attempts
+  // protect a receipt while the listener still has time to acknowledge it.
+  const liveAckCutoff = new Date(now.getTime() - LIVE_ACK_TIMEOUT_MS);
   return db.$transaction(async tx => {
     const events = await tx.$queryRaw<{ id: string }[]>`
       SELECT e.id FROM "Event" e
@@ -32,7 +36,7 @@ export async function pruneEventHistory(now = new Date(), batchSize = BATCH_SIZE
         )
         AND NOT EXISTS (
           SELECT 1 FROM "InboundReceipt" r JOIN "InboundLiveAttempt" l ON l."receiptId" = r.id
-          WHERE r."eventId" = e.id AND l.status = 'SENT'
+          WHERE r."eventId" = e.id AND l.status = 'SENT' AND l."createdAt" > ${liveAckCutoff}
         )
       ORDER BY e."createdAt", e.id
       LIMIT ${batchSize}
@@ -43,14 +47,13 @@ export async function pruneEventHistory(now = new Date(), batchSize = BATCH_SIZE
       await tx.event.deleteMany({ where: { id: { in: ids } } });
     }
 
-    // Failed signature checks have no Event. Delete their captured raw bodies
-    // on the same schedule, while preserving an active local replay attempt.
+    // Rejected receipts have no Event and expire directly.
     const receipts = await tx.$queryRaw<{ id: string }[]>`
       SELECT r.id FROM "InboundReceipt" r
       WHERE r."eventId" IS NULL AND r."receivedAt" < ${cutoff}
         AND NOT EXISTS (
           SELECT 1 FROM "InboundLiveAttempt" l WHERE l."receiptId" = r.id
-            AND l.status = 'SENT'
+            AND l.status = 'SENT' AND l."createdAt" > ${liveAckCutoff}
         )
       ORDER BY r."receivedAt", r.id
       LIMIT ${batchSize}

@@ -10,7 +10,7 @@ import { defaultWorkspace } from "../../lib/workspaces";
 const broker = vi.hoisted(() => ({ publish: vi.fn(), live: vi.fn() }));
 vi.mock("../../lib/queue/client", () => ({ publish: broker.publish, publishInboundLive: broker.live }));
 import { db } from "../../lib/db";
-import { encryptSecret } from "../../lib/secrets";
+import { encryptSecret, hashApiKey } from "../../lib/secrets";
 import { POST } from "../../app/api/inbound/[ingestionToken]/route";
 import { authorizeLiveSource } from "../../lib/live-auth";
 import { createLiveRelay } from "../../worker/live-relay";
@@ -48,12 +48,15 @@ afterEach(async () => {
 });
 afterAll(async () => db.$disconnect());
 it("rejects missing and invalid provider signatures without enqueueing", async () => {
-  expect((await POST(incoming(), { params: Promise.resolve({ ingestionToken: token }) })).status).toBe(401);
-  expect((await POST(incoming(payload, sign("other")), { params: Promise.resolve({ ingestionToken: token }) })).status).toBe(401);
+  const context = { params: Promise.resolve({ ingestionToken: token }) };
+  const responses = await Promise.all([POST(incoming(), context), POST(incoming(payload, sign("other")), context)]);
+  expect(responses.map(response => response.status)).toEqual([401, 401]);
   expect(await db.event.count({ where: { webhookSourceId: sourceId } })).toBe(0);
   expect(broker.publish).not.toHaveBeenCalled();
   expect((await db.webhookSource.findUniqueOrThrow({ where: { id: sourceId } })).lastVerificationFailure).toBeTruthy();
-  expect(await db.inboundReceipt.count({ where: { sourceId, verified: false } })).toBe(2);
+  const rejected = await db.inboundReceipt.findMany({ where: { sourceId, verified: false } });
+  expect(rejected).toHaveLength(1);
+  expect(rejected[0]).toMatchObject({ rawBody: "", rawHeaders: {}, searchText: null, failureReason: expect.any(String) });
 });
 it("routes a verified provider event into the existing outbox once, even with an open circuit", async () => {
   const context = { params: Promise.resolve({ ingestionToken: token }) };
@@ -112,7 +115,9 @@ it("authenticates a source within the key's application and rejects another appl
   await db.webhookSource.delete({ where: { id: otherSource.id } });
   await db.application.delete({ where: { id: other.id } });
 });
-it("sends the exact captured headers and body through a subscribed live socket", async () => {
+it("sends the exact captured request and stops forwarding after scoped key revocation", async () => {
+  const key = randomUUID();
+  const scoped = await db.applicationKey.create({ data: { applicationId: appId, name: "Live test", hash: hashApiKey(key), scope: "READ_ONLY" } });
   const server = createServer();
   const relay = createLiveRelay(server);
   let consumer: ((message: ConsumeMessage | null) => void) | undefined;
@@ -128,7 +133,7 @@ it("sends the exact captured headers and body through a subscribed live socket",
   try {
     await new Promise<void>((resolve, reject) => { socket.once("open", resolve); socket.once("error", reject); });
     const subscribed = new Promise<{ type: string; sourceId: string }>(resolve => socket.once("message", data => resolve(JSON.parse(data.toString()))));
-    socket.send(JSON.stringify({ type: "subscribe", apiKey, source: sourceId }));
+    socket.send(JSON.stringify({ type: "subscribe", apiKey: key, source: sourceId }));
     expect((await subscribed).sourceId).toBe(sourceId);
     const body = JSON.stringify({ action: "opened", issue: { id: 43 } });
     const response = await POST(incoming(body, sign(body)), { params: Promise.resolve({ ingestionToken: token }) });
@@ -140,6 +145,11 @@ it("sends the exact captured headers and body through a subscribed live socket",
     expect(received.headers["x-hub-signature-256"]).toBe(sign(body));
     socket.send(JSON.stringify({ type: "ack", attemptId: received.attemptId, status: 204, durationMs: 12 }));
     await vi.waitFor(async () => expect((await db.inboundLiveAttempt.findUniqueOrThrow({ where: { id: received.attemptId } })).status).toBe("SUCCESS"));
+    await db.applicationKey.delete({ where: { id: scoped.id } });
+    const closed = new Promise<number>(resolve => socket.once("close", resolve));
+    consumer?.({ content: Buffer.from(JSON.stringify({ receiptId: receipt.id })) } as ConsumeMessage);
+    expect(await closed).toBe(4401);
+    expect(await db.inboundLiveAttempt.count({ where: { receiptId: receipt.id } })).toBe(1);
   } finally {
     socket.close(); relay.close();
     await new Promise<void>(resolve => server.close(() => resolve()));

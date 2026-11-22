@@ -9,6 +9,7 @@ import { consumeAuthToken, issueAuthEmail, tokenHash } from "../../lib/auth-emai
 import { oauthAdapter } from "../../lib/oauth-adapter";
 import { authOptions } from "../../lib/auth";
 import { POST as forgot } from "../../app/api/account/forgot-password/route";
+import { POST as reset } from "../../app/api/account/reset-password/route";
 import { POST as signup } from "../../app/api/signup/route";
 let user: { id: string; email: string };
 const request = (email: string) => new Request("http://localhost/api/account/forgot-password", { method: "POST", headers: { "Content-Type": "application/json", "x-vercel-forwarded-for": "192.0.2.200" }, body: JSON.stringify({ email }) });
@@ -61,4 +62,32 @@ it.each(["github", "azure-ad"])("persists %s identity without storing provider a
 it("new signup sends verification and duplicate signup never replaces the password", async () => {
   const signupEmail = `${randomUUID()}@signup.test`; const call = () => signup(new Request("http://localhost/api/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: signupEmail, password: "signup-password" }) }));
   try { expect((await call()).status).toBe(201); const first = await db.user.findUniqueOrThrow({ where: { email: signupEmail } }); expect(first.emailVerified).toBeNull(); expect(email).toHaveBeenCalled(); expect((await call()).status).toBe(201); expect((await db.user.findUniqueOrThrow({ where: { email: signupEmail } })).hashedPassword).toBe(first.hashedPassword); } finally { await db.user.deleteMany({ where: { email: signupEmail } }); }
+});
+
+it("applies bcrypt's 72-byte boundary to signup and reset while preserving existing logins", async () => {
+  const boundary = "é".repeat(36);
+  const legacyPassword = boundary + "x";
+  const signupEmail = `${randomUUID()}@signup.test`;
+  const signupRequest = new Request("http://localhost/api/signup", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: signupEmail, password: legacyPassword }),
+  });
+  expect((await signup(signupRequest)).status).toBe(400);
+  expect(await db.user.findUnique({ where: { email: signupEmail } })).toBeNull();
+
+  await db.user.update({ where: { id: user.id }, data: { emailVerified: new Date(), hashedPassword: await hash(legacyPassword, 4) } });
+  const provider = authOptions.providers.find(p => p.id === "credentials")!;
+  const authorize = (provider as unknown as { options: { authorize: (c: { email: string; password: string }) => Promise<unknown> } }).options.authorize;
+  expect(await authorize({ email: user.email, password: legacyPassword })).toMatchObject({ id: user.id });
+
+  await issueAuthEmail(user.email, "RESET");
+  const token = sentToken();
+  const resetRequest = (password: string) => new Request("http://localhost/api/account/reset-password", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  expect((await reset(resetRequest(legacyPassword))).status).toBe(400);
+  expect((await reset(resetRequest(boundary))).status).toBe(200);
+  const updated = await db.user.findUniqueOrThrow({ where: { id: user.id } });
+  expect(await compare(boundary, updated.hashedPassword!)).toBe(true);
 });
