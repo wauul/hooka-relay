@@ -1,9 +1,11 @@
 import { reportUnexpected } from "./sentry-reporting";
 import { createHash, randomBytes } from "node:crypto";
-import { hash } from "bcryptjs";
+import { hash, truncates } from "bcryptjs";
+import { z } from "zod";
 import { db } from "./db";
 import { InputLimitError } from "./input-limits";
 import { sendTransactionalEmail } from "./transactional-email";
+export const newPassword = z.string().min(12).refine(password => !truncates(password));
 export const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 export const safeAuthCallback = (path?: string) => path?.startsWith("/invites/accept?token=") && !/[\r\n\\]/.test(path) ? path : "/dashboard";
 export async function issueAuthEmail(email: string, purpose: "VERIFY" | "RESET", callbackPath?: string) {

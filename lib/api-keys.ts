@@ -24,21 +24,28 @@ export function keyIsValid(
       app.previousApiKeyExpiresAt > now)
   );
 }
-export async function applicationForKey(key: string, permission: "INGEST" | "READ" | "MANAGE" = "INGEST") {
-  if (key.length > 256) return Promise.resolve(null);
+type KeyPermission = "INGEST" | "READ" | "MANAGE";
+
+export async function applicationForKey(key: string, permission: KeyPermission = "INGEST") {
+  if (key.length > 256) return null;
+  return applicationForKeyHash(hashApiKey(key), permission, true);
+}
+
+export async function applicationForKeyHash(hash: string, permission: KeyPermission, recordUse: boolean) {
+  const now = new Date();
   const legacy = await db.application.findFirst({
     where: {
       OR: [
-        { currentApiKey: hashApiKey(key) },
-        { previousApiKey: hashApiKey(key), previousApiKeyExpiresAt: { gt: new Date() } },
+        { currentApiKey: hash },
+        { previousApiKey: hash, previousApiKeyExpiresAt: { gt: now } },
       ],
     },
   }); 
   if (legacy) return legacy; // Existing unscoped keys retain all capabilities.
-  const scoped = await db.applicationKey.findFirst({ where: { hash: hashApiKey(key), OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, include: { application: true } });
+  const scoped = await db.applicationKey.findFirst({ where: { hash, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, include: { application: true } });
   if (!scoped) return null;
   if (permission === "MANAGE" || (permission === "READ" ? scoped.scope !== "READ_ONLY" : scoped.scope !== "INGEST_ONLY")) throw new WorkspaceError(403, "API key scope does not permit this action");
-  await db.applicationKey.update({ where: { id: scoped.id }, data: { lastUsedAt: new Date() } });
+  if (recordUse) await db.applicationKey.update({ where: { id: scoped.id }, data: { lastUsedAt: now } });
   return scoped.application;
 }
 export async function rotateKey(id: string, userId: string) {

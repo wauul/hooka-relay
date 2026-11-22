@@ -1,5 +1,5 @@
 import { boundedJson } from "@/lib/input-limits";
-import { issueAuthEmail } from "@/lib/auth-email";
+import { issueAuthEmail, newPassword } from "@/lib/auth-email";
 import { ipRateLimit } from "@/lib/ip-rate-limit";
 import { userDisplayName } from "@/lib/display-name";
 import { hash } from "bcryptjs";
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       .object({
         email: z.string().email().max(254),
         inviteToken: z.string().max(128).optional(),
-        password: z.string().min(12).max(72),
+        password: newPassword,
       })
       .parse(await boundedJson(req));
     if (data.inviteToken) {

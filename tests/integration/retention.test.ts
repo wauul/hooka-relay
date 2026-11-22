@@ -11,7 +11,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
   const now = new Date("2026-09-24T12:00:00Z");
   const old = new Date("2026-08-01T00:00:00Z");
   const recent = new Date("2026-09-23T00:00:00Z");
-  const activeLive = new Date("2026-09-24T11:30:00Z");
+  const activeLive = new Date("2026-09-24T11:58:00Z");
   const user = await db.user.create({ data: { email: `${randomUUID()}@example.com` } });
   const workspaceId = await defaultWorkspace(user.id);
   try {
@@ -35,10 +35,15 @@ it("purges old terminal history and raw receipts without touching unfinished wor
     const rejected = await db.inboundReceipt.create({ data: { sourceId: source.id, provider: "STRIPE", rawBody: "rejected body", rawHeaders: {}, verified: false, receivedAt: old } });
     const live = await db.inboundReceipt.create({ data: { sourceId: source.id, provider: "STRIPE", rawBody: "in flight", rawHeaders: {}, verified: false, receivedAt: old } });
     const liveAttempt = await db.inboundLiveAttempt.create({ data: { receiptId: live.id, sessionId: "test-session", status: "SENT", createdAt: activeLive } });
+    const abandonedEvent = await makeEvent(app.id, old);
+    const abandoned = await db.inboundReceipt.create({ data: { sourceId: source.id, eventId: abandonedEvent.id, provider: "STRIPE", rawBody: "abandoned", rawHeaders: {}, verified: true, receivedAt: old } });
+    await db.inboundLiveAttempt.create({ data: { receiptId: abandoned.id, sessionId: "abandoned-session", status: "SENT", createdAt: old } });
     const recovery = await db.recoveryJob.create({ data: { applicationId: heldApp.id, since: old, status: "PENDING" } });
 
     const first = await pruneEventHistory(now);
-    expect(first.events).toBe(1);
+    expect(first.events).toBe(2);
+    expect(await db.event.findUnique({ where: { id: abandonedEvent.id } })).toBeNull();
+    expect(await db.inboundReceipt.findUnique({ where: { id: abandoned.id } })).toBeNull();
     expect(first.receipts).toBeGreaterThanOrEqual(1);
     expect(await db.event.findUnique({ where: { id: terminal.id } })).toBeNull();
     expect(await db.deliveryAttempt.count({ where: { eventId: terminal.id } })).toBe(0);
@@ -52,7 +57,7 @@ it("purges old terminal history and raw receipts without touching unfinished wor
     await db.delivery.update({ where: { id: pendingDelivery.id }, data: { status: "DELIVERED" } });
     await db.routingExecution.update({ where: { eventId_generation: { eventId: routed.id, generation: 0 } }, data: { status: "SUCCESS" } });
     await db.recoveryJob.update({ where: { id: recovery.id }, data: { status: "COMPLETE" } });
-    await db.inboundLiveAttempt.update({ where: { id: liveAttempt.id }, data: { status: "DELIVERED" } });
+    await db.inboundLiveAttempt.update({ where: { id: liveAttempt.id }, data: { createdAt: old } });
     const second = await pruneEventHistory(now);
     expect(second).toMatchObject({ events: 3, receipts: 1 });
     expect(await db.event.findUnique({ where: { id: current.id } })).not.toBeNull();

@@ -45,7 +45,6 @@ export async function POST(req: Request, { params }: Context) {
     const contentType = req.headers.get("content-type") || "";
     if (!contentType.startsWith("application/json") && !contentType.startsWith("application/x-www-form-urlencoded")) return Response.json({ error: "Webhook rejected" }, { status: 415 });
     const rawBody = await boundedRaw(req);
-    const rawHeaders = forwardableProviderHeaders(Object.fromEntries(req.headers.entries()));
     const publicUrl = new URL(req.url);
     publicUrl.protocol = new URL(process.env.NEXTAUTH_URL || req.url).protocol;
     publicUrl.host = new URL(process.env.NEXTAUTH_URL || req.url).host;
@@ -53,10 +52,18 @@ export async function POST(req: Request, { params }: Context) {
     const adapter = providers[source.provider];
     const manualConfig = source.provider === "CUSTOM" && source.manualConfig ? manualVerifierSchema.parse(source.manualConfig) : undefined;
     if (!adapter.verifySignature({ rawBody, headers: req.headers, secret, url: publicUrl.toString(), manualConfig })) {
-      await db.webhookSource.update({ where: { id: source.id }, data: { lastVerificationFailure: "Provider signature missing or invalid", lastVerificationFailureAt: new Date() } });
-      // Public responses stay generic; only authenticated source views expose
-      // this reason and the captured request for debugging.
-      await db.inboundReceipt.create({ data: { sourceId: source.id, provider: source.provider, rawBody: rawBody.toString("base64"), searchText: rawBody.toString("utf8"), rawHeaders, verified: false, failureReason: "Provider signature missing or invalid" } });
+      const failureReason = "Provider signature missing or invalid";
+      const now = new Date();
+      await db.$transaction(async tx => {
+        // Sample unsigned failures at most once a minute while the source is failing.
+        const sample = await tx.webhookSource.updateMany({
+          where: { id: source.id, OR: [{ lastVerificationFailureAt: null }, { lastVerificationFailureAt: { lte: new Date(now.getTime() - 60_000) } }] },
+          data: { lastVerificationFailure: failureReason, lastVerificationFailureAt: now },
+        });
+        if (sample.count) await tx.inboundReceipt.create({
+          data: { sourceId: source.id, provider: source.provider, rawBody: "", rawHeaders: {}, verified: false, failureReason },
+        });
+      });
       return Response.json({ error: "Webhook rejected" }, { status: 401 });
     }
     let payload: unknown;
@@ -83,6 +90,7 @@ export async function POST(req: Request, { params }: Context) {
       idempotencyKey: `inbound:${source.id}:${digest}`,
       payload: { provider: source.provider, sourceId: source.id, providerEventId: providerId, data: payload },
     }, { endpointId: source.destinationUrl && source.endpointId ? source.endpointId : undefined, webhookSourceId: source.id });
+    const rawHeaders = forwardableProviderHeaders(Object.fromEntries(req.headers.entries()));
     const receipt = await db.inboundReceipt.upsert({ where: { eventId: event.id }, create: {
       sourceId: source.id, eventId: event.id, provider: source.provider, eventType: type,
       rawBody: rawBody.toString("base64"), searchText: rawBody.toString("utf8"), rawHeaders, verified: true,
